@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+.DS_Store
+.env
+*.apk.idsig
+TestResults/
+.idea/
+.vs/
+artifacts/
