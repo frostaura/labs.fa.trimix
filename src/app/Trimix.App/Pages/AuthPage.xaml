@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Auth (PRD Flow A step 2): PASSKEY-ONLY — create a passkey, sign in with a passkey, or continue as
+     guest. No email/password, no OAuth. Guest keeps dives local; a passkey account triggers entitlement
+     refresh + once-per-install auto-restore + dive sync (Core). Passkeys require the app to be bound to a
+     real HTTPS relying-party domain (iOS associated-domains + AASA; Android Digital Asset Links), so the
+     system sheet only appears on a properly-associated device build — not a simulator against localhost. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.AuthPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:AuthViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Title="Sign in">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Ghost mint back (CloseCommand) -->
+        <Button
+            Grid.Row="0"
+            Style="{StaticResource BackButton}"
+            Text="←"
+            Command="{Binding CloseCommand}"
+            Margin="10,8,0,0"
+            SemanticProperties.Description="Back"
+            SemanticProperties.Hint="Cancels sign-in and returns to the previous screen" />
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="24,12,24,0" Spacing="{StaticResource SectionSpacing}">
+
+                <Label
+                    Style="{StaticResource MonoLabel}"
+                    Text="YOUR LOGBOOK"
+                    Margin="0,4,0,0" />
+                <Label
+                    Style="{StaticResource Title24}"
+                    Text="Create your&#10;logbook"
+                    SemanticProperties.HeadingLevel="Level1" />
+                <Label
+                    Style="{StaticResource Body15}"
+                    TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                    Text="Your logbook is protected by a passkey — Face ID, Touch ID or your device lock. No passwords to remember, and it syncs across your devices." />
+
+                <ActivityIndicator
+                    IsRunning="{Binding IsBusy}"
+                    IsVisible="{Binding IsBusy}"
+                    HorizontalOptions="Center"
+                    Margin="0,8,0,0"
+                    SemanticProperties.Description="Signing in" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- CTAs pinned near the bottom -->
+        <VerticalStackLayout Grid.Row="2" Padding="24,8,24,24" Spacing="{StaticResource CardSpacing}">
+
+            <!-- Passkey path (hidden on platforms without an authenticator). -->
+            <VerticalStackLayout Spacing="{StaticResource CardSpacing}" IsVisible="{Binding IsPasskeyAvailable}">
+                <Button
+                    Style="{StaticResource PrimaryButton}"
+                    Text="Create a passkey"
+                    Command="{Binding CreatePasskeyCommand}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                    SemanticProperties.Description="Create a passkey"
+                    SemanticProperties.Hint="Creates a new logbook secured by a passkey on this device" />
+                <Button
+                    Style="{StaticResource SecondaryButton}"
+                    Text="Sign in with a passkey"
+                    Command="{Binding SignInWithPasskeyCommand}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                    SemanticProperties.Description="Sign in with a passkey"
+                    SemanticProperties.Hint="Signs in to an existing logbook using a passkey" />
+            </VerticalStackLayout>
+
+            <!-- Fallback note when no authenticator is available. -->
+            <Label
+                Style="{StaticResource Caption13}"
+                HorizontalTextAlignment="Center"
+                IsVisible="{Binding IsPasskeyAvailable, Converter={StaticResource InverseBool}}"
+                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                Text="Passkeys aren't available on this device."
+                SemanticProperties.Description="Passkeys aren't available on this device." />
+
+            <Button
+                Style="{StaticResource GhostButton}"
+                Text="Continue as guest"
+                HorizontalOptions="Center"
+                Command="{Binding ContinueAsGuestCommand}"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                SemanticProperties.Description="Continue as guest"
+                SemanticProperties.Hint="Skips sign-in; dives stay on this device until you create a passkey account" />
+            <Label
+                Style="{StaticResource Caption13}"
+                HorizontalTextAlignment="Center"
+                TextColor="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}"
+                Text="Guest dives stay on this device and upload automatically once you create a passkey account." />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

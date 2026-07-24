@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Trimix app icon MONOCHROME layer (Android 13+ themed icons): the sonar-return blip + three
+     concentric ping arcs as a single-color alpha mask. Android ignores the fill color and tints the
+     shape with the active monochrome theme color, so this is drawn in one flat #FFFFFF — a clean,
+     fully-opaque coverage mask (no pre-blended dim arcs, unlike the color foreground). Geometry and
+     the adaptive safe area match appiconfg.svg exactly. Resizetizer-safe: paths/circles only. -->
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="168" cy="288" r="14" fill="#FFFFFF" />
+    <path d="M 214.4 300.4 A 48 48 0 0 0 155.6 241.6" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
+    <path d="M 253.0 310.8 A 88 88 0 0 0 145.2 203.0" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" />
+    <path d="M 291.6 321.1 A 128 128 0 0 0 134.9 164.4" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" />
+</svg>

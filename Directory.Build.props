@@ -1,0 +1,24 @@
+<Project>
+
+  <!--
+    Solution-wide defaults (docs/architecture/overview.md — Solution layout).
+    The solution-wide target framework is net10.0; each project declares its own TFM
+    (the MAUI app multi-targets, so a global <TargetFramework> here would break it).
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Trimix.App is exempt: MAUI/XAML tooling emits warnings outside our control. -->
+    <TreatWarningsAsErrors Condition="'$(MSBuildProjectName)' == 'Trimix.App'">false</TreatWarningsAsErrors>
+    <Authors>FrostAura</Authors>
+    <Product>Trimix (working name)</Product>
+    <!-- Audit direct package references only. Transitive advisories (e.g. GHSA-2m69-gcr7-jv3q via
+         sqlite-net-pcl 1.9.x → SQLitePCLRaw.lib.e_sqlite3 2.1.2 and EF Core Sqlite 10 → 2.1.11)
+         otherwise fail restore under TreatWarningsAsErrors while their fixed versions are pinned
+         upstream. Direct references still fail on known vulnerabilities. -->
+    <NuGetAuditMode>direct</NuGetAuditMode>
+  </PropertyGroup>
+
+</Project>

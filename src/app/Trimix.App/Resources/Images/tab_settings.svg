@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Settings tab: horizontal sliders (Lucide-style, 1.75px stroke, rounded caps).
+     Base color = TextPrimary #EAF4FB; the Shell tab bar re-tints selected/unselected states. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+     stroke="#EAF4FB" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 6h10M17.5 6H21" />
+  <circle cx="15" cy="6" r="2.25" />
+  <path d="M3 12h4M11.5 12H21" />
+  <circle cx="9" cy="12" r="2.25" />
+  <path d="M3 18h12M19.5 18H21" />
+  <circle cx="17" cy="18" r="2.25" />
+</svg>

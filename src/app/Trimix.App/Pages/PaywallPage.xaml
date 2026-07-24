@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Paywall — THE purchase moment (PRD Layer 3; mockup S8/S9). Two visual states in one page toggled
+     by PurchaseSucceeded: the PURCHASE state (S8 — warn cap badge, hero, two one-off SKU cards, pinned
+     "Unlock" pill, no-subscription footer + restore) and the UNLOCKED state (S9 — mint check disc,
+     "You're Pro.", entitlement badge, "Go to logbook"). Exactly two one-off SKUs (Lifetime = mint
+     BEST VALUE accent), restore link, ONE dismiss, price always visible before the store sheet.
+     No dark patterns; never auto-renew. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.PaywallPage"
+    x:Name="PaywallRoot"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    xmlns:abs="clr-namespace:Trimix.Core.Abstractions;assembly=Trimix.Core"
+    xmlns:pages="clr-namespace:Trimix.App.Pages"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+    x:DataType="vm:PaywallViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Shell.NavBarIsVisible="False"
+    Title="Unlock">
+
+    <ContentPage.Resources>
+        <!-- Pro SKU (S8): GlassCard — title + subtitle left, white price right. The whole card is the
+             purchase target so the mockup's clean card layout keeps the SkuId-parameterised command. -->
+        <DataTemplate x:Key="ProSkuTemplate" x:DataType="abs:StoreProduct">
+            <Border
+                Style="{StaticResource GlassCard}"
+                SemanticProperties.Description="{Binding DisplayName, StringFormat='Buy {0}, one-off'}"
+                SemanticProperties.Hint="Opens the store purchase sheet for this one-off unlock">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer
+                        Command="{Binding PurchaseCommand, Source={RelativeSource AncestorType={x:Type vm:PaywallViewModel}}, x:DataType=vm:PaywallViewModel}"
+                        CommandParameter="{Binding SkuId}" />
+                </Border.GestureRecognizers>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}" VerticalOptions="Center">
+                        <Label Style="{StaticResource Heading18}" Text="{Binding DisplayName}" SemanticProperties.HeadingLevel="Level2" />
+                        <Label Style="{StaticResource Caption13}" Text="Unlimited import · full logbook" />
+                    </VerticalStackLayout>
+                    <Label
+                        Grid.Column="1"
+                        Style="{StaticResource StatNumeral}"
+                        StyleClass="tnum"
+                        Text="{Binding FormattedPrice}"
+                        VerticalOptions="Center"
+                        SemanticProperties.Description="{Binding FormattedPrice, StringFormat='Price {0}, one-off'}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- Lifetime SKU (S8): GlassCardGold (1.5px mint border) — BEST VALUE fill pill, title +
+             subtitle, mint price. Tap = purchase this SkuId. -->
+        <DataTemplate x:Key="LifetimeSkuTemplate" x:DataType="abs:StoreProduct">
+            <Border
+                Style="{StaticResource GlassCardGold}"
+                SemanticProperties.Description="{Binding DisplayName, StringFormat='Buy {0}, one-off, best value'}"
+                SemanticProperties.Hint="Opens the store purchase sheet for this one-off unlock">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer
+                        Command="{Binding PurchaseCommand, Source={RelativeSource AncestorType={x:Type vm:PaywallViewModel}}, x:DataType=vm:PaywallViewModel}"
+                        CommandParameter="{Binding SkuId}" />
+                </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Border Style="{StaticResource BadgeMintFill}" HorizontalOptions="Start">
+                        <Label Style="{StaticResource BadgeTextOnMint}" Text="BEST VALUE" />
+                    </Border>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}" VerticalOptions="Center">
+                            <Label Style="{StaticResource Heading18}" Text="{Binding DisplayName}" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Style="{StaticResource Caption13}" Text="+ offline packs · all future perks" />
+                        </VerticalStackLayout>
+                        <Label
+                            Grid.Column="1"
+                            Style="{StaticResource StatNumeralMint}"
+                            StyleClass="tnum"
+                            Text="{Binding FormattedPrice}"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="{Binding FormattedPrice, StringFormat='Price {0}, one-off'}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <pages:PaywallSkuTemplateSelector
+            x:Key="SkuTemplateSelector"
+            ProTemplate="{StaticResource ProSkuTemplate}"
+            LifetimeTemplate="{StaticResource LifetimeSkuTemplate}" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- The single dismiss — disabled during an in-flight purchase so the paywall cannot be popped
+             mid-purchase (the trailing GoBack would then pop the wrong page). Ghost mint glyph. -->
+        <Button
+            Grid.Row="0"
+            Text="✕"
+            Clicked="OnDismissClicked"
+            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+            HorizontalOptions="End"
+            Margin="12,12,12,0"
+            WidthRequest="44"
+            HeightRequest="44"
+            MinimumWidthRequest="44"
+            MinimumHeightRequest="44"
+            Padding="0"
+            CornerRadius="22"
+            BackgroundColor="Transparent"
+            TextColor="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
+            FontSize="18"
+            SemanticProperties.Description="Dismiss"
+            SemanticProperties.Hint="Closes the purchase options without buying" />
+
+        <!-- ===================== PURCHASE STATE (S8) ===================== -->
+        <Grid
+            Grid.Row="1"
+            RowDefinitions="*,Auto"
+            IsVisible="{Binding PurchaseSucceeded, Converter={StaticResource InverseBool}}">
+
+            <ScrollView Grid.Row="0">
+                <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+                    <Border
+                        Stroke="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 6"
+                        Padding="8,3"
+                        HorizontalOptions="Start">
+                        <Label Style="{StaticResource BadgeTextWarn}" Text="⚠ FREE LIMIT REACHED · 5/5 DIVES" />
+                    </Border>
+
+                    <Label
+                        Style="{StaticResource Display32}"
+                        Text="Unlock unlimited import."
+                        SemanticProperties.HeadingLevel="Level1" />
+
+                    <Label
+                        Style="{StaticResource Body15}"
+                        TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                        Text="3 more dives are waiting on your Perdix. Free keeps your last 5." />
+
+                    <VerticalStackLayout
+                        Spacing="{StaticResource CardSpacing}"
+                        Margin="0,6,0,0"
+                        BindableLayout.ItemsSource="{Binding Products}"
+                        BindableLayout.ItemTemplateSelector="{StaticResource SkuTemplateSelector}" />
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- Pinned CTA + no-subscription footer + restore. -->
+            <VerticalStackLayout Grid.Row="1" Padding="24,8,24,24" Spacing="14">
+                <Button
+                    Text="Unlock — one-time"
+                    Command="{Binding PurchaseCommand}"
+                    CommandParameter="{Binding Products[0].SkuId}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                    SemanticProperties.Description="Unlock, one-time purchase"
+                    SemanticProperties.Hint="Opens the store purchase sheet for the one-off unlock" />
+
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HorizontalOptions="Center" SemanticProperties.Description="Purchase in progress" />
+
+                <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
+                    <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="NO SUBSCRIPTIONS" VerticalOptions="Center" />
+                    <Button
+                        Grid.Column="2"
+                        Style="{StaticResource GhostButton}"
+                        Text="Restore purchases"
+                        TextColor="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
+                        Command="{Binding RestoreCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                        SemanticProperties.Description="Restore purchases"
+                        SemanticProperties.Hint="Recovers a previous purchase made with this account" />
+                </Grid>
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- ===================== UNLOCKED STATE (S9) ===================== -->
+        <Grid
+            Grid.Row="1"
+            RowDefinitions="*,Auto"
+            IsVisible="{Binding PurchaseSucceeded}">
+
+            <VerticalStackLayout Grid.Row="0" Spacing="{StaticResource SectionSpacing}" Padding="24,0" VerticalOptions="Center">
+                <Grid WidthRequest="96" HeightRequest="96" HorizontalOptions="Center">
+                    <shapes:Ellipse
+                        WidthRequest="96"
+                        HeightRequest="96"
+                        Fill="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center" />
+                    <Label
+                        Style="{StaticResource StatNumeralDisplay}"
+                        Text="✓"
+                        TextColor="{StaticResource Abyss}"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center" />
+                </Grid>
+
+                <Label
+                    Style="{StaticResource Display32}"
+                    Text="You're Pro."
+                    HorizontalTextAlignment="Center"
+                    HorizontalOptions="Center"
+                    SemanticProperties.HeadingLevel="Level1" />
+
+                <Label
+                    Style="{StaticResource Body15}"
+                    TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                    HorizontalTextAlignment="Center"
+                    Text="All dives imported and multi-vendor unlock is active — bound to your account, restorable forever." />
+
+                <Border Style="{StaticResource BadgeMint}" HorizontalOptions="Center">
+                    <Label Style="{StaticResource BadgeTextMint}" Text="ENTITLEMENT · PRO · ACTIVE" />
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Grid.Row="1" Padding="24,8,24,24">
+                <Button
+                    Text="Go to logbook"
+                    Clicked="OnDismissClicked"
+                    SemanticProperties.Description="Go to logbook"
+                    SemanticProperties.Hint="Closes the purchase screen and returns to your logbook" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

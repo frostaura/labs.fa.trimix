@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Site detail (PRD Flow C; design doc): depth range, type, hazards as Warn chips (icon + text,
+     never color alone), marine life, access notes, approved community notes, and "Suggest
+     correction" with the public-after-review moderation disclosure. Fires site_viewed (Core VM);
+     for free users the correction button is a paywall_shown trigger=site_contribute moment. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.SiteDetailPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    xmlns:dtos="clr-namespace:Trimix.Contracts.Dtos;assembly=Trimix.Contracts"
+    xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+    x:DataType="vm:SiteDetailViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Title="Site">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Ghost mint back affordance → CloseCommand (unchanged). -->
+        <Button
+            Grid.Row="0"
+            Text="←"
+            Command="{Binding CloseCommand}"
+            HorizontalOptions="Start"
+            WidthRequest="52"
+            HeightRequest="52"
+            Padding="0"
+            Margin="10,8,0,0"
+            BackgroundColor="Transparent"
+            BorderWidth="0"
+            FontSize="24"
+            TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
+            SemanticProperties.Description="Back"
+            SemanticProperties.Hint="Returns to the previous screen" />
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+
+                <!-- Atlas-match eyebrow: mint dot + mono label. -->
+                <HorizontalStackLayout Spacing="8">
+                    <shapes:Ellipse
+                        WidthRequest="9"
+                        HeightRequest="9"
+                        Fill="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
+                        VerticalOptions="Center" />
+                    <Label Style="{StaticResource MonoLabelMint}" Text="MATCHED FROM ATLAS · 98%" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+
+                <!-- Hero photo card: SurfaceRaised placeholder + site name + locality. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="16">
+                        <Border
+                            Background="{AppThemeBinding Light={StaticResource LightSurfaceRaised}, Dark={StaticResource SurfaceRaised}}"
+                            Stroke="Transparent"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 14"
+                            HeightRequest="168">
+                            <Label
+                                Style="{StaticResource MonoLabel}"
+                                Text="WRECK PHOTO"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Border>
+                        <VerticalStackLayout Spacing="4">
+                            <Label
+                                Style="{StaticResource Heading18}"
+                                Text="{Binding Site.Name}"
+                                SemanticProperties.HeadingLevel="Level1" />
+                            <Label
+                                Style="{StaticResource Caption13}"
+                                Text="{Binding Site.Type}"
+                                IsVisible="{Binding Site.Type, Converter={StaticResource StringNotEmpty}}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Condition + hazard chips: short tokens ONLY (depth range + hazards). Uniform
+                     0,0,8,8 margins so wrap rows and the row-to-row gap stay even (outer Spacing=0,
+                     the chips' bottom margin provides the rhythm). The access-notes SENTENCE is not a
+                     pill — it renders as its own text block below. -->
+                <VerticalStackLayout Spacing="0">
+                    <FlexLayout Wrap="Wrap">
+                        <Border Style="{StaticResource Chip}" Margin="0,0,8,8">
+                            <Label
+                                Style="{StaticResource ChipLabel}"
+                                Text="{Binding Site, Converter={StaticResource SiteDepthRange}}"
+                                SemanticProperties.Description="{Binding Site, Converter={StaticResource SiteDepthRange}, StringFormat='Depth range {0}'}" />
+                        </Border>
+                    </FlexLayout>
+                    <FlexLayout
+                        Wrap="Wrap"
+                        BindableLayout.ItemsSource="{Binding Site.Hazards}"
+                        IsVisible="{Binding Site.Hazards.Count, Converter={StaticResource IntGreaterThanZero}}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border Style="{StaticResource ChipWarn}" Margin="0,0,8,8" SemanticProperties.Description="{Binding ., StringFormat='Hazard: {0}'}">
+                                    <Label Style="{StaticResource ChipLabelWarn}" Text="{Binding ., StringFormat='⚠ {0}'}" />
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                </VerticalStackLayout>
+
+                <!-- Access notes: a descriptive sentence rendered as text (mono eyebrow + body), NOT a pill. -->
+                <VerticalStackLayout
+                    Spacing="{StaticResource TightSpacing}"
+                    IsVisible="{Binding Site.AccessNotes, Converter={StaticResource StringNotEmpty}}">
+                    <Label Style="{StaticResource MonoLabel}" Text="ACCESS" />
+                    <Label
+                        Style="{StaticResource Body15}"
+                        Text="{Binding Site.AccessNotes}"
+                        TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                </VerticalStackLayout>
+
+                <!-- Marine life: mono eyebrow + row of SurfaceRaised thumbnail squares. -->
+                <VerticalStackLayout Spacing="12" IsVisible="{Binding Site.MarineLife.Count, Converter={StaticResource IntGreaterThanZero}}">
+                    <Label Style="{StaticResource MonoLabel}" Text="MARINE LIFE" />
+                    <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Site.MarineLife}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border
+                                    Background="{AppThemeBinding Light={StaticResource LightSurfaceRaised}, Dark={StaticResource SurfaceRaised}}"
+                                    Stroke="{AppThemeBinding Light={StaticResource LightGlassStroke}, Dark={StaticResource GlassStroke}}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 14"
+                                    WidthRequest="92"
+                                    HeightRequest="92"
+                                    Margin="0,0,10,10"
+                                    Padding="8"
+                                    SemanticProperties.Description="{Binding ., StringFormat='Marine life: {0}'}">
+                                    <Label
+                                        Style="{StaticResource Caption13}"
+                                        Text="{Binding .}"
+                                        HorizontalTextAlignment="Center"
+                                        VerticalOptions="End" />
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                </VerticalStackLayout>
+
+                <!-- Approved community notes as italic diver quotes. -->
+                <VerticalStackLayout Spacing="16" IsVisible="{Binding Site.CommunityNotes.Count, Converter={StaticResource IntGreaterThanZero}}" BindableLayout.ItemsSource="{Binding Site.CommunityNotes}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="dtos:CommunityNoteDto">
+                            <VerticalStackLayout Spacing="6">
+                                <Label Style="{StaticResource Body15}" FontAttributes="Italic" Text="{Binding Note, StringFormat='“{0}”'}" />
+                                <Label Style="{StaticResource Caption13}" Text="{Binding ResolvedAtUtc, Converter={StaticResource DateFormat}, StringFormat='— approved {0}'}" />
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+
+                <!-- Primary pill: confirm/contribute (ContributeCommand). Free users hit the paywall. -->
+                <Button
+                    Style="{StaticResource PrimaryButton}"
+                    Text="Confirm site"
+                    Command="{Binding ContributeCommand}"
+                    Margin="0,6,0,0"
+                    SemanticProperties.Description="Confirm site"
+                    SemanticProperties.Hint="Contributes your confirmation; suggestions go through moderation before becoming public" />
+
+                <!-- Keep the explicit correction/contribute path + moderation disclosure. -->
+                <Button
+                    Style="{StaticResource GhostButton}"
+                    Text="Suggest a correction"
+                    Command="{Binding ContributeCommand}"
+                    SemanticProperties.Description="Suggest a correction"
+                    SemanticProperties.Hint="Opens the contribution form; suggestions go through moderation before becoming public" />
+                <Label
+                    Style="{StaticResource Caption13}"
+                    HorizontalTextAlignment="Center"
+                    Text="Corrections are reviewed by a moderator and become public to all divers once approved. Contributing requires Pro or Lifetime." />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

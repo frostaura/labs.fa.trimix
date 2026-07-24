@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Trimix app icon FOREGROUND layer: a sonar return - blip + three concentric Sonar
+     ping arcs radiating up-right from an off-center lower-left origin (168,288).
+     Adaptive-icon safe area respected: all content sits within the centered safe circle
+     (r = 139px of this 456px canvas = the 66/108dp adaptive zone); farthest point ~119px.
+     Resizetizer-safe: paths/circles only, no filters, no gradients, no text, no opacity -
+     the dimmer outer arcs are pre-blended toward Abyss (#399DAE = 70%, #276B7B = 45%). -->
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <!-- Sonar blip (origin of the ping) -->
+    <circle cx="168" cy="288" r="14" fill="#4FD8EB" />
+    <!-- Inner arc, full Sonar -->
+    <path d="M 214.4 300.4 A 48 48 0 0 0 155.6 241.6" fill="none" stroke="#4FD8EB" stroke-width="18" stroke-linecap="round" />
+    <!-- Middle arc, Sonar dimmed 70% -->
+    <path d="M 253.0 310.8 A 88 88 0 0 0 145.2 203.0" fill="none" stroke="#399DAE" stroke-width="15" stroke-linecap="round" />
+    <!-- Outer arc, Sonar dimmed 45% -->
+    <path d="M 291.6 321.1 A 128 128 0 0 0 134.9 164.4" fill="none" stroke="#276B7B" stroke-width="12" stroke-linecap="round" />
+</svg>

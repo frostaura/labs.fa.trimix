@@ -1,0 +1,44 @@
+﻿<?xml version = "1.0" encoding = "UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Trimix.App.Converters"
+             x:Class="Trimix.App.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- App-wide value converters (Converters/AppConverters.cs). -->
+            <conv:EnumEqualsConverter x:Key="EnumEquals" />
+            <conv:IntEqualsConverter x:Key="IntEquals" />
+            <conv:InverseBoolConverter x:Key="InverseBool" />
+            <conv:IntGreaterThanZeroConverter x:Key="IntGreaterThanZero" />
+            <conv:StringNotEmptyConverter x:Key="StringNotEmpty" />
+            <conv:NullableDoubleConverter x:Key="NullableDouble" />
+            <conv:NullableIntConverter x:Key="NullableInt" />
+            <conv:NullableDateConverter x:Key="NullableDate" />
+            <conv:DepthFormatConverter x:Key="DepthFormat" />
+            <conv:DurationFormatConverter x:Key="DurationFormat" />
+            <conv:BottomTimeFormatConverter x:Key="BottomTimeFormat" />
+            <conv:DateFormatConverter x:Key="DateFormat" />
+            <conv:RatingToStarsConverter x:Key="RatingToStars" />
+            <conv:RatingToWordsConverter x:Key="RatingToWords" />
+            <conv:CsvToListConverter x:Key="CsvToList" />
+            <conv:SiteSubtitleConverter x:Key="SiteSubtitle" />
+            <conv:SiteDepthRangeConverter x:Key="SiteDepthRange" />
+            <conv:DiveCardTitleConverter x:Key="DiveCardTitle" />
+            <conv:ProgressFractionConverter x:Key="ProgressFraction" />
+            <conv:UnitPrefixPartConverter x:Key="UnitPrefixPart" />
+            <conv:UnitSuffixPartConverter x:Key="UnitSuffixPart" />
+            <conv:DepthUnitLabelConverter x:Key="DepthUnitLabel" />
+            <conv:TempUnitLabelConverter x:Key="TempUnitLabel" />
+            <conv:PageCounterConverter x:Key="PageCounter" />
+            <conv:DepthNumberConverter x:Key="DepthNumber" />
+            <conv:DepthSuffixConverter x:Key="DepthSuffix" />
+            <conv:BottomTimeNumberConverter x:Key="BottomTimeNumber" />
+            <conv:BottomTimeSuffixConverter x:Key="BottomTimeSuffix" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

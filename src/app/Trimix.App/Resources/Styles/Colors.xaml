@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    Trimix "Sonar" design language - color tokens.
+    Source of truth: docs/design/mockup-spec.md (founder storyboard, 1:1).
+    Palette: MINT / seafoam accent on NEUTRAL near-black (not the earlier cyan-on-blue re-derivation).
+    Dark theme is PRIMARY and the app is forced Dark; Light* counterparts are mint-derived for safety.
+    Consume via {AppThemeBinding Light={StaticResource LightX}, Dark={StaticResource X}}.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- ============ Dark (primary) tokens - hex values are canonical per the mockup spec ============ -->
+
+    <!-- Layers (exact per Wreckline Storyboard.dc.html, Sonar A) -->
+    <Color x:Key="Abyss">#0A1013</Color>            <!-- App background: deep blue-teal near-black (screen bg) -->
+    <Color x:Key="Depth">#0A1013</Color>            <!-- Tab bar / nav bar (seamless with page) -->
+    <Color x:Key="Surface">#0D171B</Color>          <!-- Glass cards, stat/loop cards, device rows, inputs -->
+    <Color x:Key="SurfaceRaised">#15262B</Color>    <!-- Chips, thumbnail placeholders, selected fills -->
+    <Color x:Key="GlassStroke">#1C2A2E</Color>      <!-- 1px hairline card borders, dividers -->
+    <Color x:Key="MintInk">#04231F</Color>          <!-- Text/glyph ON mint fills (buttons, badges, checkmark) -->
+
+    <!-- Accents -->
+    <Color x:Key="Sonar">#2FE3C4</Color>            <!-- THE mint: CTAs, active tab, rings, chart line, numerals, badges -->
+    <Color x:Key="SonarDeep">#20B39A</Color>        <!-- Pressed/secondary accent -->
+    <Color x:Key="Ice">#7FE4D2</Color>              <!-- Pale-mint highlight, selected chip text -->
+
+    <!-- Text -->
+    <Color x:Key="TextPrimary">#E8F1F2</Color>      <!-- Headlines, titles, white numerals -->
+    <Color x:Key="TextSecondary">#9FB3B7</Color>    <!-- Body copy, subtitles -->
+    <Color x:Key="TextDisabled">#5C6E72</Color>     <!-- Dim mono labels, inactive tabs, disabled -->
+
+    <!-- Semantic -->
+    <Color x:Key="Signal">#2FE3C4</Color>           <!-- Success = mint (import complete, entitlement active) -->
+    <Color x:Key="Warn">#F5B54A</Color>             <!-- Warnings: cap reached, current, hazards (amber) -->
+    <Color x:Key="Alert">#F4766B</Color>            <!-- Errors/destructive (never sole encoding) -->
+    <Color x:Key="PaywallGold">#2FE3C4</Color>      <!-- Highlighted (Lifetime/BEST VALUE) SKU = mint, not gold -->
+
+    <!-- ============ Light (secondary) counterparts - mint-derived, WCAG AA on light surfaces ============ -->
+
+    <!-- Layers -->
+    <Color x:Key="LightAbyss">#F4F7F5</Color>          <!-- "Frost" app background -->
+    <Color x:Key="LightDepth">#E9F0EC</Color>          <!-- Tab/nav bar -->
+    <Color x:Key="LightSurface">#FFFFFF</Color>        <!-- Cards, sheets, inputs -->
+    <Color x:Key="LightSurfaceRaised">#EAF1ED</Color>  <!-- Chips/selected on white -->
+    <Color x:Key="LightGlassStroke">#CDDAD3</Color>    <!-- 1px borders, dividers -->
+
+    <!-- Accents -->
+    <Color x:Key="LightSonar">#0E8770</Color>          <!-- Mint deep enough for AA on white -->
+    <Color x:Key="LightSonarDeep">#0B6C59</Color>      <!-- Pressed accent / links (AA) -->
+    <Color x:Key="LightIce">#0C5F4E</Color>            <!-- Selected-chip text on light -->
+
+    <!-- Text -->
+    <Color x:Key="LightTextPrimary">#0C1512</Color>    <!-- Primary text on light -->
+    <Color x:Key="LightTextSecondary">#46524D</Color>  <!-- Secondary text (AA on white) -->
+    <Color x:Key="LightTextDisabled">#8A968F</Color>   <!-- Disabled text/icons -->
+
+    <!-- Semantic -->
+    <Color x:Key="LightSignal">#0E8760</Color>         <!-- Success (AA on white) -->
+    <Color x:Key="LightWarn">#8A6300</Color>           <!-- Warnings (AA on white) -->
+    <Color x:Key="LightAlert">#C43E32</Color>          <!-- Errors/destructive (AA on white) -->
+    <Color x:Key="LightPaywallGold">#0E8770</Color>    <!-- Highlighted SKU = mint deep -->
+
+    <!-- ============ Brushes (for Brush-typed properties / direct fills) ============ -->
+
+    <SolidColorBrush x:Key="AbyssBrush" Color="{StaticResource Abyss}" />
+    <SolidColorBrush x:Key="DepthBrush" Color="{StaticResource Depth}" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
+    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource SurfaceRaised}" />
+    <SolidColorBrush x:Key="GlassStrokeBrush" Color="{StaticResource GlassStroke}" />
+    <SolidColorBrush x:Key="SonarBrush" Color="{StaticResource Sonar}" />
+    <SolidColorBrush x:Key="IceBrush" Color="{StaticResource Ice}" />
+    <SolidColorBrush x:Key="MintInkBrush" Color="{StaticResource MintInk}" />
+    <SolidColorBrush x:Key="PaywallGoldBrush" Color="{StaticResource PaywallGold}" />
+
+    <SolidColorBrush x:Key="LightAbyssBrush" Color="{StaticResource LightAbyss}" />
+    <SolidColorBrush x:Key="LightDepthBrush" Color="{StaticResource LightDepth}" />
+    <SolidColorBrush x:Key="LightSurfaceBrush" Color="{StaticResource LightSurface}" />
+    <SolidColorBrush x:Key="LightSurfaceRaisedBrush" Color="{StaticResource LightSurfaceRaised}" />
+    <SolidColorBrush x:Key="LightGlassStrokeBrush" Color="{StaticResource LightGlassStroke}" />
+    <SolidColorBrush x:Key="LightSonarBrush" Color="{StaticResource LightSonar}" />
+    <SolidColorBrush x:Key="LightIceBrush" Color="{StaticResource LightIce}" />
+    <SolidColorBrush x:Key="LightPaywallGoldBrush" Color="{StaticResource LightPaywallGold}" />
+
+    <!-- Depth-gradient header - fades Depth -> Abyss downward, echoing descent. -->
+    <LinearGradientBrush x:Key="DepthGradientHeaderBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource Depth}" Offset="0.0" />
+        <GradientStop Color="{StaticResource Abyss}" Offset="1.0" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="LightDepthGradientHeaderBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource LightDepth}" Offset="0.0" />
+        <GradientStop Color="{StaticResource LightAbyss}" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <!-- Hero screen glow: top-right teal radial fading to the app bg (storyboard hero panes). -->
+    <RadialGradientBrush x:Key="SonarGlowBrush" Center="0.8,0.0" Radius="1.1">
+        <GradientStop Color="#0D2B2A" Offset="0.0" />
+        <GradientStop Color="#0A1013" Offset="0.55" />
+    </RadialGradientBrush>
+
+</ResourceDictionary>

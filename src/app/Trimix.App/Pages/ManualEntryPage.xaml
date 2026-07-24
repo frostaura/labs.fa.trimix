@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Manual dive entry (PRD Flow A step 4; design doc): single scrolling form, numeric keypads,
+     shared-DB site search with "create draft site" fallback. Required: date · site · depth · duration. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.ManualEntryPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    xmlns:dtos="clr-namespace:Trimix.Contracts.Dtos;assembly=Trimix.Contracts"
+    x:DataType="vm:ManualEntryViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Title="Log dive">
+
+    <Grid RowDefinitions="Auto,*">
+        <Button
+            Grid.Row="0"
+            Style="{StaticResource BackButton}"
+            Text="←"
+            Command="{Binding CloseCommand}"
+            Margin="10,8,0,0"
+            MinimumWidthRequest="44"
+            SemanticProperties.Description="Back"
+            SemanticProperties.Hint="Cancels and returns to the previous screen" />
+        <ScrollView Grid.Row="1">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+
+            <Label Style="{StaticResource Title24}" Text="Log a dive" SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- When -->
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                <Label Style="{StaticResource MonoLabel}" Text="WHEN" />
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource Caption13}" Text="Date (required)" />
+                        <DatePicker
+                            Date="{Binding Date, Converter={StaticResource NullableDate}}"
+                            SemanticProperties.Description="Dive date"
+                            SemanticProperties.Hint="Selects the day of the dive" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Dive site: shared-DB search + draft-site fallback. -->
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                <Label Style="{StaticResource MonoLabel}" Text="DIVE SITE" />
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource Caption13}" Text="Dive site (required)" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Entry
+                                Grid.Column="0"
+                                Text="{Binding SiteQuery}"
+                                Placeholder="Search the shared site database"
+                                ReturnCommand="{Binding SearchSitesCommand}"
+                                SemanticProperties.Description="Site search"
+                                SemanticProperties.Hint="Searches the shared dive-site database by name" />
+                            <Button
+                                Grid.Column="1"
+                                Style="{StaticResource SecondaryButton}"
+                                Text="Search"
+                                Command="{Binding SearchSitesCommand}"
+                                SemanticProperties.Description="Search sites" />
+                        </Grid>
+                        <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding SiteResults}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="dtos:SiteSummaryDto">
+                                    <Border
+                                        Style="{StaticResource Chip}"
+                                        MinimumHeightRequest="44"
+                                        SemanticProperties.Description="{Binding Name}"
+                                        SemanticProperties.Hint="Selects this site for the dive">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding SelectSiteCommand, Source={RelativeSource AncestorType={x:Type vm:ManualEntryViewModel}}, x:DataType=vm:ManualEntryViewModel}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Style="{StaticResource ChipLabel}" Text="{Binding Name}" />
+                                            <Label Style="{StaticResource Caption13}" Text="{Binding ., Converter={StaticResource SiteSubtitle}}" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                        <Border Style="{StaticResource ChipSelected}" IsVisible="{Binding SelectedSite.Name, Converter={StaticResource StringNotEmpty}}">
+                            <Label Style="{StaticResource ChipLabelSelected}" Text="{Binding SelectedSite.Name, StringFormat='Selected: {0}'}" />
+                        </Border>
+                        <Button
+                            Style="{StaticResource SecondaryButton}"
+                            Text="No match — create a draft site"
+                            Command="{Binding UseDraftSiteCommand}"
+                            IsVisible="{Binding SiteQuery, Converter={StaticResource StringNotEmpty}}"
+                            SemanticProperties.Description="Create draft site"
+                            SemanticProperties.Hint="Keeps the typed name as a private draft site on this dive" />
+                        <Border Style="{StaticResource ChipSelected}" IsVisible="{Binding DraftSiteName, Converter={StaticResource StringNotEmpty}}">
+                            <Label Style="{StaticResource ChipLabelSelected}" Text="{Binding DraftSiteName, StringFormat='Draft site: {0}'}" />
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Profile: numeric keypads per the design doc. Entry stays metric (units are a display preference). -->
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                <Label Style="{StaticResource MonoLabel}" Text="PROFILE" />
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource Caption13}" Text="Max depth in metres (required)" />
+                        <Entry
+                            Keyboard="Numeric"
+                            Text="{Binding MaxDepthM, Converter={StaticResource NullableDouble}}"
+                            Placeholder="18.5"
+                            SemanticProperties.Description="Maximum depth in metres" />
+                        <Label Style="{StaticResource Caption13}" Text="Duration in minutes (required)" />
+                        <Entry
+                            Keyboard="Numeric"
+                            Text="{Binding DurationMin, Converter={StaticResource NullableInt}}"
+                            Placeholder="45"
+                            SemanticProperties.Description="Dive duration in minutes" />
+                        <Label Style="{StaticResource Caption13}" Text="Gas mix" />
+                        <Entry
+                            Text="{Binding GasMix}"
+                            Placeholder="Air, EAN32, 18/45 …"
+                            SemanticProperties.Description="Gas mix" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- The log: gear, buddies, notes, rating -->
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                <Label Style="{StaticResource MonoLabel}" Text="THE LOG" />
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource Caption13}" Text="Gear (comma-separated)" />
+                        <Entry Text="{Binding Gear}" Placeholder="5mm wetsuit, 12L steel" SemanticProperties.Description="Gear list" />
+                        <Label Style="{StaticResource Caption13}" Text="Buddies (comma-separated)" />
+                        <Entry Text="{Binding Buddies}" Placeholder="Sam, Alex" SemanticProperties.Description="Dive buddies" />
+                        <Label Style="{StaticResource Caption13}" Text="Notes" />
+                        <Editor
+                            Text="{Binding Notes}"
+                            HeightRequest="110"
+                            Placeholder="Conditions, sightings, anything worth remembering."
+                            SemanticProperties.Description="Dive notes" />
+                        <Label Style="{StaticResource Caption13}" Text="Rating" />
+                        <HorizontalStackLayout Spacing="12">
+                            <Stepper
+                                Minimum="0"
+                                Maximum="5"
+                                Increment="1"
+                                Value="{Binding Rating}"
+                                SemanticProperties.Description="Dive rating"
+                                SemanticProperties.Hint="Sets a rating from one to five; zero clears it" />
+                            <Label
+                                Style="{StaticResource Body15}"
+                                VerticalOptions="Center"
+                                Text="{Binding Rating, Converter={StaticResource RatingToWords}}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <Button
+                Text="Save dive"
+                Command="{Binding SaveCommand}"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                SemanticProperties.Description="Save dive"
+                SemanticProperties.Hint="Saves the dive to your logbook" />
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HorizontalOptions="Center" />
+        </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

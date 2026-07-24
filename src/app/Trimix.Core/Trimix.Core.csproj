@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ALL client logic, no MAUI dependency: viewmodels, services, vendor protocols, analytics queue,
+       entitlement gate, local-store abstractions (docs/architecture/overview.md). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Trimix.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pinned majors per architecture overview §12; latest stable within major. -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
+    <!-- Lifts sqlite-net-pcl's transitive SQLitePCLRaw 2.1.2 past a known vulnerability (NU1903). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared\Trimix.Contracts\Trimix.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

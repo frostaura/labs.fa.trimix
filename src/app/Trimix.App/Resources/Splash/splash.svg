@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Trimix splash: Abyss background with a single sonar arc motif (blip + one ping arc
+     sweeping up-right). The full-screen backdrop is the matching Color="#06121F" on the
+     MauiSplashScreen item in Trimix.App.csproj; the Abyss rect here keeps the asset
+     self-contained (it blends seamlessly into the backdrop).
+     Resizetizer-safe: rect/circle/path only, no filters, no gradients, no text. -->
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="456" height="456" fill="#06121F" />
+    <!-- Sonar blip -->
+    <circle cx="170" cy="290" r="14" fill="#4FD8EB" />
+    <!-- Single ping arc -->
+    <path d="M 276.3 318.5 A 110 110 0 0 0 141.5 183.7" fill="none" stroke="#4FD8EB" stroke-width="12" stroke-linecap="round" />
+</svg>

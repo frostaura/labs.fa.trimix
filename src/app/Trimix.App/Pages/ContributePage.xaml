@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Site contribution (PRD Flow C): Pro-gated, moderated. The public-after-review disclosure
+     shows BEFORE submit (PRD privacy posture: contributions are public-by-design). -->
+<ContentPage
+    x:Class="Trimix.App.Pages.ContributePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:ContributeViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Title="Contribute">
+
+    <Grid RowDefinitions="Auto,*">
+        <Button
+            Grid.Row="0"
+            Style="{StaticResource BackButton}"
+            Text="←"
+            Command="{Binding CloseCommand}"
+            Margin="10,8,0,0"
+            MinimumHeightRequest="44"
+            MinimumWidthRequest="44"
+            SemanticProperties.Description="Back"
+            SemanticProperties.Hint="Cancels and returns to the previous screen" />
+        <ScrollView Grid.Row="1">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+
+            <Label
+                Style="{StaticResource Title24}"
+                Text="Suggest a correction"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- Moderation disclosure — the exact Core-owned wording, shown before submit. -->
+            <Border Style="{StaticResource GlassCard}">
+                <Label Style="{StaticResource Body15}">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="ⓘ " TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
+                            <Span Text="{x:Static vm:ContributeViewModel.PublicAfterReviewDisclosure}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </Border>
+
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                <Label Style="{StaticResource MonoLabel}" Text="YOUR CORRECTION" />
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource Caption13}" Text="Your correction or addition" />
+                        <Editor
+                            Text="{Binding Note}"
+                            HeightRequest="140"
+                            Placeholder="What's wrong or missing? Depth range, hazards, marine life, access…"
+                            SemanticProperties.Description="Contribution text"
+                            SemanticProperties.Hint="Describes the site correction; a moderator reviews it before it goes public" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <Button
+                Text="Submit for review"
+                Command="{Binding SubmitCommand}"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                SemanticProperties.Description="Submit for review"
+                SemanticProperties.Hint="Sends the contribution to the moderation queue" />
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HorizontalOptions="Center" />
+        </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

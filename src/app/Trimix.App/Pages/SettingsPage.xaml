@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Settings / "You" tab (mockup 1:1): Title24 "You" · grouped GlassCards with MonoLabel section
+     eyebrows (ACCOUNT · ENTITLEMENT · UNITS · PRIVACY · ABOUT). Entitlement state shows as a BadgeMint
+     pill. Restore purchases · unit toggles · privacy export/delete · about/licenses — all bindings and
+     commands preserved. Destructive delete uses DestructiveButton. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:SettingsViewModel"
+    Title="Settings">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+
+            <!-- Screen title -->
+            <Label
+                Style="{StaticResource Title24}"
+                Text="You"
+                Margin="0,4,0,8"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- Account -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="ACCOUNT" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Style="{StaticResource Body15}" Text="{Binding AccountLabel}" />
+                    <Button
+                        Text="Sign in or create account"
+                        Command="{Binding SignInCommand}"
+                        IsVisible="{Binding IsGuest}"
+                        SemanticProperties.Description="Sign in or create account"
+                        SemanticProperties.Hint="Opens sign-in; an account syncs dives and keeps purchases restorable" />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Sign out"
+                        Command="{Binding SignOutCommand}"
+                        IsVisible="{Binding IsGuest, Converter={StaticResource InverseBool}}"
+                        SemanticProperties.Description="Sign out"
+                        SemanticProperties.Hint="Signs out; dives already on this device stay available" />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Connected accounts"
+                        Command="{Binding ConnectedAccountsCommand}"
+                        SemanticProperties.Description="Connected accounts"
+                        SemanticProperties.Hint="Manage dive-computer, cloud and personal-export connectors, and show your MySSI QR" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Entitlement -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="ENTITLEMENT" SemanticProperties.HeadingLevel="Level2" />
+                    <HorizontalStackLayout Spacing="10">
+                        <Border Style="{StaticResource BadgeMint}">
+                            <Label Style="{StaticResource BadgeTextMint}" Text="{Binding EntitlementLabel}" />
+                        </Border>
+                        <Label Style="{StaticResource Caption13}" VerticalOptions="Center" Text="Server-verified; follows your account across devices." />
+                    </HorizontalStackLayout>
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Restore purchases"
+                        Command="{Binding RestorePurchasesCommand}"
+                        SemanticProperties.Description="Restore purchases"
+                        SemanticProperties.Hint="Recovers a previous Pro or Lifetime purchase made with this account" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Units -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="UNITS" SemanticProperties.HeadingLevel="Level2" Margin="0,0,0,6" />
+                    <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                        <Label Grid.Column="0" Style="{StaticResource Body15}" Text="Depth" VerticalOptions="Center" />
+                        <Button
+                            Grid.Column="1"
+                            Style="{StaticResource SecondaryButton}"
+                            Text="{Binding DepthUnit, Converter={StaticResource DepthUnitLabel}}"
+                            Command="{Binding ToggleDepthUnitCommand}"
+                            SemanticProperties.Description="{Binding DepthUnit, Converter={StaticResource DepthUnitLabel}, StringFormat='Depth unit: {0}'}"
+                            SemanticProperties.Hint="Switches between metres and feet" />
+                    </Grid>
+                    <BoxView Margin="0,4" />
+                    <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                        <Label Grid.Column="0" Style="{StaticResource Body15}" Text="Temperature" VerticalOptions="Center" />
+                        <Button
+                            Grid.Column="1"
+                            Style="{StaticResource SecondaryButton}"
+                            Text="{Binding TempUnit, Converter={StaticResource TempUnitLabel}}"
+                            Command="{Binding ToggleTempUnitCommand}"
+                            SemanticProperties.Description="{Binding TempUnit, Converter={StaticResource TempUnitLabel}, StringFormat='Temperature unit: {0}'}"
+                            SemanticProperties.Hint="Switches between Celsius and Fahrenheit" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Privacy -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="PRIVACY" SemanticProperties.HeadingLevel="Level2" />
+                    <Label
+                        Style="{StaticResource Caption13}"
+                        Text="Dives are stored on this device first and sync only when you're signed in. Export gives you everything as JSON; delete wipes this device and signs you out." />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Export my data"
+                        Clicked="OnExportClicked"
+                        SemanticProperties.Description="Export my data"
+                        SemanticProperties.Hint="Creates a JSON export of your dives and opens the share sheet" />
+                    <Button
+                        Style="{StaticResource DestructiveButton}"
+                        Text="Delete my data"
+                        Command="{Binding DeleteMyDataCommand}"
+                        SemanticProperties.Description="Delete my data"
+                        SemanticProperties.Hint="Removes all dives from this device and signs out; asks for confirmation first" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- About -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="ABOUT" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Style="{StaticResource Body15}" Text="{Binding AboutText}" />
+                    <Label Style="{StaticResource Caption13}" Text="We log dives. We never compute decompression." />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Open-source licenses"
+                        Clicked="OnLicensesClicked"
+                        SemanticProperties.Description="Open-source licenses"
+                        SemanticProperties.Hint="Lists the open-source software this app is built with" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Bottom spacer so the last card scrolls clear of / under the floating iOS tab bar. -->
+            <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

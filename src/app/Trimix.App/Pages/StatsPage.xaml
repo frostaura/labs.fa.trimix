@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- "You" surface (aggregator architecture §8.3 / §8.5): career analytics over the local logbook.
+     Every channel-dependent card is captioned with its data-completeness fraction ("SAC available
+     for 42 of 120 dives") so heterogeneous-fidelity sources never silently skew a stat. All values
+     are unit-formatted (m/ft · °C/°F). Read-only surface — emits NO funnel events. Settings lives
+     behind the gear (OpenSettingsCommand → pushed `settings` route). Guardrail: every figure is
+     arithmetic over recorded values; nothing computes deco. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.StatsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:StatsViewModel"
+    Title="You">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Header: screen title + gear → Settings. -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="24,16,24,8" VerticalOptions="Center">
+            <Label
+                Grid.Column="0"
+                Style="{StaticResource Title24}"
+                Text="You"
+                VerticalOptions="Center"
+                SemanticProperties.HeadingLevel="Level1" />
+            <Button
+                Grid.Column="1"
+                Style="{StaticResource SecondaryButton}"
+                Text="Settings"
+                Command="{Binding OpenSettingsCommand}"
+                SemanticProperties.Description="Settings"
+                SemanticProperties.Hint="Opens units, account and data-export settings" />
+        </Grid>
+
+        <!-- Empty state. -->
+        <VerticalStackLayout Grid.Row="1" IsVisible="{Binding IsEmpty}" VerticalOptions="Center" Spacing="12" Padding="{StaticResource PageContentPadding}">
+            <Label Style="{StaticResource Heading18}" Text="No stats yet" HorizontalTextAlignment="Center" />
+            <Label
+                Style="{StaticResource Body15}"
+                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                Text="Log a dive and your career analytics appear here."
+                HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1" IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
+            <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+
+                <!-- Lifetime strip: dives (mint) · deepest · total bottom time. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
+                            <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding TotalDives}" HorizontalTextAlignment="Center" />
+                            <Label Style="{StaticResource MonoLabel}" Text="Dives" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                            <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding MaxDepthText}" HorizontalTextAlignment="Center" />
+                            <Label Style="{StaticResource MonoLabel}" Text="Deepest" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2" Spacing="{StaticResource TightSpacing}">
+                            <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding TotalBottomTimeText}" HorizontalTextAlignment="Center" />
+                            <Label Style="{StaticResource MonoLabel}" Text="Bottom" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- Averages. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource MonoLabel}" Text="AVERAGES" SemanticProperties.HeadingLevel="Level2" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
+                                <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding AverageDepthText}" />
+                                <Label Style="{StaticResource Caption13}" Text="Avg depth" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                                <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding AverageDurationText}" />
+                                <Label Style="{StaticResource Caption13}" Text="Avg duration" />
+                            </VerticalStackLayout>
+                        </Grid>
+                        <Label Style="{StaticResource Caption13}" Text="{Binding AverageDepthCaption}" TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Gas consumption (SAC / RMV) — completeness-captioned. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource MonoLabel}" Text="GAS CONSUMPTION" SemanticProperties.HeadingLevel="Level2" />
+                        <!-- SAC and RMV each carry their OWN completeness caption: RMV needs a recorded cylinder
+                             volume that SAC does not, so it covers a strict subset — one shared caption would
+                             overstate the RMV figure's data basis. -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
+                                <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding SacText}" />
+                                <Label Style="{StaticResource Caption13}" Text="Mean SAC" />
+                                <Label Style="{StaticResource Caption13}" Text="{Binding SacCaption}" TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                                <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding RmvText}" />
+                                <Label Style="{StaticResource Caption13}" Text="Mean RMV" />
+                                <Label Style="{StaticResource Caption13}" Text="{Binding RmvCaption}" IsVisible="{Binding RmvCaption, Converter={StaticResource StringNotEmpty}}" TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Temperature range. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource MonoLabel}" Text="TEMPERATURE" SemanticProperties.HeadingLevel="Level2" />
+                        <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding TemperatureRangeText}" />
+                        <Label Style="{StaticResource Caption13}" Text="{Binding TemperatureCaption}" TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Gas mix breakdown. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource MonoLabel}" Text="GAS MIX" SemanticProperties.HeadingLevel="Level2" />
+                        <Label Style="{StaticResource Body15}" StyleClass="tnum" Text="{Binding GasMixText}" />
+                        <Label Style="{StaticResource Caption13}" Text="{Binding GasMixCaption}" TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Streaks. -->
+                <Border Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                        <Label Style="{StaticResource MonoLabel}" Text="STREAKS" SemanticProperties.HeadingLevel="Level2" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
+                                <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding CurrentStreakDays}" />
+                                <Label Style="{StaticResource Caption13}" Text="Current (days)" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                                <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding LongestStreakDays}" />
+                                <Label Style="{StaticResource Caption13}" Text="Longest (days)" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Bottom spacer so the last card clears the floating tab bar. -->
+                <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

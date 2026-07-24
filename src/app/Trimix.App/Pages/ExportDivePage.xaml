@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Export dive (clean, ToS-free "hand a file to any agency yourself"): pick UDDF / DL7 / PDF and the
+     platform save/share sheet takes it (iOS UIActivityViewController · Android ACTION_SEND). No cloud,
+     no credentials — the diver owns the file. Sonar (A): mint-on-Abyss, GlassCard format cards. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.ExportDivePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:ExportDiveViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Title="Export">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Ghost mint back (CloseCommand). -->
+        <Button
+            Grid.Row="0"
+            Style="{StaticResource BackButton}"
+            Text="←"
+            Command="{Binding CloseCommand}"
+            Margin="10,8,0,0"
+            MinimumWidthRequest="44"
+            SemanticProperties.Description="Back"
+            SemanticProperties.Hint="Cancels and returns to the dive" />
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                    <Label Style="{StaticResource Title24}" Text="Export dive" SemanticProperties.HeadingLevel="Level1" />
+                    <Label
+                        Style="{StaticResource Caption13}"
+                        Text="Standards-based files you own. Pick a format and your device's save or share sheet takes it — no account, no cloud." />
+                </VerticalStackLayout>
+
+                <!-- One GlassCard per registered file-export format (UDDF · DL7 · PDF). -->
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}" BindableLayout.ItemsSource="{Binding Formats}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ExportFormatOption">
+                            <Border Style="{StaticResource GlassCard}">
+                                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                                    <Label Style="{StaticResource Heading18}" Text="{Binding Label}" SemanticProperties.HeadingLevel="Level2" />
+                                    <Label
+                                        Style="{StaticResource Caption13}"
+                                        Text="{Binding Blurb}"
+                                        IsVisible="{Binding Blurb, Converter={StaticResource StringNotEmpty}}" />
+                                    <Button
+                                        Style="{StaticResource PrimaryButton}"
+                                        Text="Save or share"
+                                        Command="{Binding ExportCommand, Source={RelativeSource AncestorType={x:Type vm:ExportDiveViewModel}}, x:DataType=vm:ExportDiveViewModel}"
+                                        CommandParameter="{Binding .}"
+                                        IsEnabled="{Binding IsBusy, Source={RelativeSource AncestorType={x:Type vm:ExportDiveViewModel}}, Converter={StaticResource InverseBool}, x:DataType=vm:ExportDiveViewModel}"
+                                        SemanticProperties.Description="{Binding Label, StringFormat='Export as {0}'}"
+                                        SemanticProperties.Hint="Renders the file and opens your device's save or share sheet" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

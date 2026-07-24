@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Onboarding (storyboard 1:1): 3-pane swipe carousel over full-bleed Abyss.
+     S1 hero ("Your logbook fills itself.") · S2 "The loop" (01/02/03 glass cards) ·
+     S3 "Create your logbook" (account choice). Progress via 3 mint dots + per-pane CTAs.
+     Completing/entering any account path fires first_run_completed via the VM's existing
+     completion + guest commands. Visual layer only — all bindings/converters preserved. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.OnboardingPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:OnboardingViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Shell.NavBarIsVisible="False"
+    Title="Welcome">
+
+    <ContentPage.Resources>
+        <!-- Carousel item = the pane index; content toggles off IntEquals against it. -->
+        <x:Array x:Key="PaneIndices" Type="{x:Type x:Int32}">
+            <x:Int32>0</x:Int32>
+            <x:Int32>1</x:Int32>
+            <x:Int32>2</x:Int32>
+        </x:Array>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- ================= Swipe carousel: 3 panes ================= -->
+        <CarouselView
+            Grid.Row="0"
+            ItemsSource="{StaticResource PaneIndices}"
+            Position="{Binding PageIndex, Mode=TwoWay}"
+            IndicatorView="{x:Reference pageIndicator}"
+            Loop="False"
+            HorizontalScrollBarVisibility="Never"
+            VerticalScrollBarVisibility="Never">
+            <CarouselView.ItemTemplate>
+                <DataTemplate x:DataType="x:Int32">
+                    <Grid>
+
+                        <!-- ===== S1 · Hero ===== -->
+                        <Grid
+                            Padding="24,28,24,8"
+                            RowDefinitions="Auto,*,Auto"
+                            IsVisible="{Binding ., Converter={StaticResource IntEquals}, ConverterParameter=0}">
+
+                            <!-- Wordmark top-left + sonar rings bleeding off the top-right corner -->
+                            <Grid Grid.Row="0">
+                                <Label
+                                    Style="{StaticResource Wordmark}"
+                                    Text="TRIMIX"
+                                    HorizontalOptions="Start"
+                                    VerticalOptions="Start" />
+                                <Grid
+                                    WidthRequest="240"
+                                    HeightRequest="240"
+                                    Margin="0,-78,-78,0"
+                                    InputTransparent="True"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Start">
+                                    <Ellipse WidthRequest="240" HeightRequest="240" Fill="Transparent" StrokeThickness="1.5" Opacity="0.12"
+                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                                             HorizontalOptions="Center" VerticalOptions="Center" />
+                                    <Ellipse WidthRequest="180" HeightRequest="180" Fill="Transparent" StrokeThickness="1.5" Opacity="0.25"
+                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                                             HorizontalOptions="Center" VerticalOptions="Center" />
+                                    <Ellipse WidthRequest="124" HeightRequest="124" Fill="Transparent" StrokeThickness="1.5" Opacity="0.4"
+                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                                             HorizontalOptions="Center" VerticalOptions="Center" />
+                                    <Ellipse WidthRequest="72" HeightRequest="72" Fill="Transparent" StrokeThickness="1.5" Opacity="0.6"
+                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                                             HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Grid>
+                            </Grid>
+
+                            <!-- Headline + body, pinned toward the bottom of the pane -->
+                            <VerticalStackLayout Grid.Row="2" Spacing="16">
+                                <Label
+                                    Style="{StaticResource Display32}"
+                                    Text="Your logbook&#10;fills itself."
+                                    HorizontalTextAlignment="Start"
+                                    SemanticProperties.HeadingLevel="Level1" />
+                                <Label
+                                    Style="{StaticResource Body15}"
+                                    Text="Auto-import from every major dive computer over Bluetooth, on a dive-site atlas built by divers."
+                                    TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                                    HorizontalTextAlignment="Start" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- ===== S2 · The loop ===== -->
+                        <VerticalStackLayout
+                            Padding="24,0"
+                            Spacing="{StaticResource CardSpacing}"
+                            VerticalOptions="Center"
+                            IsVisible="{Binding ., Converter={StaticResource IntEquals}, ConverterParameter=1}">
+                            <Label
+                                Style="{StaticResource Title24}"
+                                Text="The loop"
+                                Margin="0,0,0,10"
+                                SemanticProperties.HeadingLevel="Level1" />
+
+                            <Border Style="{StaticResource GlassCard}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                                    <Label Grid.Column="0" Style="{StaticResource MonoIndex}" Text="01" VerticalOptions="Start" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                                        <Label Style="{StaticResource Heading18}" Text="Dive" />
+                                        <Label
+                                            Style="{StaticResource Body15}"
+                                            Text="Your computer records the profile, as always."
+                                            TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource GlassCard}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                                    <Label Grid.Column="0" Style="{StaticResource MonoIndex}" Text="02" VerticalOptions="Start" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                                        <Label Style="{StaticResource Heading18}" Text="Sync" />
+                                        <Label
+                                            Style="{StaticResource Body15}"
+                                            Text="Open Trimix near it — dives pull over Bluetooth."
+                                            TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource GlassCard}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                                    <Label Grid.Column="0" Style="{StaticResource MonoIndex}" Text="03" VerticalOptions="Start" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
+                                        <Label Style="{StaticResource Heading18}" Text="Enrich" />
+                                        <Label
+                                            Style="{StaticResource Body15}"
+                                            Text="Site, hazards and marine life auto-attach from the atlas."
+                                            TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <!-- ===== S3 · Create your logbook ===== -->
+                        <VerticalStackLayout
+                            Padding="24,52,24,0"
+                            Spacing="16"
+                            VerticalOptions="Start"
+                            IsVisible="{Binding ., Converter={StaticResource IntEquals}, ConverterParameter=2}">
+                            <Label
+                                Style="{StaticResource Title24}"
+                                Text="Create your&#10;logbook"
+                                SemanticProperties.HeadingLevel="Level1" />
+                            <Label
+                                Style="{StaticResource Body15}"
+                                Text="Your dives sync across devices and survive a reinstall — bound to your account, not your phone."
+                                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                        </VerticalStackLayout>
+
+                    </Grid>
+                </DataTemplate>
+            </CarouselView.ItemTemplate>
+        </CarouselView>
+
+        <!-- ================= Bottom action zone (per-pane CTAs + dots) ================= -->
+        <VerticalStackLayout Grid.Row="1" Padding="24,12,24,32" Spacing="{StaticResource SectionSpacing}">
+
+            <!-- Page dots (mint active). Progress is announced on the indicator for screen readers;
+                 no visible counter caption (not in the storyboard). -->
+            <IndicatorView
+                x:Name="pageIndicator"
+                HorizontalOptions="Center"
+                IndicatorSize="8"
+                SemanticProperties.Description="{Binding PageIndex, Converter={StaticResource PageCounter}}" />
+
+            <!-- Pane 1 actions -->
+            <VerticalStackLayout
+                Spacing="{StaticResource TightSpacing}"
+                IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=0}">
+                <Button
+                    Style="{StaticResource PrimaryButton}"
+                    Text="Get started"
+                    Command="{Binding NextCommand}"
+                    SemanticProperties.Description="Get started"
+                    SemanticProperties.Hint="Advances to the next introduction pane" />
+                <Button
+                    Style="{StaticResource GhostButton}"
+                    Text="I already have an account"
+                    HorizontalOptions="Center"
+                    Command="{Binding SkipCommand}"
+                    SemanticProperties.Description="I already have an account"
+                    SemanticProperties.Hint="Skips the introduction and opens sign-in" />
+            </VerticalStackLayout>
+
+            <!-- Pane 2 actions -->
+            <VerticalStackLayout
+                IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=1}">
+                <Button
+                    Style="{StaticResource PrimaryButton}"
+                    Text="Continue"
+                    Command="{Binding NextCommand}"
+                    SemanticProperties.Description="Continue"
+                    SemanticProperties.Hint="Advances to the account step" />
+            </VerticalStackLayout>
+
+            <!-- Pane 3 actions -->
+            <VerticalStackLayout
+                Spacing="{StaticResource CardSpacing}"
+                IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=2}">
+                <!-- Passkey-only account path. NextCommand on the last pane completes onboarding
+                     (fires first_run_completed exactly once) then routes to the Auth page, where the
+                     WebAuthn create/sign-in happens. -->
+                <Button
+                    Style="{StaticResource PrimaryButton}"
+                    Text="Continue with a passkey"
+                    Command="{Binding NextCommand}"
+                    SemanticProperties.Description="Continue with a passkey"
+                    SemanticProperties.Hint="Opens sign-in to create your logbook with a passkey" />
+                <Button
+                    Style="{StaticResource GhostButton}"
+                    Text="Continue as guest"
+                    HorizontalOptions="Center"
+                    Command="{Binding ContinueAsGuestCommand}"
+                    SemanticProperties.Description="Continue as guest"
+                    SemanticProperties.Hint="Uses the app without an account; dives stay on this device" />
+                <Label
+                    Style="{StaticResource Caption13}"
+                    Text="Guest dives stay on this device until you create an account."
+                    TextColor="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}"
+                    HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Import tab: the loop's heartbeat — a raised circular Sonar action reading (filled Sonar disc,
+     sonar ring, Abyss download arrow). Drawn larger within the viewBox so it reads as the raised
+     circular action among the outline tabs. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <circle cx="12" cy="12" r="10.5" fill="#4FD8EB" />
+  <circle cx="12" cy="12" r="8" fill="none" stroke="#06121F" stroke-opacity="0.25" stroke-width="1" />
+  <path d="M12 6.5v7.5M8.75 11l3.25 3.25L15.25 11M8 17h8"
+        stroke="#06121F" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

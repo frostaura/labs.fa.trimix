@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uddf xmlns="http://www.streit.cc/uddf/3.2/" version="3.2.0">
+  <generator>
+    <name>Trimix fixture</name>
+  </generator>
+  <gasdefinitions>
+    <mix id="ean32">
+      <name>EAN32</name>
+      <o2>0.32</o2>
+      <n2>0.68</n2>
+      <he>0.0</he>
+    </mix>
+  </gasdefinitions>
+  <profiledata>
+    <repetitiongroup>
+      <dive>
+        <informationbeforedive>
+          <datetime>2026-06-02T09:30:00</datetime>
+        </informationbeforedive>
+        <samples>
+          <waypoint>
+            <depth>0.0</depth>
+            <divetime>0</divetime>
+            <temperature>294.15</temperature>
+            <tankpressure>21000000</tankpressure>
+            <switchmix ref="ean32"/>
+          </waypoint>
+          <waypoint>
+            <depth>10.0</depth>
+            <divetime>60</divetime>
+            <temperature>293.15</temperature>
+            <tankpressure>20000000</tankpressure>
+          </waypoint>
+          <waypoint>
+            <depth>18.0</depth>
+            <divetime>120</divetime>
+            <temperature>291.15</temperature>
+            <tankpressure>15000000</tankpressure>
+          </waypoint>
+          <waypoint>
+            <depth>5.0</depth>
+            <divetime>180</divetime>
+            <temperature>292.15</temperature>
+            <tankpressure>12000000</tankpressure>
+          </waypoint>
+          <waypoint>
+            <depth>0.0</depth>
+            <divetime>240</divetime>
+            <temperature>294.15</temperature>
+            <tankpressure>11000000</tankpressure>
+          </waypoint>
+        </samples>
+        <informationafterdive>
+          <greatestdepth>18.0</greatestdepth>
+          <diveduration>240</diveduration>
+          <lowesttemperature>291.15</lowesttemperature>
+        </informationafterdive>
+      </dive>
+    </repetitiongroup>
+  </profiledata>
+</uddf>

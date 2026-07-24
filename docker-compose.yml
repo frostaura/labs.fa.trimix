@@ -1,0 +1,18 @@
+# Local dev infrastructure (docs/architecture/overview.md — Solution layout).
+# Host port 5544: 5432/5433 are taken on the dev Mac.
+services:
+  postgres:
+    image: postgres:17
+    container_name: trimix-postgres
+    restart: unless-stopped
+    ports:
+      - "5544:5432"
+    environment:
+      POSTGRES_DB: trimix
+      POSTGRES_USER: trimix
+      POSTGRES_PASSWORD: trimix
+    volumes:
+      - trimix-pgdata:/var/lib/postgresql/data
+
+volumes:
+  trimix-pgdata:

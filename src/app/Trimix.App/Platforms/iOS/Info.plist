@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+		<integer>2</integer>
+	</array>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>XSAppIconAssets</key>
+	<string>Assets.xcassets/appicon.appiconset</string>
+	<!-- Force Dark to match App.xaml.cs (UserAppTheme = Dark) and give the status bar light content. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+	<!-- Location: MauiLocationService requests LocationWhenInUse (nearby dive-site search / site match).
+	     iOS crashes on the request without this usage string. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Trimix uses your location only to find and match nearby dive sites. It is never tracked in the background.</string>
+	<!-- Bluetooth: the CoreBluetooth dive-computer import (BleTransport) triggers the system prompt on
+	     first CBCentralManager use; iOS crashes on CoreBluetooth init without this usage string. -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Trimix uses Bluetooth only while you import, to find your dive computer and read its dive log. It never scans in the background and never uses Bluetooth for location.</string>
+	<!-- HealthKit READ: the Apple Health source connector (HealthStoreSourceConnector) reads recorded dive
+	     depth/temperature to auto-fill the logbook. iOS HARD-CRASHES on HKHealthStore.RequestAuthorization
+	     without this purpose string, and App Store review rejects any HealthKit-calling build that omits it.
+	     Read-only, never used for advertising, never shared. The com.apple.developer.healthkit ENTITLEMENT
+	     (device build) is the paired requirement — see Entitlements.Device.plist. -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Trimix reads your recorded dive depth and temperature from Apple Health to auto-fill your logbook. This data is never used for advertising and is never shared.</string>
+	<!-- No non-exempt encryption (standard HTTPS only) — skips the export-compliance prompt. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Dev-only ATS: allow cleartext HTTP to localhost so the Debug build reaches the local API
+	     (http://localhost:5210) on the simulator. Release ships HTTPS-only, so this affects only the
+	     loopback dev loop (mirrors Android's network_security_config loopback exemption). -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Minimal API: auth, dives sync, sites + moderation, purchases/receipt validation,
+       entitlements, analytics ingest (docs/architecture/overview.md). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Trimix.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared\Trimix.Contracts\Trimix.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Server-side WebAuthn/FIDO2 relying party (passkey register/login). -->
+    <PackageReference Include="Fido2" Version="4.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- PasswordHasher comes from Microsoft.Extensions.Identity.Core inside the ASP.NET Core
+         shared framework — no direct PackageReference (NU1510). -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,117 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!--
+			Android-first (founder direction 2026-07-03; docs/prd.md Amendment 3): net10.0-android is the
+			only always-on TFM. iOS must KEEP COMPILING but is opt-in so day-to-day builds don't require the
+			beta-macOS Xcode toolchain: pass -p:EnableIos=true (e.g. `dotnet build -p:EnableIos=true`)
+			to add the net10.0-ios TFM. Platforms/iOS sources stay in-tree for that build.
+		-->
+		<TargetFrameworks>net10.0-android</TargetFrameworks>
+		<TargetFrameworks Condition="'$(EnableIos)' == 'true'">$(TargetFrameworks);net10.0-ios</TargetFrameworks>
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>Trimix.App</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+
+		<!-- XAML source generation (compile-time C# from XAML instead of runtime inflation). -->
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+		<!-- Display name -->
+		<ApplicationTitle>Trimix</ApplicationTitle>
+
+		<!-- App Identifier -->
+		<ApplicationId>net.frostaura.trimix</ApplicationId>
+
+		<!-- Versions -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<!-- minSdk 23: Play Billing 9.x's AndroidX dependencies require API 23+ (manifest-merger hard
+		     requirement). Android 6.0+ covers effectively the whole 2026 install base. -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- App icon + splash: Abyss #06121F per the Sonar design language; the final sonar-ping
+		     icon artwork lands with the design pass (docs/design/sonar-design-language.md). -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#06121F" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#06121F" BaseSize="128,128" />
+
+		<!-- Images -->
+		<MauiImage Include="Resources\Images\*" />
+
+		<!-- Dedicated monochrome app-icon mask (design doc: "monochrome variant provided"). Shipped as
+		     @drawable/appiconmono. On .NET 10, MauiIcon already emits an adaptive <monochrome> layer
+		     (it reuses appicon_foreground as the alpha mask) so Android 13+ themed icons are satisfied;
+		     this purpose-built single-color mask is the artifact that replaces the foreground-as-mask
+		     once a hand-authored anydpi override lands post-slice (kept out of the slice because an
+		     explicit mipmap-anydpi-v26/appicon.xml duplicate-conflicts with the resizetizer output). -->
+		<MauiImage Include="Resources\AppIcon\appiconmono.svg" />
+
+		<!-- Custom Fonts -->
+		<MauiFont Include="Resources\Fonts\*" />
+
+		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<!-- Real Play Billing wiring for PlayBillingService (architecture overview §2): maintained,
+		     Microsoft-verified net10.0-android binding (NuGet check 2026-07-03: 9.1.0.1, published
+		     2026-06-27). Compiled always; registered only when sandbox billing is off (Release) and
+		     runtime-inert until a Play listing exists (name-clearance gate). -->
+		<PackageReference Include="Xamarin.Android.Google.BillingClient" Version="9.1.0.1" />
+
+		<!-- Platform passkeys (WebAuthn/FIDO2) for Auth.PasskeyAuthService via Android's Credential
+		     Manager. Maintained, Microsoft-verified net10.0-android bindings of androidx.credentials
+		     (NuGet check 2026-07-03: 1.6.0.1). The .PlayServicesAuth companion supplies the Google
+		     Play Services credential provider that actually backs platform passkeys on-device.
+		     Runtime-inert until the app is associated with a real HTTPS relying-party domain via
+		     Digital Asset Links (assetlinks.json tied to the app-signing SHA-256) — see the
+		     well-known-assetlinks.json.txt template under Platforms/Android/Resources. -->
+		<PackageReference Include="Xamarin.AndroidX.Credentials" Version="1.6.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Credentials.PlayServicesAuth" Version="1.6.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Trimix.Core\Trimix.Core.csproj" />
+	</ItemGroup>
+
+	<!-- iOS code-signing entitlements: Associated Domains carries the `webcredentials:<rpId>` entry that
+	     platform passkeys require. The file is named Entitlements.Device.plist (NOT the conventional
+	     "Entitlements.plist", which MAUI auto-detects and would force real signing on the simulator too) and
+	     is applied ONLY to the iOS DEVICE build (ios-arm64) — associated-domains is device-only and needs a
+	     real provisioning profile. The simulator QA build (iossimulator-arm64) carries no entitlements and
+	     signs ad-hoc. -->
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">
+		<CodesignEntitlements>Platforms/iOS/Entitlements.Device.plist</CodesignEntitlements>
+	</PropertyGroup>
+
+	<!-- iOS build environment (this host): Xcode 26.6 ships the iOS 26.5 SDK that the Microsoft.iOS
+	     26.5 pack targets, but the pack's _ValidateXcodeVersion compares the Xcode APP version and
+	     errors (E0191) on the 26.6-vs-26.5 mismatch. The SDK headers match, so skip that equality
+	     check. Clean fix is installing Xcode 26.5. -->
+	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<ValidateXcodeVersion Condition="'$(ValidateXcodeVersion)' == ''">false</ValidateXcodeVersion>
+	</PropertyGroup>
+
+	<!-- iCloud-Drive codesign workaround: this repo lives under ~/Library/Mobile Documents (iCloud
+	     Drive), so source files carry Finder/iCloud extended attributes that get copied into the
+	     assembled .app and make `codesign` fail with "resource fork, Finder information, or similar
+	     detritus not allowed". Strip xattrs from the output bundle immediately before codesign.
+	     macOS-only, iOS builds. -->
+	<Target Name="_StripBundleXattrsBeforeCodesign"
+	        BeforeTargets="_CodesignAppBundle"
+	        Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<Exec Command="xattr -cr &quot;$(OutDir)&quot;" ContinueOnError="true" />
+	</Target>
+
+</Project>

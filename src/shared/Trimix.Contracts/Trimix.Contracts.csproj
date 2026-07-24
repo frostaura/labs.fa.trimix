@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared truth: DTOs, enums, FROZEN funnel taxonomy, SKU ids, free-tier caps, API routes. No dependencies. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Trimix.Contracts</RootNamespace>
+  </PropertyGroup>
+
+</Project>
