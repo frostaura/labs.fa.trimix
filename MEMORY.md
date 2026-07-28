@@ -3,7 +3,7 @@
 _Last verified: 2026-07-27 by the serverless-rebuild session (four-phase teardown + rebuild; Core builds, 345/345 Core tests pass, Trimix.App builds for net10.0-android and net10.0-ios, all inspected directly)._
 
 ## Current state
-**Rebuilt from a server-backed BLE aggregator into a serverless, on-device, API-sync-only dive log** matching the founder's 2026-07-27 prototype (`~/Desktop/Trimix Prototype.html`). Branch `main`; the rebuild is **uncommitted** — `git status` shows the teardown+rebuild as working-tree changes (backend and BLE deletions, new connectors, reshaped UI). A private remote `git@github.com:frostaura/fa.trimix.git` is configured and **has never been pushed**; `main` has no upstream. The program still exists on one Mac plus iCloud, now also with a large uncommitted delta — **committing + pushing is the top durability action** and has not been done (the session was instructed not to commit).
+**Rebuilt from a server-backed BLE aggregator into a serverless, on-device, API-sync-only dive log** matching the founder's 2026-07-27 prototype (`~/Desktop/Trimix Prototype.html`). **Committed and pushed 2026-07-28**: the rebuild is commit `2151827` on `main`, tracking `origin/main`, fully pushed. The GitHub repo **did not previously exist** (the `git@github.com:...` URL had been configured but never created); it was created **private** as `frostaura/fa.trimix` (default branch `main`) and `main` fast-forwarded over the two prior commits to include the rebuild. **The remote was switched from SSH to HTTPS** because this Mac has no SSH key — `gh` is authenticated as `frostaura` over HTTPS and is the working push path here; switch back to SSH once a key is added. Working tree clean; stray `.DS_Store` files removed.
 
 Build evidence (local only, no CI): `Trimix.Contracts` + `Trimix.Core` + `Trimix.App`, **345 Core tests green**, Android + iOS TFMs both compile. Toolchain is user-local `~/.dotnet` (10.0.301) + OpenJDK 17 + Android SDK — the system dotnet cannot build the repo (missing workload manifests).
 
@@ -37,7 +37,7 @@ Build evidence (local only, no CI): `Trimix.Contracts` + `Trimix.Core` + `Trimix
 - **`[CAC_PER_PAYER = TBD]`** — still an unmeasured placeholder; no CPI test has run.
 
 ## Watch list
-- **Commit + push the rebuild.** The single most important durability action; not done this session.
+- **Durability done (2026-07-28):** rebuild committed (`2151827`) and pushed to the new private `frostaura/fa.trimix`. Remaining git note: origin is HTTPS on this Mac (no SSH key); the founder's other machines using the SSH URL will need this repo to exist (it now does) and their own auth.
 - **A fresh adversarial re-review of the rebuilt tree has not been run** — recommended before any M3 field testing, especially over the seven reverse-engineered connectors and the on-device entitlement path.
 - **`SiteDetailPage`/`SiteDetailViewModel` remain in the tree, stubbed and unrouted** from the new derived Sites tab — a Phase-cleanup candidate.
 - **Dead server DTOs** (`ApiRoutes.cs`, `PasskeyDtos`, `PrivacyDtos`, `ContributionDtos`) remain in `Trimix.Contracts` as frozen shapes; `network_security_config.xml` (dev-loopback) is now moot — cleanup candidates.
