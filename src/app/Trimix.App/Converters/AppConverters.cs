@@ -42,6 +42,16 @@ public sealed class InverseBoolConverter : IValueConverter
         value is not true;
 }
 
+/// <summary>Carousel dot emphasis (C6): active dot fully opaque, inactive dots dimmed.</summary>
+public sealed class BoolToDotOpacityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is true ? 1.0 : 0.3;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 public sealed class IntGreaterThanZeroConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>

@@ -8,7 +8,7 @@ namespace Trimix.Core.Tests.Connectors.Cloud;
 
 /// <summary>
 /// Cross-cutting proof that the founder-directed legal guardrails hold for <b>every</b> reverse-engineered
-/// cloud-pull connector (Garmin, Suunto, Oceanic+), not just per-connector discipline. These are the structural
+/// cloud-pull connector (Garmin, Suunto, Oceanic+, Mares, ScubaPro), not just per-connector discipline. These are the structural
 /// invariants from <c>docs/known-gaps.md</c>:
 /// <list type="bullet">
 ///   <item>(a) <b>Zero network I/O before consent</b> — <see cref="GatedCloudSourceConnector.AuthenticateAsync"/>
@@ -34,6 +34,8 @@ public class GuardrailTests
             OceanicCloudSourceConnector.Id => new OceanicCloudSourceConnector(http, tokens, consent),
             GarminCloudSourceConnector.Id => new GarminCloudSourceConnector(http, tokens, consent, new FakeFitActivityParser()),
             SuuntoCloudSourceConnector.Id => new SuuntoCloudSourceConnector(http, tokens, consent, new FakeFitActivityParser()),
+            MaresCloudSourceConnector.Id => new MaresCloudSourceConnector(http, tokens, consent, new MySsiCloudClient(http)),
+            ScubaProCloudSourceConnector.Id => new ScubaProCloudSourceConnector(http, tokens, consent, new MySsiCloudClient(http)),
             _ => throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown cloud connector."),
         };
 
@@ -54,6 +56,11 @@ public class GuardrailTests
             case OceanicCloudSourceConnector.Id:
                 http.EnqueueText("{\"token\":\"oceanic-tok-xyz\"}");
                 break;
+            case MaresCloudSourceConnector.Id:
+            case ScubaProCloudSourceConnector.Id:
+                // Both route through the shared MySSI corridor (one login shape for the pair).
+                http.EnqueueText("{\"token\":\"myssi-tok-xyz\"}");
+                break;
         }
     }
 
@@ -61,6 +68,8 @@ public class GuardrailTests
     [InlineData(GarminCloudSourceConnector.Id)]
     [InlineData(SuuntoCloudSourceConnector.Id)]
     [InlineData(OceanicCloudSourceConnector.Id)]
+    [InlineData(MaresCloudSourceConnector.Id)]
+    [InlineData(ScubaProCloudSourceConnector.Id)]
     public async Task No_http_exchange_occurs_before_consent_is_granted(string id)
     {
         var http = new RecordedHttpTransport();
@@ -82,6 +91,8 @@ public class GuardrailTests
     [InlineData(GarminCloudSourceConnector.Id)]
     [InlineData(SuuntoCloudSourceConnector.Id)]
     [InlineData(OceanicCloudSourceConnector.Id)]
+    [InlineData(MaresCloudSourceConnector.Id)]
+    [InlineData(ScubaProCloudSourceConnector.Id)]
     public async Task Password_is_never_written_to_the_token_store(string id)
     {
         var http = new RecordedHttpTransport();
@@ -106,6 +117,8 @@ public class GuardrailTests
     [InlineData(GarminCloudSourceConnector.Id)]
     [InlineData(SuuntoCloudSourceConnector.Id)]
     [InlineData(OceanicCloudSourceConnector.Id)]
+    [InlineData(MaresCloudSourceConnector.Id)]
+    [InlineData(ScubaProCloudSourceConnector.Id)]
     public void Every_cloud_connector_ships_dark_and_is_truthfully_labelled(string id)
     {
         var connector = CreateConnector(id, new RecordedHttpTransport(), new InMemorySecureTokenStore(), new InMemoryConnectorConsentStore());
@@ -123,6 +136,8 @@ public class GuardrailTests
     [InlineData(GarminCloudSourceConnector.Id)]
     [InlineData(SuuntoCloudSourceConnector.Id)]
     [InlineData(OceanicCloudSourceConnector.Id)]
+    [InlineData(MaresCloudSourceConnector.Id)]
+    [InlineData(ScubaProCloudSourceConnector.Id)]
     public async Task Revoke_disconnect_clears_the_exchanged_token_so_reconnect_forces_reauth(string id)
     {
         var http = new RecordedHttpTransport();
@@ -152,6 +167,8 @@ public class GuardrailTests
     [InlineData(GarminCloudSourceConnector.Id)]
     [InlineData(SuuntoCloudSourceConnector.Id)]
     [InlineData(OceanicCloudSourceConnector.Id)]
+    [InlineData(MaresCloudSourceConnector.Id)]
+    [InlineData(ScubaProCloudSourceConnector.Id)]
     public async Task Pending_password_does_not_linger_when_an_existing_token_short_circuits_authenticate(string id)
     {
         var http = new RecordedHttpTransport();

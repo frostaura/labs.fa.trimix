@@ -57,83 +57,44 @@ public static class MauiProgram
         builder.Services.AddSingleton<Trimix.Core.Abstractions.IAppInfo, MauiAppInfoService>();
         builder.Services.AddSingleton<INavigator, ShellNavigator>();
         builder.Services.AddSingleton<IUserDialogs, MauiUserDialogs>();
-        builder.Services.AddSingleton<Trimix.Core.Abstractions.IPermissions, BlePermissionService>();
 
-        // File-import picker (Connectors/FileImport): the real MAUI FilePicker over Android SAF / iOS
-        // UIDocumentPicker. Registered before AddTrimixCore so Core's UnsupportedFilePicker fallback never engages.
-        builder.Services.AddSingleton<Trimix.Core.Connectors.FileImport.IFilePicker, MauiFilePicker>();
-
-        // Slice 1 — real export file sink (writes exporter bytes to cache, hands the file to the OS share
-        // sheet / "Save to Files"). Registered before AddTrimixCore so it OVERRIDES Core's TryAdd
-        // InMemoryExportFileSink on device, and the three FileExportDestinationConnector registrations
-        // resolve the real sink. No cloud, no credentials — LegalPosture.UserFile only.
-        builder.Services.AddSingleton<Trimix.Core.Connectors.Export.IExportFileSink, MauiExportFileSink>();
-
-        // Slice 2 — Connected-accounts activation UI dependencies: a dependency-free QR encoder and the
-        // SSI QR payload builder (neither is DI-registered in Core, and the ConnectedAccountsViewModel
-        // needs both). Kept in the App graph so Core's AddTrimixCore ValidateOnBuild stays resolvable.
-        builder.Services.AddSingleton<Trimix.Core.Connectors.Push.IQrEncoder, Trimix.Core.Connectors.Push.BasicQrEncoder>();
-        builder.Services.AddSingleton<Trimix.Core.Connectors.Push.SsiQrPayloadBuilder>();
-
-#if IOS
-        // Apple HealthKit source connector (iOS-only, on-device consent, depth+temp). The platform IHealthStore
-        // and the Core connector are wired HERE — never in AddTrimixCore — because Core targets net10.0 with no
-        // HealthKit surface and there is no IHealthStore on Android (registering it in Core would fail DI
-        // validation there). AddSingleton is additive, so on iOS the IDiveSourceConnector enumerable carries it.
-        builder.Services.AddSingleton<Trimix.Core.Connectors.HealthKit.IHealthStore, Trimix.App.Health.HealthKitHealthStore>();
-        builder.Services.AddSingleton<IDiveSourceConnector, Trimix.Core.Connectors.HealthKit.HealthStoreSourceConnector>();
-#endif
-#if ANDROID || IOS
-        // Passkey (WebAuthn) authenticator — platform-native (iOS AuthenticationServices / Android
-        // Credential Manager). Registered before AddTrimixCore so the Core unavailable-fallback never engages.
-        builder.Services.AddSingleton<IPasskeyAuthService, Auth.PasskeyAuthService>();
+        // Biometric local unlock (C2): platform BiometricPrompt / LocalAuthentication. Registered
+        // BEFORE AddTrimixCore so Core's always-succeeding DevBiometricUnlock fallback never engages
+        // on a real platform build. Both implementations degrade to success when no biometric
+        // hardware/enrollment exists (emulators) — the app must never lock the diver out of their
+        // own on-device logbook.
+#if ANDROID
+        builder.Services.AddSingleton<IBiometricUnlock, Trimix.App.Auth.AndroidBiometricUnlock>();
+#elif IOS
+        builder.Services.AddSingleton<IBiometricUnlock, Trimix.App.Auth.IosBiometricUnlock>();
 #endif
 
-        // ---- DI flags (architecture overview §2/§4) --------------------------------------------
-        // Debug: SimulatorTransport + SandboxBillingService (the slice's live purchase path).
-        // Release: Android registers the real adapters — BleTransport (skeleton) + PlayBillingService
-        // (real Play Billing wiring, runtime-inert until a Play listing exists).
+        // ---- Billing (serverless: entitlements are granted ON-DEVICE from store receipts) -------
+        // Debug: Core's SandboxBillingService (TryAdd inside AddTrimixCore). Release: the real store adapters.
         var coreDefaults = new TrimixCoreOptions();
 #if ANDROID
-        if (!coreDefaults.UseSimulatorTransport)
-        {
-            builder.Services.AddSingleton<IDiveComputerTransport, Ble.BleTransport>();
-        }
-
         if (!coreDefaults.UseSandboxBilling)
         {
             builder.Services.AddSingleton<IBillingService, Billing.PlayBillingService>();
         }
 #elif IOS
-		// iOS: native CoreBluetooth transport + StoreKit billing (Release only; Debug keeps the Core
-		// SimulatorTransport + SandboxBillingService via Core's TryAdd below). Same Ble.BleTransport /
-		// Billing.StoreKitBillingService class names as the Android twins keep the wiring uniform.
-		if (!coreDefaults.UseSimulatorTransport)
-		{
-			builder.Services.AddSingleton<IDiveComputerTransport, Ble.BleTransport>();
-		}
-
 		if (!coreDefaults.UseSandboxBilling)
 		{
 			builder.Services.AddSingleton<IBillingService, Billing.StoreKitBillingService>();
 		}
 #else
-		// Other platforms (e.g. Mac Catalyst): deterministic Core implementations so DI always resolves.
-		if (!coreDefaults.UseSimulatorTransport)
-		{
-			builder.Services.AddSingleton<IDiveComputerTransport, Trimix.Core.DiveComputer.SimulatorTransport>();
-		}
-
+		// Other platforms (e.g. Mac Catalyst): deterministic Core implementation so DI always resolves.
 		if (!coreDefaults.UseSandboxBilling)
 		{
 			builder.Services.AddSingleton<IBillingService, Trimix.Core.Billing.SandboxBillingService>();
 		}
 #endif
 
-        // ---- Slice 4 — external client config (deploy inputs) ---------------------------------
+        // ---- External client config (deploy inputs) -------------------------------------------
         // Load Resources/Raw/appsettings.json (safe dev defaults; missing/malformed => defaults, never
-        // throws). Every reverse-eng endpoint + BLE UUID here is a DEPLOY INPUT gated on legal / name
-        // clearance; the shipped asset carries null endpoints so the connectors stay dark.
+        // throws). Every reverse-eng endpoint here is a DEPLOY INPUT gated on legal sign-off; the shipped
+        // asset carries null endpoints so the connectors stay dark. There is no API/BLE config any more —
+        // the app is serverless and BLE was removed.
         var clientConfig = AppConfigLoader.LoadAsync().GetAwaiter().GetResult();
 
         // Pre-register the connector option objects BEFORE AddTrimixCore so its TryAdd fallbacks don't win.
@@ -150,9 +111,9 @@ public static class MauiProgram
             PushUrl = clientConfig.Connectors.Ssi.PushUrl,
         });
 
-        // Slice 2 — map the generic per-vendor cloud config bags onto CloudSourceOptions' vendor-specific
-        // slots. A registered instance makes the optional CloudSourceOptions ctor param resolve; null
-        // fields fall through to each connector's in-source researched constant.
+        // Map the generic per-vendor cloud config bags onto CloudSourceOptions' vendor-specific slots.
+        // A registered instance makes the optional CloudSourceOptions ctor param resolve; null fields fall
+        // through to each connector's in-source researched constant.
         builder.Services.AddSingleton(new Trimix.Core.Connectors.Cloud.CloudSourceOptions
         {
             GarminSigninUrl = clientConfig.Connectors.Cloud.Garmin.AuthUrl,
@@ -164,44 +125,23 @@ public static class MauiProgram
             SuuntoExportFitUrl = clientConfig.Connectors.Cloud.Suunto.DownloadUrl,
             OceanicLoginUrl = clientConfig.Connectors.Cloud.Oceanic.AuthUrl,
             OceanicDivesUrl = clientConfig.Connectors.Cloud.Oceanic.ListUrl,
+            MySsiLoginUrl = clientConfig.Connectors.Cloud.MySsi.AuthUrl,
+            MySsiDivesUrl = clientConfig.Connectors.Cloud.MySsi.ListUrl,
         });
 
-        // Slice 3 — merge deploy-verified per-vendor BLE GATT overrides (service/char UUIDs, handshake
-        // hex) into the static profile table. Empty by default (only Shearwater's public service UUID is
-        // pinned in-source); real per-vendor UUIDs/handshakes remain hardware-verified deploy inputs.
-        Trimix.Core.DiveComputer.BleGattOverrides.Apply(clientConfig.Ble);
-
-        // ---- Core (viewmodels, rails, import/sync, local store) -------------------------------
+        // ---- Core (viewmodels, rails, import pipeline, local store) ---------------------------
         builder.Services.AddTrimixCore(options =>
         {
             options.LocalDatabasePath = Path.Combine(FileSystem.AppDataDirectory, "trimix.db3");
 
-            // Slice 4 — reverse-eng connector family master switches (deploy gate ON TOP OF per-connector
-            // consent). Both ship OFF (Features.* default false): a disabled family is not registered, so it
-            // never surfaces in Connected accounts, can never be consented, and sync can never pull it — the
-            // legal/BD kill-switch the shipped appsettings.json documents. Flip ONLY after legal sign-off.
+            // Reverse-eng connector family master switches. The shipped appsettings.json sets both TRUE
+            // (serverless rebuild: the connectors are the primary product surface — all 7 providers appear
+            // in the Providers list). Per-user consent behind each connector's plain-language ToS-risk
+            // disclosure remains the only thing that permits any network I/O; these switches remain the
+            // deploy kill-switch that unregisters a family entirely. NOTE: a missing/corrupt config asset
+            // parses to Features.*=false (safe fallback) which turns the families OFF, not on.
             options.EnableCloudConnectors = clientConfig.Features.EnableCloudConnectors;
             options.EnablePushConnectors = clientConfig.Features.EnablePushConnectors;
-#if DEBUG
-            // Dev-only cleartext loopback: the Android emulator sees the host's loopback as 10.0.2.2
-            // (docker-compose API on localhost:5210). Physical devices need the host LAN address —
-            // dev-loop concern, documented in the README. Permitted by network_security_config's
-            // loopback domain-config; Release cannot reach these over cleartext.
-            options.ApiBaseAddress = new Uri(
-                DeviceInfo.Current.Platform == DevicePlatform.Android && DeviceInfo.Current.DeviceType == DeviceType.Virtual
-                    ? "http://10.0.2.2:5210"
-                    : "http://localhost:5210");
-#else
-            // Release ships https-only (name-clearance gate sets the real host before a store listing).
-            options.ApiBaseAddress = new Uri("https://api.trimix.frostaura.net");
-#endif
-
-            // Slice 4 — a configured Api.BaseUrl (deploy input) wins over the compiled default above;
-            // null/empty keeps the code default so a missing asset never changes behaviour.
-            if (clientConfig.Api.BaseUrl is { Length: > 0 } configuredBaseUrl)
-            {
-                options.ApiBaseAddress = new Uri(configuredBaseUrl);
-            }
         });
 
         // ---- Pages (Shell resolves routed pages through DI; viewmodels constructor-inject) ----
@@ -210,24 +150,12 @@ public static class MauiProgram
         builder.Services.AddTransient<LogbookPage>();
         builder.Services.AddTransient<SitesPage>();
         builder.Services.AddTransient<StatsPage>();
-        builder.Services.AddTransient<ImportPage>();
         builder.Services.AddTransient<SettingsPage>();
-        builder.Services.AddTransient<ManualEntryPage>();
         builder.Services.AddTransient<DiveDetailPage>();
         builder.Services.AddTransient<SiteDetailPage>();
-        builder.Services.AddTransient<ContributePage>();
         builder.Services.AddTransient<PaywallPage>();
-        builder.Services.AddTransient<ExportDivePage>();          // Slice 1
-        builder.Services.AddTransient<ConnectedAccountsPage>();   // Slice 2
-
-        // Slice 2 — the activation VM lives in the App graph (not AddTrimixCore) because it depends on the
-        // App-registered IQrEncoder + SsiQrPayloadBuilder; keeping it here preserves Core's ValidateOnBuild.
-        builder.Services.AddTransient<Trimix.Core.ViewModels.ConnectedAccountsViewModel>();
-
-        // Slice 4 — connector privacy purge is now registered inside AddTrimixCore (concrete +
-        // IConnectorPurgeService, one singleton) so the sign-out/GDPR-delete flow and the unauthenticated-
-        // startup reconciliation can AWAIT it. Its constructor subscribes to IAuthSession.AuthStateChanged +
-        // IdentityChanged, so it MUST still be resolved once at startup (see below) or it never subscribes.
+        builder.Services.AddTransient<ConnectedAccountsPage>();
+        builder.Services.AddTransient<ProviderOAuthPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -235,7 +163,7 @@ public static class MauiProgram
 
         var app = builder.Build();
 
-        // Slice 4 — force the purge service to construct now so its sign-out + identity-change subscriptions
+        // Force the purge service to construct now so its sign-out + identity-change subscriptions
         // are live for the whole app lifetime (an unresolved singleton never subscribes).
         _ = app.Services.GetRequiredService<Trimix.Core.Privacy.ConnectorPurgeService>();
 

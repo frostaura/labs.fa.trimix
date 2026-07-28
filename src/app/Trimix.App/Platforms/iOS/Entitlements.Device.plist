@@ -1,33 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-	iOS code-signing entitlements for Trimix.
-
-	Associated Domains is the runtime prerequisite for platform passkeys (see
-	Platforms/iOS/Auth/PasskeyAuthService.cs). `webcredentials:<rpId>` binds this app to the FIDO2
-	relying-party domain; iOS ONLY presents/accepts a passkey once BOTH sides agree:
-	  1. this entitlement lists the domain, and
-	  2. the domain serves /.well-known/apple-app-site-association listing this app's <TeamID>.net.frostaura.trimix.
-	The rpId here (trimix.frostaura.net) must match the rp.id the backend puts in the WebAuthn options.
-	Until the domain + AASA are live (name-clearance gate), the passkey sheet cannot be exercised — real
-	device/domain validation is M3 work.
+	iOS code-signing entitlements for Trimix — currently EMPTY. The webcredentials (passkey
+	relying-party) and HealthKit entitlements were removed with the serverless / API-sync-only rebuild
+	(2026-07-27). The file and its device-only csproj wiring are kept so a future device entitlement
+	has a home.
 -->
 <plist version="1.0">
-<dict>
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>webcredentials:trimix.frostaura.net</string>
-	</array>
-	<!--
-		HealthKit entitlement — paired with NSHealthShareUsageDescription in Info.plist. Required for the
-		Apple Health dive-import source (HealthStoreSourceConnector, read-only). Applied to the DEVICE build
-		only (the simulator has no Health store); the provisioning profile must enable the HealthKit
-		capability for a device/store build (name-clearance / paid-provisioning gate — same track as
-		Associated Domains above). Read-only clinical-health access is NOT requested.
-	-->
-	<key>com.apple.developer.healthkit</key>
-	<true/>
-	<key>com.apple.developer.healthkit.access</key>
-	<array/>
-</dict>
+<dict/>
 </plist>

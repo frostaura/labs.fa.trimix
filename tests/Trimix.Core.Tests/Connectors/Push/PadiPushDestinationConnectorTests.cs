@@ -1,8 +1,6 @@
 using Trimix.Core.Abstractions;
-using Trimix.Core.Connectors.Export;
 using Trimix.Core.Connectors.Push;
 using Trimix.Core.Tests.Connectors.Cloud;
-using Trimix.Core.Tests.Connectors.Export;
 using Xunit;
 
 namespace Trimix.Core.Tests.Connectors.Push;

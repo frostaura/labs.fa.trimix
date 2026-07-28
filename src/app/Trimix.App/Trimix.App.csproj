@@ -70,27 +70,17 @@
 		     runtime-inert until a Play listing exists (name-clearance gate). -->
 		<PackageReference Include="Xamarin.Android.Google.BillingClient" Version="9.1.0.1" />
 
-		<!-- Platform passkeys (WebAuthn/FIDO2) for Auth.PasskeyAuthService via Android's Credential
-		     Manager. Maintained, Microsoft-verified net10.0-android bindings of androidx.credentials
-		     (NuGet check 2026-07-03: 1.6.0.1). The .PlayServicesAuth companion supplies the Google
-		     Play Services credential provider that actually backs platform passkeys on-device.
-		     Runtime-inert until the app is associated with a real HTTPS relying-party domain via
-		     Digital Asset Links (assetlinks.json tied to the app-signing SHA-256) — see the
-		     well-known-assetlinks.json.txt template under Platforms/Android/Resources. -->
-		<PackageReference Include="Xamarin.AndroidX.Credentials" Version="1.6.0.1" />
-		<PackageReference Include="Xamarin.AndroidX.Credentials.PlayServicesAuth" Version="1.6.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Trimix.Core\Trimix.Core.csproj" />
 	</ItemGroup>
 
-	<!-- iOS code-signing entitlements: Associated Domains carries the `webcredentials:<rpId>` entry that
-	     platform passkeys require. The file is named Entitlements.Device.plist (NOT the conventional
-	     "Entitlements.plist", which MAUI auto-detects and would force real signing on the simulator too) and
-	     is applied ONLY to the iOS DEVICE build (ios-arm64) — associated-domains is device-only and needs a
-	     real provisioning profile. The simulator QA build (iossimulator-arm64) carries no entitlements and
-	     signs ad-hoc. -->
+	<!-- iOS code-signing entitlements (currently empty — the passkey associated-domains and HealthKit
+	     entitlements were removed with the serverless rebuild). The file is named Entitlements.Device.plist
+	     (NOT the conventional "Entitlements.plist", which MAUI auto-detects and would force real signing on
+	     the simulator too) and is applied ONLY to the iOS DEVICE build (ios-arm64). The simulator QA build
+	     (iossimulator-arm64) carries no entitlements and signs ad-hoc. -->
 	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">
 		<CodesignEntitlements>Platforms/iOS/Entitlements.Device.plist</CodesignEntitlements>
 	</PropertyGroup>

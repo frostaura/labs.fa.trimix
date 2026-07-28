@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Settings / "You" tab (mockup 1:1): Title24 "You" · grouped GlassCards with MonoLabel section
-     eyebrows (ACCOUNT · ENTITLEMENT · UNITS · PRIVACY · ABOUT). Entitlement state shows as a BadgeMint
-     pill. Restore purchases · unit toggles · privacy export/delete · about/licenses — all bindings and
-     commands preserved. Destructive delete uses DestructiveButton. -->
+<!-- Settings (C10, serverless): grouped GlassCards — PLAN (local entitlement + Restore purchases) ·
+     UNITS · PRIVACY (local export / local delete) · ABOUT + licenses. All server-backed rows are
+     gone: no passkey sign-in, no server entitlement-restore, no server export/delete, no moderation.
+     Auth is a biometric local unlock, so there is no account card at all. -->
 <ContentPage
     x:Class="Trimix.App.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -17,53 +17,26 @@
             <!-- Screen title -->
             <Label
                 Style="{StaticResource Title24}"
-                Text="You"
+                Text="Settings"
                 Margin="0,4,0,8"
                 SemanticProperties.HeadingLevel="Level1" />
 
-            <!-- Account -->
+            <!-- Plan / entitlement (on-device) -->
             <Border Style="{StaticResource GlassCard}">
                 <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                    <Label Style="{StaticResource MonoLabel}" Text="ACCOUNT" SemanticProperties.HeadingLevel="Level2" />
-                    <Label Style="{StaticResource Body15}" Text="{Binding AccountLabel}" />
-                    <Button
-                        Text="Sign in or create account"
-                        Command="{Binding SignInCommand}"
-                        IsVisible="{Binding IsGuest}"
-                        SemanticProperties.Description="Sign in or create account"
-                        SemanticProperties.Hint="Opens sign-in; an account syncs dives and keeps purchases restorable" />
-                    <Button
-                        Style="{StaticResource SecondaryButton}"
-                        Text="Sign out"
-                        Command="{Binding SignOutCommand}"
-                        IsVisible="{Binding IsGuest, Converter={StaticResource InverseBool}}"
-                        SemanticProperties.Description="Sign out"
-                        SemanticProperties.Hint="Signs out; dives already on this device stay available" />
-                    <Button
-                        Style="{StaticResource SecondaryButton}"
-                        Text="Connected accounts"
-                        Command="{Binding ConnectedAccountsCommand}"
-                        SemanticProperties.Description="Connected accounts"
-                        SemanticProperties.Hint="Manage dive-computer, cloud and personal-export connectors, and show your MySSI QR" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Entitlement -->
-            <Border Style="{StaticResource GlassCard}">
-                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                    <Label Style="{StaticResource MonoLabel}" Text="ENTITLEMENT" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Style="{StaticResource MonoLabel}" Text="PLAN" SemanticProperties.HeadingLevel="Level2" />
                     <HorizontalStackLayout Spacing="10">
                         <Border Style="{StaticResource BadgeMint}">
                             <Label Style="{StaticResource BadgeTextMint}" Text="{Binding EntitlementLabel}" />
                         </Border>
-                        <Label Style="{StaticResource Caption13}" VerticalOptions="Center" Text="Server-verified; follows your account across devices." />
+                        <Label Style="{StaticResource Caption13}" VerticalOptions="Center" Text="One-time purchase · restorable through your app store." />
                     </HorizontalStackLayout>
                     <Button
                         Style="{StaticResource SecondaryButton}"
                         Text="Restore purchases"
                         Command="{Binding RestorePurchasesCommand}"
                         SemanticProperties.Description="Restore purchases"
-                        SemanticProperties.Hint="Recovers a previous Pro or Lifetime purchase made with this account" />
+                        SemanticProperties.Hint="Recovers a previous Pro or Lifetime purchase from your app store" />
                 </VerticalStackLayout>
             </Border>
 
@@ -101,7 +74,7 @@
                     <Label Style="{StaticResource MonoLabel}" Text="PRIVACY" SemanticProperties.HeadingLevel="Level2" />
                     <Label
                         Style="{StaticResource Caption13}"
-                        Text="Dives are stored on this device first and sync only when you're signed in. Export gives you everything as JSON; delete wipes this device and signs you out." />
+                        Text="Everything lives on this device — there is no server copy. Export gives you your dives as JSON; delete wipes this device, including provider links." />
                     <Button
                         Style="{StaticResource SecondaryButton}"
                         Text="Export my data"

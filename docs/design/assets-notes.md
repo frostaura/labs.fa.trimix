@@ -1,5 +1,7 @@
 # Sonar design assets — authoring notes
 
+> **Historical note (2026-07-27).** These notes record the original 2026-07-03 authoring pass against the superseded `sonar-design-language.md` token values; the shipped `Colors.xaml` now carries the `mockup-spec.md` values (mint `#2FE3C4` on `#0A1013`). The nine judgement calls below remain the record of why derived values were chosen. Not rewritten — provenance only.
+
 What was authored under `src/app/Trimix.App/Resources/` to implement [`sonar-design-language.md`](sonar-design-language.md), plus every derivation/deviation. Authored 2026-07-03; XAML/SVG hand-verified well-formed with `xmllint` (no `dotnet build` run from this workstream — siblings were building concurrently).
 
 ## Files

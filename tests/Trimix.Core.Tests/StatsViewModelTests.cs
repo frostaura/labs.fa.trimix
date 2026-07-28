@@ -18,7 +18,15 @@ public class StatsViewModelTests
     private readonly UnitFormatter _units = new(new InMemoryPreferences());
     private readonly FakeNavigator _navigator = new();
 
-    private StatsViewModel CreateViewModel() => new(_store, _units, _navigator);
+    private StatsViewModel CreateViewModel() => new(
+        _store,
+        _units,
+        _navigator,
+        new InMemoryPreferences(),
+        new FakeEntitlementService(),
+        new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
+        [],
+        []);
 
     [Fact]
     public async Task Empty_store_reports_empty_state()

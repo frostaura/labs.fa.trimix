@@ -1,58 +1,50 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Connectors.Cloud;
-using Trimix.Core.Connectors.Push;
+using Trimix.Core.Connectors;
 
 namespace Trimix.Core.ViewModels;
 
 /// <summary>
-/// Settings → "Connected accounts": a registry-driven surface over every self-registered connector
-/// (<see cref="IDiveSourceConnector"/> + <see cref="IDiveDestinationConnector"/>). It renders each connector's
-/// name, kind and legal-posture badge, and for the reverse-engineered "personal export" connectors
-/// (<see cref="LegalPosture.ToSRiskReverseEng"/>) drives the founder-directed activation flow:
+/// The "Providers" screen (prototype S5): one row per registered connector — the five cloud sources
+/// (Garmin Dive · Suunto · ScubaPro · Mares · Oceanic+) then the two cert-agency destinations
+/// (PADI · SSI) — with the states Not connected → Linked ✓ / Syncing…. "Your phone syncs each
+/// platform directly — links stay on-device."
 ///
-/// <list type="number">
-///   <item><b>Connect</b> shows the connector's own plain-language ToS-risk disclosure and only records
-///     consent (<see cref="IConnectorConsentStore.GrantAsync"/>) after the diver explicitly accepts — no
-///     network I/O happens before that (the gated bases enforce it).</item>
-///   <item>A credential sheet then feeds the username+password once into
-///     <see cref="GatedCloudSourceConnector.ProvideCredentials"/> / <see cref="GatedPushConnectorBase.SignInAsync"/>;
-///     the password is cleared immediately and <b>never</b> held on the viewmodel or persisted (only the
-///     exchanged token is stored, inside the connector).</item>
-///   <item><b>Disconnect</b> is <see cref="IConnectorConsentStore.RevokeAsync"/>, which also severs the stored
-///     token, so a reconnect forces a fresh sign-in.</item>
-/// </list>
-///
-/// Clean connectors (dive computer / Apple Health / file import / file export) need no account and are shown as
-/// read-only informational rows. The SSI card additionally renders the zero-network, diver-scanned MySSI QR
-/// export (<see cref="SsiQrPayloadBuilder"/> → <see cref="IQrEncoder"/>). Kept in Core (MAUI-free) so the whole
-/// activation flow is unit-tested; the page only binds.
+/// Connect pushes the in-app provider sign-in sheet (<see cref="ProviderOAuthViewModel"/>), which
+/// owns the disclosure → consent → credential-exchange guardrail chain. Tapping a linked row offers
+/// unlink ("revoke anytime"): <see cref="IConnectorConsentStore.RevokeAsync"/> also severs the
+/// exchanged token, so a reconnect forces a fresh sign-in. The header hosts the radar "Sync now"
+/// button (via the shared <see cref="SyncSessionViewModel"/>); arriving with the nudge parameter
+/// (Sync now tapped while unlinked) flashes the Connect buttons red.
 /// </summary>
 public partial class ConnectedAccountsViewModel : ObservableObject
 {
-    public const string Route = "connected-accounts";
+    /// <summary>Shell route (kept on the VM for call-site compatibility; value = <see cref="Routes.Providers"/>).</summary>
+    public const string Route = Routes.Providers;
 
-    private readonly IConnectorConsentStore _consent;
-    private readonly IUserDialogs _dialogs;
-    private readonly IQrEncoder _qrEncoder;
-    private readonly SsiQrPayloadBuilder _ssiQrPayloadBuilder;
+    /// <summary>Nudge flash duration (prototype ~1.15s). Tests set 0 to assert synchronously.</summary>
+    public int NudgeDurationMs { get; set; } = 1150;
+
     private readonly Dictionary<string, object> _connectorsById = [];
+    private readonly IConnectorConsentStore _consent;
+    private readonly INavigator _navigator;
+    private readonly IUserDialogs _dialogs;
 
     public ConnectedAccountsViewModel(
         IEnumerable<IDiveSourceConnector> sources,
         IEnumerable<IDiveDestinationConnector> destinations,
         IConnectorConsentStore consent,
-        IUserDialogs dialogs,
-        IQrEncoder qrEncoder,
-        SsiQrPayloadBuilder ssiQrPayloadBuilder)
+        SyncSessionViewModel syncSession,
+        INavigator navigator,
+        IUserDialogs dialogs)
     {
         _consent = consent;
+        Sync = syncSession;
+        _navigator = navigator;
         _dialogs = dialogs;
-        _qrEncoder = qrEncoder;
-        _ssiQrPayloadBuilder = ssiQrPayloadBuilder;
 
         foreach (var source in sources)
         {
@@ -63,192 +55,111 @@ public partial class ConnectedAccountsViewModel : ObservableObject
         {
             _connectorsById[destination.Descriptor.ConnectorId] = destination;
         }
+
+        // Row statuses flip to "Syncing…" while the shared session runs.
+        Sync.PropertyChanged += OnSyncPropertyChanged;
     }
 
-    /// <summary>All connector rows, sources then destinations, in a stable registry order.</summary>
-    public ObservableCollection<ConnectorRow> Connectors { get; } = [];
+    /// <summary>The shared sync session — radar button, last-sync label, syncing states.</summary>
+    public SyncSessionViewModel Sync { get; }
 
-    /// <summary>The row whose credential sheet is open, or null when no sheet is shown.</summary>
+    /// <summary>All provider rows, sources first then destinations, in stable registry order.</summary>
+    public ObservableCollection<ProviderRow> Providers { get; } = [];
+
+    /// <summary>True briefly after arriving via an unlinked "Sync now" — flashes the Connect buttons.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsCredentialSheetVisible))]
-    private ConnectorRow? _activeCredentialRow;
+    private bool _isNudging;
 
-    [ObservableProperty]
-    private string _credentialUsername = "";
-
-    [ObservableProperty]
-    private string _credentialPassword = "";
-
-    public bool IsCredentialSheetVisible => ActiveCredentialRow is not null;
-
-    /// <summary>The rendered MySSI export QR, or null until <see cref="ShowSsiQrCommand"/> runs with a dive.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSsiQr))]
-    private QrMatrix? _ssiQrMatrix;
-
-    [ObservableProperty]
-    private string? _ssiQrPayload;
-
-    public bool HasSsiQr => SsiQrMatrix is not null;
-
-    /// <summary>Rebuilds the connector rows and refreshes each managed connector's connected state.</summary>
+    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O).</summary>
     [RelayCommand]
     public async Task LoadAsync()
     {
-        Connectors.Clear();
-        ActiveCredentialRow = null;
-
-        // Sources first, then destinations — the dictionary already de-duplicates by id.
+        Providers.Clear();
         foreach (var entry in _connectorsById.Values)
         {
             var descriptor = DescriptorOf(entry);
-            var row = new ConnectorRow(descriptor, DisplayNameOf(entry, descriptor));
-            if (row.IsManaged)
-            {
-                // Managed (reverse-eng) connectors: reflect any persisted consent + token. AuthenticateAsync
-                // never touches the network here — with no pending credentials it only reads local state.
-                row.IsConnected = _consent.HasConsent(descriptor.ConnectorId)
-                    && (await AuthenticateSafeAsync(entry)).Status == ConnectorAuthStatus.Granted;
-                row.StatusMessage = row.IsConnected ? "Connected" : "Not connected";
-            }
+            var row = new ProviderRow(descriptor.ConnectorId, entry is IDiveSourceConnector);
 
-            Connectors.Add(row);
-        }
-    }
-
-    /// <summary>Connect: disclosure → consent → reveal the credential sheet (managed connectors only).</summary>
-    [RelayCommand]
-    public async Task ConnectAsync(ConnectorRow row)
-    {
-        ArgumentNullException.ThrowIfNull(row);
-        if (!row.IsManaged || !_connectorsById.TryGetValue(row.ConnectorId, out var connector))
-        {
-            return;
+            // Linked = consented AND a stored token answers Granted. For the gated connectors this
+            // reads only local state — AuthenticateAsync performs no network call without pending
+            // credentials (and none at all before consent).
+            row.IsLinked = _consent.HasConsent(descriptor.ConnectorId)
+                && (await AuthenticateSafeAsync(entry)).Status == ConnectorAuthStatus.Granted;
+            row.RefreshStatus(Sync.IsSyncing);
+            Providers.Add(row);
         }
 
-        // Show the connector's own ToS-risk disclosure and gain explicit consent before ANY sign-in surface.
-        if (!_consent.HasConsent(row.ConnectorId))
-        {
-            var disclosure = (await AuthenticateSafeAsync(connector)).Message
-                ?? "This is an unofficial personal-export connector and may breach the vendor's terms of service.";
-            var accepted = await _dialogs.ConfirmAsync(
-                "Personal export — please read",
-                disclosure,
-                accept: "I understand, continue",
-                cancel: "Cancel");
-            if (!accepted)
-            {
-                return;
-            }
-
-            await _consent.GrantAsync(row.ConnectorId);
-        }
-
-        // Reveal the credential sheet (never pre-filled).
-        CredentialUsername = "";
-        CredentialPassword = "";
-        ActiveCredentialRow = row;
+        Sync.RefreshLinkState();
+        Sync.RefreshLastSyncLabel();
     }
 
     /// <summary>
-    /// Submit the sign-in sheet: feed the credentials once into the connector and store ONLY the exchanged
-    /// token. The password is cleared from the viewmodel immediately, whatever the outcome.
+    /// Row CTA: unlinked → push the provider's in-app sign-in sheet; linked → offer unlink
+    /// ("Read-only access · revoke anytime" is a promise this fulfils).
     /// </summary>
     [RelayCommand]
-    public async Task SubmitCredentialsAsync(ConnectorRow row)
+    public async Task ConnectAsync(ProviderRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        if (!_connectorsById.TryGetValue(row.ConnectorId, out var connector))
-        {
-            return;
-        }
 
-        var username = CredentialUsername;
-        var password = CredentialPassword;
-        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        if (!row.IsLinked)
         {
-            await _dialogs.AlertAsync("Sign-in needed", "Enter your username and password to connect.");
-            return;
-        }
-
-        ConnectorAuthResult result;
-        try
-        {
-            result = connector switch
+            await _navigator.GoToAsync(Routes.ProviderOAuth, new Dictionary<string, object>
             {
-                GatedCloudSourceConnector cloud => await SignInCloudAsync(cloud, username, password),
-                GatedPushConnectorBase push => await push.SignInAsync(username, password),
-                _ => new ConnectorAuthResult(ConnectorAuthStatus.Unavailable, "This connector does not support sign-in."),
-            };
-        }
-        finally
-        {
-            // Guardrail: the raw password never lingers on the viewmodel (nor is it ever persisted).
-            CredentialPassword = "";
+                [Routes.Params.ConnectorId] = row.ConnectorId,
+            });
+            return;
         }
 
-        if (result.Status == ConnectorAuthStatus.Granted)
+        var unlink = await _dialogs.ConfirmAsync(
+            $"Unlink {row.PlatformName}?",
+            "Trimix will forget the link and delete the stored access token. Your dives stay in your logbook.",
+            accept: "Unlink",
+            cancel: "Cancel");
+        if (!unlink)
         {
-            row.IsConnected = true;
-            row.StatusMessage = "Connected";
-            CredentialUsername = "";
-            ActiveCredentialRow = null;
-            await _dialogs.ToastAsync($"Connected {row.DisplayName}.");
+            return;
         }
-        else
-        {
-            row.IsConnected = false;
-            row.StatusMessage = "Not connected";
-            await _dialogs.AlertAsync(
-                "Couldn't connect",
-                result.Message ?? "Sign-in failed. Check your details and try again.");
-            // Leave the sheet open (username retained, password cleared) so the diver can retry.
-        }
-    }
 
-    /// <summary>Dismiss the credential sheet without connecting, clearing any entered secret.</summary>
-    [RelayCommand]
-    public void CancelCredentials()
-    {
-        CredentialUsername = "";
-        CredentialPassword = "";
-        ActiveCredentialRow = null;
-    }
-
-    /// <summary>Disconnect: revoke consent (which also deletes the exchanged token) so reconnect re-authenticates.</summary>
-    [RelayCommand]
-    public async Task DisconnectAsync(ConnectorRow row)
-    {
-        ArgumentNullException.ThrowIfNull(row);
+        // Revoke also severs the exchanged token, so a reconnect re-authenticates from scratch.
         await _consent.RevokeAsync(row.ConnectorId);
-        row.IsConnected = false;
-        row.StatusMessage = "Not connected";
-        if (ReferenceEquals(ActiveCredentialRow, row))
+        row.IsLinked = false;
+        row.RefreshStatus(Sync.IsSyncing);
+        Sync.RefreshLinkState();
+        await _dialogs.ToastAsync($"{row.PlatformName} unlinked.");
+    }
+
+    /// <summary>Flashes the Connect buttons (arrival via an unlinked "Sync now" tap).</summary>
+    public async Task BeginNudgeAsync()
+    {
+        IsNudging = true;
+        if (NudgeDurationMs > 0)
         {
-            ActiveCredentialRow = null;
+            await Task.Delay(NudgeDurationMs);
         }
 
-        await _dialogs.ToastAsync($"Disconnected {row.DisplayName}.");
+        IsNudging = false;
     }
 
-    /// <summary>
-    /// Render the diver-scanned MySSI QR for a specific dive (summary-only, contacts no SSI server, handles no
-    /// credentials). Exposed as a command so a dive-scoped caller can navigate here with a dive to export.
-    /// </summary>
-    [RelayCommand]
-    public void ShowSsiQr(DiveDto dive)
+    private void OnSyncPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        ArgumentNullException.ThrowIfNull(dive);
-        var payload = _ssiQrPayloadBuilder.Build(dive);
-        SsiQrPayload = payload;
-        SsiQrMatrix = _qrEncoder.Encode(payload);
+        if (e.PropertyName != nameof(SyncSessionViewModel.IsSyncing))
+        {
+            return;
+        }
+
+        foreach (var row in Providers)
+        {
+            row.RefreshStatus(Sync.IsSyncing);
+        }
     }
 
-    private static async Task<ConnectorAuthResult> SignInCloudAsync(GatedCloudSourceConnector cloud, string username, string password)
+    private static ConnectorDescriptor DescriptorOf(object connector) => connector switch
     {
-        cloud.ProvideCredentials(username, password);
-        return await cloud.AuthenticateAsync();
-    }
+        IDiveSourceConnector source => source.Descriptor,
+        IDiveDestinationConnector destination => destination.Descriptor,
+        _ => throw new ArgumentException("Unknown connector type.", nameof(connector)),
+    };
 
     /// <summary>AuthenticateAsync that swallows connector faults so a status refresh never crashes the page.</summary>
     private static async Task<ConnectorAuthResult> AuthenticateSafeAsync(object connector)
@@ -267,102 +178,37 @@ public partial class ConnectedAccountsViewModel : ObservableObject
             return new ConnectorAuthResult(ConnectorAuthStatus.Unavailable);
         }
     }
-
-    private static ConnectorDescriptor DescriptorOf(object connector) => connector switch
-    {
-        IDiveSourceConnector source => source.Descriptor,
-        IDiveDestinationConnector destination => destination.Descriptor,
-        _ => throw new ArgumentException("Unknown connector type.", nameof(connector)),
-    };
-
-    private static string DisplayNameOf(object connector, ConnectorDescriptor descriptor) => connector switch
-    {
-        // Cloud connectors carry a truthful "personal export" display name.
-        GatedCloudSourceConnector cloud => cloud.DisplayName,
-        _ => descriptor.ConnectorId switch
-        {
-            "ble_device" => "Dive computer (Bluetooth)",
-            "apple_health" => "Apple Health",
-            "file_import" => "File import (UDDF / DL7 / FIT)",
-            "padi_push_personal" => "PADI (personal export)",
-            "ssi_push_personal" => "SSI · MySSI (personal export)",
-            "export_uddf" => "UDDF file export",
-            "export_dl7" => "DL7 file export",
-            "export_pdf" => "PDF file export",
-            var id => id.Replace('_', ' '),
-        },
-    };
 }
 
 /// <summary>
-/// A single connector's display row (aggregator registry). Immutable identity + display fields, with the
-/// connected state observable so the credential flow can update the UI. <see cref="IsManaged"/> is true only
-/// for the reverse-engineered "personal export" connectors that have a connect/disconnect account flow.
+/// One provider row (prototype S5): platform name, monogram "logo", link state, status line and CTA.
+/// <see cref="IsSource"/> distinguishes the pull providers from the PADI/SSI push destinations.
 /// </summary>
-public partial class ConnectorRow : ObservableObject
+public partial class ProviderRow(string connectorId, bool isSource) : ObservableObject
 {
-    public ConnectorRow(ConnectorDescriptor descriptor, string displayName)
+    public string ConnectorId { get; } = connectorId;
+
+    public bool IsSource { get; } = isSource;
+
+    /// <summary>Short platform name ("Garmin Dive", "PADI").</summary>
+    public string PlatformName { get; } = ProviderCatalog.NameFor(connectorId);
+
+    /// <summary>Single-letter monogram for the row's logo box.</summary>
+    public string Monogram { get; } = ProviderCatalog.MonogramFor(connectorId);
+
+    [ObservableProperty]
+    private bool _isLinked;
+
+    [ObservableProperty]
+    private string _statusText = "Not connected";
+
+    [ObservableProperty]
+    private string _ctaText = "Connect";
+
+    /// <summary>Recomputes the status/CTA strings (prototype: Not connected → Linked ✓ / Syncing…).</summary>
+    public void RefreshStatus(bool isSyncing)
     {
-        ConnectorId = descriptor.ConnectorId;
-        DisplayName = displayName;
-        Kind = descriptor.Kind;
-        Legal = descriptor.Legal;
-        LegalBadge = BadgeFor(descriptor.Legal);
-        IsReverseEng = descriptor.Legal == LegalPosture.ToSRiskReverseEng;
-        IsManaged = descriptor.Legal == LegalPosture.ToSRiskReverseEng
-            && descriptor.Auth == AuthModel.UserCredential;
-        FidelityCaption = CaptionFor(descriptor.Fidelity);
-        StatusMessage = IsManaged ? "Not connected" : "Available";
+        StatusText = IsLinked ? (isSyncing ? "Syncing…" : "Linked · synced") : "Not connected";
+        CtaText = IsLinked ? "Linked ✓" : "Connect";
     }
-
-    public string ConnectorId { get; }
-
-    public string DisplayName { get; }
-
-    public ConnectorKind Kind { get; }
-
-    public LegalPosture Legal { get; }
-
-    /// <summary>Short legal-posture badge label; the ToS-risk one is clearly flagged "personal export".</summary>
-    public string LegalBadge { get; }
-
-    /// <summary>True for the unofficial reverse-engineered connectors (shows the ToS-risk disclosure on connect).</summary>
-    public bool IsReverseEng { get; }
-
-    /// <summary>True when the row has an interactive connect/disconnect account flow (credential connectors).</summary>
-    public bool IsManaged { get; }
-
-    public string FidelityCaption { get; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanConnect))]
-    [NotifyPropertyChangedFor(nameof(CanDisconnect))]
-    private bool _isConnected;
-
-    [ObservableProperty]
-    private string _statusMessage = "";
-
-    /// <summary>The Connect action is offered only for a managed connector that is not yet connected.</summary>
-    public bool CanConnect => IsManaged && !IsConnected;
-
-    /// <summary>The Disconnect action is offered only for a managed connector that is currently connected.</summary>
-    public bool CanDisconnect => IsManaged && IsConnected;
-
-    private static string BadgeFor(LegalPosture posture) => posture switch
-    {
-        LegalPosture.OwnedHardware => "Your device",
-        LegalPosture.CleanOfficial => "Official",
-        LegalPosture.UserFile => "Personal file",
-        LegalPosture.ToSRiskReverseEng => "Unofficial · personal export",
-        LegalPosture.PartnerRequired => "Partner",
-        _ => "",
-    };
-
-    private static string CaptionFor(ProfileFidelity fidelity) => fidelity switch
-    {
-        ProfileFidelity.FullProfile => "Full profile (depth, gas, tank, deco readouts)",
-        ProfileFidelity.DepthTempOnly => "Depth and temperature only",
-        ProfileFidelity.SummaryOnly => "Summary only (date, duration, max depth)",
-        _ => "",
-    };
 }

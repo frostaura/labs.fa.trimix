@@ -24,16 +24,12 @@ public partial class AppShell : Shell
         // Settings moved off the tab bar (the "You" tab is now the StatsPage) and is reached as a
         // pushed route from the StatsPage gear.
         Routing.RegisterRoute(Routes.Settings, typeof(SettingsPage));
-        // Import is a pushed flow (no longer a tab) — reached from the Logbook's "Import from computer".
-        Routing.RegisterRoute(Routes.Import, typeof(ImportPage));
-        Routing.RegisterRoute(Routes.ManualEntry, typeof(ManualEntryPage));
         Routing.RegisterRoute(Routes.DiveDetail, typeof(DiveDetailPage));
         Routing.RegisterRoute(Routes.SiteDetail, typeof(SiteDetailPage));
-        Routing.RegisterRoute(Routes.Contribute, typeof(ContributePage));
         Routing.RegisterRoute(Routes.Paywall, typeof(PaywallPage));
-        // Slice 1 — export-a-dive modal chooser (reached from DiveDetail's Export header button).
-        Routing.RegisterRoute(ExportDiveViewModel.Route, typeof(ExportDivePage));
-        // Slice 2 — Connected accounts (connector activation + SSI QR), pushed from Settings.
-        Routing.RegisterRoute(ConnectedAccountsViewModel.Route, typeof(ConnectedAccountsPage));
+        // Providers (prototype S5) — the connector registry, pushed from the add sheet / You tab /
+        // Settings — and the per-provider in-app sign-in sheet (S6).
+        Routing.RegisterRoute(Routes.Providers, typeof(ConnectedAccountsPage));
+        Routing.RegisterRoute(Routes.ProviderOAuth, typeof(ProviderOAuthPage));
     }
 }

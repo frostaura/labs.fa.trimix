@@ -3,18 +3,17 @@ using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Entitlements;
 
 namespace Trimix.Core.ViewModels;
 
 /// <summary>
-/// Site detail (PRD Flow C): depth range, type, hazards, marine life, access notes, approved
-/// community notes. Fires <c>site_viewed</c>. "Suggest correction" is Pro-gated — for free users
-/// it is a purchase moment (<c>paywall_shown</c> with <c>trigger=site_contribute</c>).
+/// Site detail — serverless Phase-1 stub. The server-backed site DB and the moderated contribution
+/// flow are removed; until Phase 3 feeds this from the bundled on-device atlas there is no site
+/// source, so load reports unavailable and returns. <c>site_viewed</c> still fires when a site
+/// loads (frozen taxonomy); the <c>site_contribute</c> paywall trigger constant stays frozen but is
+/// no longer emitted (contribution UI removed).
 /// </summary>
 public partial class SiteDetailViewModel(
-    IApiClient api,
-    IEntitlementService entitlements,
     IAnalytics analytics,
     INavigator navigator,
     IUserDialogs dialogs) : ObservableObject
@@ -29,13 +28,10 @@ public partial class SiteDetailViewModel(
     [RelayCommand]
     private async Task LoadAsync(Guid siteId)
     {
-        try
+        // Serverless Phase 1: no on-device site atlas yet (Phase 3 bundles one). Site stays null.
+        if (Site is null)
         {
-            Site = await api.GetSiteAsync(siteId);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            await dialogs.AlertAsync("Offline", "Could not load this site right now.");
+            await dialogs.AlertAsync("Site unavailable", "Site details are not available in this build.");
             await navigator.GoBackAsync();
             return;
         }
@@ -44,27 +40,5 @@ public partial class SiteDetailViewModel(
         {
             [FunnelEvents.Props.SiteId] = siteId.ToString("N"),
         });
-    }
-
-    [RelayCommand]
-    private async Task ContributeAsync()
-    {
-        if (Site is null)
-        {
-            return;
-        }
-
-        if (!EntitlementGate.CanContributeSites(entitlements.CurrentTier))
-        {
-            analytics.Track(FunnelEvents.PaywallShown, new Dictionary<string, string>
-            {
-                [FunnelEvents.Props.Trigger] = FunnelEvents.Values.TriggerSiteContribute,
-                [FunnelEvents.Props.EntitlementState] = FunnelEvents.Values.EntitlementStateFree,
-            });
-            await navigator.GoToAsync(Routes.Paywall);
-            return;
-        }
-
-        await navigator.GoToAsync(Routes.Contribute, new Dictionary<string, object> { [Routes.Params.SiteId] = Site.Id });
     }
 }

@@ -1,9 +1,8 @@
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
-using Trimix.Core.Api;
 using Trimix.Core.Platform;
 using Trimix.Core.Storage;
-using Trimix.Core.Tests.Connectors.Export;
+using Trimix.Core.Tests.Connectors.Push;
 using Trimix.Core.Tests.Fakes;
 using Trimix.Core.ViewModels;
 using Xunit;
@@ -11,14 +10,12 @@ using Xunit;
 namespace Trimix.Core.Tests;
 
 /// <summary>
-/// Settings privacy actions. Pins the GDPR erasure contract: "Delete my data" for a signed-in user calls
-/// the live server erasure endpoint (/privacy/delete) BEFORE sign-out — so the account, analytics, and
-/// receipt purchase-tokens are actually erased server-side, not just the local dives — and refuses to sign
-/// out (leaving data intact) when the server call fails.
+/// Settings privacy actions, serverless: everything lives on-device, so "Delete my data" is a local
+/// wipe — dives, session, and every connector consent+token (awaited, never fire-and-forget).
 /// </summary>
 public sealed class SettingsViewModelTests
 {
-    private static (SettingsViewModel Vm, FakeAuthSession Session, FakeApiClient Api, InMemoryLocalStore Store, FakeDialogs Dialogs, RecordingConnectorPurgeService Purge)
+    private static (SettingsViewModel Vm, FakeAuthSession Session, InMemoryLocalStore Store, FakeDialogs Dialogs, RecordingConnectorPurgeService Purge)
         NewSut(bool authenticated)
     {
         var session = new FakeAuthSession();
@@ -28,7 +25,6 @@ public sealed class SettingsViewModelTests
             session.CurrentUser = new UserDto(Guid.NewGuid(), "diver@example.com", UserRoles.User, true, DateTime.UtcNow);
         }
 
-        var api = new FakeApiClient();
         var store = new InMemoryLocalStore();
         var dialogs = new FakeDialogs { ConfirmResult = true };
         var purge = new RecordingConnectorPurgeService();
@@ -37,56 +33,36 @@ public sealed class SettingsViewModelTests
             new FakeEntitlementService(),
             new InMemoryPreferences(),
             store,
-            api,
             new FakeAppInfo(),
             new FakeNavigator(),
             dialogs,
             purge);
-        return (vm, session, api, store, dialogs, purge);
+        return (vm, session, store, dialogs, purge);
     }
 
     [Fact]
-    public async Task DeleteMyData_signed_in_erases_server_side_then_signs_out()
+    public async Task DeleteMyData_wipes_local_data_signs_out_and_purges_connectors()
     {
-        var (vm, session, api, store, dialogs, purge) = NewSut(authenticated: true);
+        var (vm, session, store, dialogs, purge) = NewSut(authenticated: true);
         await store.UpsertDiveAsync(DiveFixture.Trimix());
 
         await vm.DeleteMyDataCommand.ExecuteAsync(null);
 
-        Assert.Equal(1, api.DeleteMyDataCalls);           // the live /privacy/delete endpoint was hit…
-        Assert.False(session.IsAuthenticated);            // …and only then did we sign out
-        Assert.Equal(1, purge.PurgeAllCalls);             // …and the connector consent+tokens were purged too
+        Assert.False(session.IsAuthenticated);            // local wipe then sign-out
+        Assert.Equal(1, purge.PurgeAllCalls);             // connector consent+tokens purged too (awaited)
         Assert.Contains("Your data has been deleted.", dialogs.Toasts);
         Assert.All(await store.GetDivesAsync(), d => Assert.True(d.Deleted)); // local dives wiped
     }
 
     [Fact]
-    public async Task DeleteMyData_does_not_sign_out_when_server_erasure_fails()
+    public async Task DeleteMyData_guest_wipes_local_and_purges()
     {
-        var (vm, session, api, store, dialogs, purge) = NewSut(authenticated: true);
-        await store.UpsertDiveAsync(DiveFixture.Trimix());
-        api.DeleteMyDataThrows = new HttpRequestException("offline");
-
-        await vm.DeleteMyDataCommand.ExecuteAsync(null);
-
-        Assert.Equal(1, api.DeleteMyDataCalls);
-        Assert.True(session.IsAuthenticated);             // erasure failed => stay signed in, nothing lost locally
-        Assert.Equal(0, purge.PurgeAllCalls);             // …and no connector purge (we returned before sign-out)
-        Assert.All(await store.GetDivesAsync(), d => Assert.False(d.Deleted));
-        Assert.Contains(dialogs.Alerts, a => a.Title == "Delete failed");
-        Assert.DoesNotContain("Your data has been deleted.", dialogs.Toasts);
-    }
-
-    [Fact]
-    public async Task DeleteMyData_guest_wipes_local_without_a_server_call()
-    {
-        var (vm, session, api, store, dialogs, purge) = NewSut(authenticated: false);
+        var (vm, session, store, dialogs, purge) = NewSut(authenticated: false);
         await store.UpsertDiveAsync(DiveFixture.Trimix());
 
         await vm.DeleteMyDataCommand.ExecuteAsync(null);
 
-        Assert.Equal(0, api.DeleteMyDataCalls);           // a guest has no server-side account to erase
-        Assert.Equal(1, purge.PurgeAllCalls);             // but a guest may have connected vendors — still purge
+        Assert.Equal(1, purge.PurgeAllCalls);             // a guest may have connected vendors — still purge
         Assert.All(await store.GetDivesAsync(), d => Assert.True(d.Deleted));
         Assert.Contains("Your data has been deleted.", dialogs.Toasts);
     }
@@ -94,21 +70,22 @@ public sealed class SettingsViewModelTests
     [Fact]
     public async Task DeleteMyData_declined_does_nothing()
     {
-        var (vm, session, api, store, dialogs, purge) = NewSut(authenticated: true);
+        var (vm, session, store, dialogs, purge) = NewSut(authenticated: true);
+        await store.UpsertDiveAsync(DiveFixture.Trimix());
         dialogs.ConfirmResult = false;
 
         await vm.DeleteMyDataCommand.ExecuteAsync(null);
 
-        Assert.Equal(0, api.DeleteMyDataCalls);
         Assert.True(session.IsAuthenticated);
         Assert.Equal(0, purge.PurgeAllCalls);             // declined => nothing erased or purged
+        Assert.All(await store.GetDivesAsync(), d => Assert.False(d.Deleted));
         Assert.Empty(dialogs.Toasts);
     }
 
     [Fact]
     public async Task SignOut_awaits_the_connector_purge()
     {
-        var (vm, session, _, _, dialogs, purge) = NewSut(authenticated: true);
+        var (vm, session, _, dialogs, purge) = NewSut(authenticated: true);
 
         await vm.SignOutCommand.ExecuteAsync(null);
 

@@ -12,9 +12,18 @@ namespace Trimix.App.Controls;
 public sealed class DepthChartDrawable : IDrawable
 {
     private const float Pad = 8f;
-    private const int GridLines = 4;
+
+    /// <summary>The two dashed depth gridlines (prototype C6): 35% and 65% of the plot height —
+    /// the page's right-hand depth labels align to the same fractions.</summary>
+    private static readonly float[] GridFractions = [0.35f, 0.65f];
 
     public DepthChartPath Path { get; set; } = DepthChartPath.Empty;
+
+    /// <summary>Normalized scrub X ∈ [0,1], or null when no finger is on the chart (C6 touch-to-scrub).</summary>
+    public double? ScrubX { get; set; }
+
+    /// <summary>Normalized crosshair Y ∈ [0,1] on the depth polyline at <see cref="ScrubX"/>.</summary>
+    public double ScrubY { get; set; }
 
     /// <summary>
     /// Additive recorded-channel overlays (temperature/tank secondary lines, ceiling do-not-ascend
@@ -44,14 +53,17 @@ public sealed class DepthChartDrawable : IDrawable
         var isLight = Application.Current?.RequestedTheme == AppTheme.Light;
         var lineColor = isLight ? ThemeTokens.Get("SonarDeep") : accent;
 
-        // Grid: horizontal depth lines only (quiet, instrument-like).
+        // Grid: exactly two dashed horizontal depth lines (prototype C6; quiet, instrument-like).
         canvas.StrokeSize = 1f;
         canvas.StrokeColor = grid;
-        for (var i = 0; i <= GridLines; i++)
+        canvas.StrokeDashPattern = [3f, 4f];
+        foreach (var fraction in GridFractions)
         {
-            var y = Pad + h * i / GridLines;
+            var y = Pad + h * fraction;
             canvas.DrawLine(Pad, y, Pad + w, y);
         }
+
+        canvas.StrokeDashPattern = null;
 
         if (Path.IsEmpty)
         {
@@ -105,6 +117,26 @@ public sealed class DepthChartDrawable : IDrawable
 
         // Additive recorded-channel overlays, drawn on top of the untouched depth line/area.
         DrawOverlays(canvas, w, h);
+
+        // Touch-to-scrub crosshair (C6): dashed vertical line + a ring on the depth polyline at
+        // the touched point. Drawn last so it rides above every channel.
+        if (ScrubX is { } scrubX)
+        {
+            var sx = Pad + (float)Math.Clamp(scrubX, 0, 1) * w;
+            var sy = Pad + (float)Math.Clamp(ScrubY, 0, 1) * h;
+
+            canvas.StrokeSize = 1f;
+            canvas.StrokeColor = ThemeTokens.Get("TextSecondary").WithAlpha(0.6f);
+            canvas.StrokeDashPattern = [2f, 3f];
+            canvas.DrawLine(sx, 0, sx, dirtyRect.Height);
+            canvas.StrokeDashPattern = null;
+
+            canvas.FillColor = ThemeTokens.Get("Abyss");
+            canvas.FillCircle(sx, sy, 4f);
+            canvas.StrokeSize = 2f;
+            canvas.StrokeColor = lineColor;
+            canvas.DrawCircle(sx, sy, 4f);
+        }
     }
 
     private void DrawOverlays(ICanvas canvas, float w, float h)

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Dive detail (S6 / mockup 1:1): mint-on-Abyss. Ghost mint back · "Dive" title + IMPORTED badge ·
-     date/source subtitle · 2x2 GlassCard stat grid (MAX DEPTH mint · BOTTOM TIME white · MIN TEMP mint ·
-     GAS white) · "DEPTH / TIME" GlassCard holding the Core GraphicsView profile chart (x:Name=ChartView,
-     mint line) with the accessibility-mandated "view as table" alternative · site/details/notes cards ·
-     pinned "Match the site →" primary pill (OpenSiteCommand). Visual layer only — every binding preserved. -->
+<!-- Dive detail (prototype C6): mint-on-Abyss. "← Logbook" back · site-name title + origin chip ·
+     "Dive #N · date · location" meta · FROM {VENDOR} → PADI ✓ SSI ✓ route strip · 2x2 metric tiles
+     (MAX DEPTH mint · BOTTOM TIME · MIN TEMP · GAS) · "DEPTH / TIME" chart with touch-to-scrub
+     crosshair + tooltip and the accessibility-mandated "view as table" alternative · the
+     "NEAR THIS SITE" auto-rotating atlas carousel · NOTES view/edit/save. -->
 <ContentPage
     x:Class="Trimix.App.Pages.DiveDetailPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -13,53 +13,61 @@
     Shell.PresentationMode="ModalAnimated"
     Title="Dive">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*">
 
-        <!-- Header controls: ghost mint back (CloseCommand preserved) + Export action (ExportCommand). -->
+        <!-- Header: ghost mint back to the logbook (CloseCommand preserved). -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
             <Button
                 Grid.Column="0"
                 Style="{StaticResource BackButton}"
-                Text="←"
+                Text="← Logbook"
                 Command="{Binding CloseCommand}"
                 Margin="10,8,0,0"
                 MinimumWidthRequest="44"
-                SemanticProperties.Description="Back"
+                SemanticProperties.Description="Back to logbook"
                 SemanticProperties.Hint="Returns to the previous screen" />
-
-            <!-- Export to a standards-based file the diver owns (UDDF / DL7 / PDF) → OS save/share sheet. -->
-            <Button
-                Grid.Column="2"
-                Style="{StaticResource BackButton}"
-                Text="Export"
-                Command="{Binding ExportCommand}"
-                Margin="0,8,14,0"
-                MinimumWidthRequest="44"
-                SemanticProperties.Description="Export dive"
-                SemanticProperties.Hint="Opens format options to save or share this dive as a file" />
         </Grid>
 
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
 
-                <!-- Header: title + IMPORTED badge, date · source subtitle. -->
+                <!-- Header: site-name title + origin chip · meta line · route strip. -->
                 <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
-                    <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12" VerticalOptions="Center">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
                         <Label
                             Grid.Column="0"
                             Style="{StaticResource Title24}"
-                            Text="Dive"
+                            FontSize="21"
+                            Text="{Binding SiteName}"
+                            LineBreakMode="TailTruncation"
                             VerticalOptions="Center"
                             SemanticProperties.HeadingLevel="Level1" />
-                        <Border Grid.Column="1" Style="{StaticResource BadgeMint}">
-                            <Label Style="{StaticResource BadgeTextMint}" Text="IMPORTED" />
+                        <!-- Origin chip: the dive's source vendor (GARMIN / SUUNTO / …). -->
+                        <Border Grid.Column="1" Style="{StaticResource BadgeMint}" VerticalOptions="Center"
+                                SemanticProperties.Description="{Binding OriginLabel, StringFormat='Imported from {0}'}">
+                            <Label Style="{StaticResource BadgeTextMint}" Text="{Binding OriginLabel}" />
                         </Border>
                     </Grid>
-                    <HorizontalStackLayout Spacing="6">
-                        <Label Style="{StaticResource Caption13}" Text="{Binding Dive.StartUtc, Converter={StaticResource DateFormat}}" />
-                        <Label Style="{StaticResource Caption13}" Text="·" IsVisible="{Binding Dive.Source, Converter={StaticResource StringNotEmpty}}" />
-                        <Label Style="{StaticResource Caption13}" Text="{Binding Dive.Source}" IsVisible="{Binding Dive.Source, Converter={StaticResource StringNotEmpty}}" />
-                    </HorizontalStackLayout>
+                    <Label Style="{StaticResource Caption13}" Text="{Binding MetaText}" />
+
+                    <!-- Route strip: FROM {VENDOR} → PADI ✓ SSI ✓ (linked push providers). -->
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Margin="0,4,0,0">
+                        <Border Style="{StaticResource BadgeMint}" Margin="0,0,6,4">
+                            <Label Style="{StaticResource BadgeTextMint}" Text="{Binding OriginLabel, StringFormat='FROM {0}'}" />
+                        </Border>
+                        <Label Style="{StaticResource Caption13}" Text="→" Margin="0,0,6,4" VerticalOptions="Center"
+                               IsVisible="{Binding HasRouteDestinations}"
+                               AutomationProperties.IsInAccessibleTree="False" />
+                        <FlexLayout Wrap="Wrap" AlignItems="Center" BindableLayout.ItemsSource="{Binding RouteDestinations}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border Style="{StaticResource Chip}" Margin="0,0,6,4">
+                                        <Label Style="{StaticResource ChipLabel}" Text="{Binding .}" />
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                    </FlexLayout>
 
                     <!-- Cross-source merge (§3 / §8.2): one physical dive, several sources → badged. -->
                     <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding IsMerged}">
@@ -78,7 +86,7 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
 
-                <!-- 2x2 stat grid. Each tile announces once; numeral + suffix excluded from the a11y tree. -->
+                <!-- 4 metric tiles (2x2). Each tile announces once; children excluded from the a11y tree. -->
                 <Grid RowDefinitions="*,*" ColumnDefinitions="*,*" RowSpacing="{StaticResource CardSpacing}" ColumnSpacing="{StaticResource CardSpacing}">
 
                     <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource GlassCard}">
@@ -92,12 +100,9 @@
                     </Border>
 
                     <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource GlassCard}">
-                        <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding DurationText, StringFormat='Bottom time {0}'}">
+                        <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding BottomTimeText, StringFormat='Bottom time {0}'}">
                             <Label Style="{StaticResource MonoLabel}" Text="BOTTOM TIME" AutomationProperties.IsInAccessibleTree="False" />
-                            <HorizontalStackLayout Spacing="3">
-                                <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding DurationText, Converter={StaticResource UnitPrefixPart}}" AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Style="{StaticResource UnitSuffix}" Text="{Binding DurationText, Converter={StaticResource UnitSuffixPart}}" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
-                            </HorizontalStackLayout>
+                            <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding BottomTimeText}" AutomationProperties.IsInAccessibleTree="False" />
                         </VerticalStackLayout>
                     </Border>
 
@@ -105,29 +110,62 @@
                         <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding MinTempText, StringFormat='Minimum temperature {0}'}">
                             <Label Style="{StaticResource MonoLabel}" Text="MIN TEMP" AutomationProperties.IsInAccessibleTree="False" />
                             <HorizontalStackLayout Spacing="3">
-                                <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding MinTempText, Converter={StaticResource UnitPrefixPart}}" AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding MinTempText, Converter={StaticResource UnitPrefixPart}}" AutomationProperties.IsInAccessibleTree="False" />
                                 <Label Style="{StaticResource UnitSuffix}" Text="{Binding MinTempText, Converter={StaticResource UnitSuffixPart}}" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
                             </HorizontalStackLayout>
                         </VerticalStackLayout>
                     </Border>
 
                     <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource GlassCard}">
-                        <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding Dive.GasMix, StringFormat='Gas {0}'}">
+                        <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding GasText, StringFormat='Gas {0}'}">
                             <Label Style="{StaticResource MonoLabel}" Text="GAS" AutomationProperties.IsInAccessibleTree="False" />
-                            <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding Dive.GasMix}" AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding GasText}" AutomationProperties.IsInAccessibleTree="False" />
                         </VerticalStackLayout>
                     </Border>
                 </Grid>
 
-                <!-- DEPTH / TIME — Core GraphicsView profile chart (mint) + accessible table alternative. -->
+                <!-- DEPTH / TIME — profile chart with touch-to-scrub + accessible table alternative. -->
                 <Border Style="{StaticResource GlassCard}">
                     <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                        <Label Style="{StaticResource MonoLabel}" Text="DEPTH / TIME" SemanticProperties.HeadingLevel="Level2" />
-                        <GraphicsView
-                            x:Name="ChartView"
-                            HeightRequest="220"
-                            IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}"
-                            SemanticProperties.Description="{Binding ChartSemanticDescription}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="DEPTH / TIME" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Grid.Column="1" Style="{StaticResource MonoLabelDim}" Text="touch to scrub"
+                                   IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}" />
+                        </Grid>
+                        <!-- Chart plot + right depth-gridline labels (aligned to the drawable's 35% / 65% dashed lines). -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7" IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}">
+                            <Grid Grid.Column="0">
+                                <GraphicsView
+                                    x:Name="ChartView"
+                                    HeightRequest="220"
+                                    SemanticProperties.Description="{Binding ChartSemanticDescription}" />
+                                <!-- Scrub tooltip — code-behind slides it with the finger (view concern). -->
+                                <Border
+                                    x:Name="ScrubTip"
+                                    Style="{StaticResource Chip}"
+                                    HorizontalOptions="Start"
+                                    VerticalOptions="Start"
+                                    Padding="8,4"
+                                    IsVisible="{Binding IsScrubbing}"
+                                    InputTransparent="True">
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Style="{StaticResource MonoLabelMint}" FontSize="9.5" TextTransform="None" Text="{Binding ScrubDepthText}" />
+                                        <Label Style="{StaticResource MonoLabel}" FontSize="9.5" TextTransform="None" Text="{Binding ScrubTimeText, StringFormat='· {0}'}" />
+                                    </HorizontalStackLayout>
+                                </Border>
+                            </Grid>
+                            <!-- Depth labels for the two dashed gridlines. -->
+                            <Grid Grid.Column="1" RowDefinitions="0.35*,0.30*,0.35*" WidthRequest="30">
+                                <Label Grid.Row="0" Style="{StaticResource MonoLabelDim}" FontSize="8" TextTransform="None" Text="{Binding GridDepth1Text}" VerticalOptions="End" />
+                                <Label Grid.Row="1" Style="{StaticResource MonoLabelDim}" FontSize="8" TextTransform="None" Text="{Binding GridDepth2Text}" VerticalOptions="End" />
+                            </Grid>
+                        </Grid>
+                        <!-- X axis: 0:00 · half · total. -->
+                        <Grid ColumnDefinitions="*,*,*" Margin="0,0,37,0" IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}">
+                            <Label Grid.Column="0" Style="{StaticResource MonoLabelDim}" FontSize="8.5" TextTransform="None" Text="0:00" HorizontalOptions="Start" />
+                            <Label Grid.Column="1" Style="{StaticResource MonoLabelDim}" FontSize="8.5" TextTransform="None" Text="{Binding AxisMidText}" HorizontalOptions="Center" />
+                            <Label Grid.Column="2" Style="{StaticResource MonoLabelDim}" FontSize="8.5" TextTransform="None" Text="{Binding AxisEndText}" HorizontalOptions="End" />
+                        </Grid>
 
                         <!-- Non-color legend (WCAG 1.4.1): channel identity by text + swatch, never hue alone.
                              Each entry shows only when that overlay is actually drawn. -->
@@ -166,7 +204,7 @@
 
                         <Label
                             Style="{StaticResource Caption13}"
-                            Text="No profile samples — manually logged dives carry summary numbers only."
+                            Text="No profile samples — this source synced summary numbers only."
                             IsVisible="{Binding Chart.IsEmpty}" />
                         <Button
                             Style="{StaticResource SecondaryButton}"
@@ -231,80 +269,95 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- Site block (tap → site detail). -->
-                <Border
-                    Style="{StaticResource GlassCard}"
-                    IsVisible="{Binding SiteName, Converter={StaticResource StringNotEmpty}}"
-                    SemanticProperties.Description="{Binding SiteName, StringFormat='Dive site {0}'}"
-                    SemanticProperties.Hint="Opens the dive site's details">
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding OpenSiteCommand}" />
-                    </Border.GestureRecognizers>
-                    <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
-                        <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
-                            <Label Style="{StaticResource MonoLabel}" Text="DIVE SITE" />
-                            <Label Style="{StaticResource Heading18}" Text="{Binding SiteName}" />
-                        </VerticalStackLayout>
-                        <Label Grid.Column="1" Style="{StaticResource Heading18}" Text="›" VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False"
-                               TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
+                <!-- NEAR THIS SITE — 3 auto-rotating community-atlas cards from the bundled seed
+                     atlas (fact · conditions · atlas line) with dot indicators. Tap → next card. -->
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding HasSite}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Style="{StaticResource MonoLabelMint}"
+                               Text="{Binding SiteCoordsText, StringFormat='NEAR THIS SITE · {0}'}"
+                               SemanticProperties.HeadingLevel="Level2" />
+                        <HorizontalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
+                            <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
+                                    Text="●" Command="{Binding GoToFactCommand}" CommandParameter="0"
+                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
+                                    Opacity="{Binding IsFact0Active, Converter={StaticResource BoolToDotOpacity}}"
+                                    SemanticProperties.Description="Site info 1" />
+                            <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
+                                    Text="●" Command="{Binding GoToFactCommand}" CommandParameter="1"
+                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
+                                    Opacity="{Binding IsFact1Active, Converter={StaticResource BoolToDotOpacity}}"
+                                    SemanticProperties.Description="Site info 2" />
+                            <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
+                                    Text="●" Command="{Binding GoToFactCommand}" CommandParameter="2"
+                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
+                                    Opacity="{Binding IsFact2Active, Converter={StaticResource BoolToDotOpacity}}"
+                                    SemanticProperties.Description="Site info 3" />
+                        </HorizontalStackLayout>
                     </Grid>
-                </Border>
+                    <Label Style="{StaticResource Body15}"
+                           FontSize="12.5"
+                           TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                           MinimumHeightRequest="38"
+                           Text="{Binding CurrentFactText}">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding NextFactCommand}" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </VerticalStackLayout>
 
-                <!-- Details chips: source, gas, gear, buddies, rating. -->
-                <Border Style="{StaticResource GlassCard}">
-                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                        <Label Style="{StaticResource MonoLabel}" Text="DETAILS" SemanticProperties.HeadingLevel="Level2" />
-                        <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center">
-                            <Border Style="{StaticResource Chip}" Margin="0,0,8,8">
-                                <Label Style="{StaticResource ChipLabel}" Text="{Binding Dive.Source, StringFormat='source: {0}'}" />
-                            </Border>
-                            <Border Style="{StaticResource ChipSelected}" Margin="0,0,8,8" IsVisible="{Binding Dive.GasMix, Converter={StaticResource StringNotEmpty}}">
-                                <Label Style="{StaticResource ChipLabelSelected}" Text="{Binding Dive.GasMix}" />
-                            </Border>
-                        </FlexLayout>
-                        <FlexLayout
-                            Wrap="Wrap" JustifyContent="Start" AlignItems="Center"
-                            BindableLayout.ItemsSource="{Binding Dive.GearCsv, Converter={StaticResource CsvToList}}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <Border Style="{StaticResource Chip}" Margin="0,0,8,8">
-                                        <Label Style="{StaticResource ChipLabel}" Text="{Binding .}" />
-                                    </Border>
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
-                        </FlexLayout>
-                        <Label
-                            Style="{StaticResource Caption13}"
-                            Text="{Binding Dive.BuddiesCsv, StringFormat='Buddies: {0}'}"
-                            IsVisible="{Binding Dive.BuddiesCsv, Converter={StaticResource StringNotEmpty}}" />
-                        <Label
-                            Style="{StaticResource Body15}"
-                            Text="{Binding Dive.Rating, Converter={StaticResource RatingToStars}}"
-                            IsVisible="{Binding Dive.Rating, Converter={StaticResource IntGreaterThanZero}}"
-                            TextColor="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
-                            SemanticProperties.Description="{Binding Dive.Rating, Converter={StaticResource RatingToWords}}" />
-                    </VerticalStackLayout>
-                </Border>
+                <!-- NOTES — view / edit / save / empty, persisted locally on the dive. -->
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
 
-                <!-- Notes. -->
-                <Border Style="{StaticResource GlassCard}" IsVisible="{Binding Dive.Notes, Converter={StaticResource StringNotEmpty}}">
-                    <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                        <Label Style="{StaticResource MonoLabel}" Text="NOTES" SemanticProperties.HeadingLevel="Level2" />
-                        <Label Style="{StaticResource Body15}" Text="{Binding Dive.Notes}" />
+                    <!-- Editing: eyebrow + Done, then the editor. -->
+                    <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding IsNotesEditing}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="NOTES" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Done"
+                                    Command="{Binding SaveNotesCommand}"
+                                    SemanticProperties.Description="Save notes" />
+                        </Grid>
+                        <Border Style="{StaticResource GlassCard}" Padding="12,10">
+                            <Editor
+                                Text="{Binding NotesDraft}"
+                                Placeholder="What did you see? Conditions, buddies, wildlife…"
+                                AutoSize="TextChanges"
+                                MinimumHeightRequest="84"
+                                SemanticProperties.Description="Dive notes" />
+                        </Border>
                     </VerticalStackLayout>
-                </Border>
+
+                    <!-- View: saved notes; tap to edit. -->
+                    <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding HasNotes}"
+                                         SemanticProperties.Hint="Tap to edit your notes">
+                        <VerticalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding StartNotesEditCommand}" />
+                        </VerticalStackLayout.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="7">
+                            <Label Style="{StaticResource MonoLabel}" Text="NOTES" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Style="{StaticResource Caption13}" Text="✎" Opacity="0.55" AutomationProperties.IsInAccessibleTree="False" />
+                        </HorizontalStackLayout>
+                        <Label Style="{StaticResource Body15}" FontSize="12.5"
+                               TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                               Text="{Binding NotesText}" />
+                    </VerticalStackLayout>
+
+                    <!-- Empty: "+ Add notes". -->
+                    <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsNotesEmpty}" MinimumHeightRequest="44">
+                        <HorizontalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding StartNotesEditCommand}" />
+                        </HorizontalStackLayout.GestureRecognizers>
+                        <Label Style="{StaticResource Heading18}" FontSize="14" Text="+"
+                               TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
+                               VerticalOptions="Center" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Style="{StaticResource Caption13}" Text="Add notes" VerticalOptions="Center"
+                               SemanticProperties.Description="Add notes"
+                               SemanticProperties.Hint="Opens the notes editor" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Bottom spacer so the last block scrolls clear of the floating tab bar. -->
+                <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
             </VerticalStackLayout>
         </ScrollView>
-
-        <!-- Pinned primary pill — match this dive to a site in the atlas (OpenSiteCommand preserved). -->
-        <Button
-            Grid.Row="2"
-            Style="{StaticResource PrimaryButton}"
-            Text="Match the site →"
-            Command="{Binding OpenSiteCommand}"
-            Margin="24,12,24,20"
-            SemanticProperties.Description="Match the site"
-            SemanticProperties.Hint="Opens the dive site atlas to match this dive" />
     </Grid>
 </ContentPage>

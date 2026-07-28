@@ -6,10 +6,9 @@ namespace Trimix.Core.Abstractions;
 /// A legally-clean source of dives (architecture overview §2). Every source connector's job is to
 /// <em>produce <see cref="ImportedDive"/>s</em>; from the <see cref="ImportedDive"/> boundary the
 /// existing <c>ImportService</c> pipeline (site auto-match → free-tier truncation → <c>ToDiveDto</c>
-/// → <c>store.UpsertDiveAsync</c> → <c>dive_logged_import</c> → paywall) runs unchanged. BLE is
-/// demoted to one <see cref="ConnectorKind.BleDevice"/> connector; HealthKit / file / cloud sources
-/// map their structured data straight into <see cref="ImportedDive"/>, skipping the byte-frame
-/// machinery.
+/// → <c>store.UpsertDiveAsync</c> → <c>dive_logged_import</c> → paywall) runs unchanged. Post-serverless
+/// the cloud provider connectors are the only sources: each maps its structured data straight into
+/// <see cref="ImportedDive"/>.
 /// </summary>
 public interface IDiveSourceConnector
 {

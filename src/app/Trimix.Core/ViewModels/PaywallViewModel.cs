@@ -2,27 +2,28 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts;
-using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Api;
 using Trimix.Core.Billing;
 
 namespace Trimix.Core.ViewModels;
 
 /// <summary>
-/// The paywall (PRD Layer 3): exactly two one-off SKUs (Pro $14.99 / Lifetime $29.99, both true
-/// non-consumables — never auto-renew) plus the restore link. Event contract per purchase attempt:
-/// <c>purchase_started</c> → store result → <c>purchase_completed</c> (store confirmed;
-/// receipt then goes to the server, which records <c>entitlement_granted</c>) or
-/// <c>purchase_cancelled</c> / <c>purchase_failed</c>.
+/// The paywall — the prototype's "Purchase moment" (S8) + "Unlocked" (S9), two states of one page:
+/// banner <c>⚠ FREE LIMIT REACHED · N / cap DIVES</c>, "Unlock unlimited import.", exactly two
+/// one-off SKUs (Pro / Lifetime <c>BEST VALUE</c> — never auto-renew), "Unlock — one-time",
+/// "One-time purchase · no subscription, ever", "Restore purchases" and "Not now" (dismiss with the
+/// "N dives on hold" toast). Serverless: the store confirms the purchase and the entitlement is
+/// granted ON-DEVICE (receipt → SKU → tier via <see cref="IEntitlementService.RestoreAsync"/>) —
+/// client-trust is the accepted tradeoff. Event contract per attempt: <c>purchase_started</c> →
+/// store result → <c>purchase_completed</c> or <c>purchase_cancelled</c> / <c>purchase_failed</c>;
+/// the tier grant emits <c>entitlement_granted</c> (EntitlementService). The cap numbers bind to
+/// <see cref="FreeTier.FreeLogbookVisibleDives"/> so copy and enforcement can never drift.
 /// </summary>
 public partial class PaywallViewModel(
     IBillingService billing,
-    IApiClient api,
     IEntitlementService entitlements,
+    ILocalStore store,
     IAnalytics analytics,
-    IAuthSession session,
-    IPendingPurchaseStore pendingPurchases,
     INavigator navigator,
     IUserDialogs dialogs) : ObservableObject
 {
@@ -33,33 +34,51 @@ public partial class PaywallViewModel(
     private bool _isBusy;
 
     /// <summary>
-    /// View-state flag for the post-purchase "You're Pro" confirmation (S9): true once the store has
-    /// confirmed the purchase and the entitlement is granted (or queued for retry). Purely a view
-    /// concern — swaps the paywall from the purchase state to the unlocked state.
+    /// View-state flag for the post-purchase "You're Pro." confirmation (S9): true once the store has
+    /// confirmed the purchase and the local entitlement is granted. The page stays put so the
+    /// unlocked state shows; "Go to logbook" dismisses.
     /// </summary>
     [ObservableProperty]
     private bool _purchaseSucceeded;
+
+    /// <summary>Count of dives left waiting on providers by the free cap (nav param from the sync run).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PendingLabel))]
+    private int _pendingDives;
+
+    /// <summary>Active (non-deleted) dives on device — the banner's N and the unlocked body's count.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LimitLabel))]
+    [NotifyPropertyChangedFor(nameof(UnlockedBody))]
+    private int _diveCount;
+
+    /// <summary>Banner: "⚠ FREE LIMIT REACHED · N / cap DIVES".</summary>
+    public string LimitLabel =>
+        $"⚠ FREE LIMIT REACHED · {Math.Min(DiveCount, FreeTier.FreeLogbookVisibleDives)} / {FreeTier.FreeLogbookVisibleDives} DIVES";
+
+    /// <summary>Sub-copy: "{N} more dives are waiting on your providers. Free keeps your last cap."</summary>
+    public string PendingLabel =>
+        (PendingDives > 0
+            ? $"{PendingDives} more dive{(PendingDives > 1 ? "s are" : " is")} waiting on your providers."
+            : "Import anything, forever.")
+        + $" Free keeps your last {FreeTier.FreeLogbookVisibleDives}.";
+
+    /// <summary>Unlocked (S9) body copy.</summary>
+    public string UnlockedBody =>
+        $"All {DiveCount} dives imported and multi-vendor unlock is active — restorable anytime through your app store.";
 
     [RelayCommand]
     private async Task LoadAsync()
     {
         Products = await billing.QueryProductsAsync([.. Skus.All.Select(s => s.Id)]);
+
+        var dives = await store.GetDivesAsync();
+        DiveCount = dives.Count(d => !d.Deleted);
     }
 
     [RelayCommand]
     private async Task PurchaseAsync(string skuId)
     {
-        // Account-bound entitlement (PRD Flow A ordering): a store purchase must attach to an account,
-        // so route guests to sign-in FIRST instead of charging them and stranding the receipt.
-        if (!session.IsAuthenticated)
-        {
-            await dialogs.AlertAsync(
-                "Sign in to continue",
-                "Create an account or sign in first so your purchase is saved to it and restores on any device.");
-            await navigator.GoToAsync(Routes.Auth);
-            return;
-        }
-
         analytics.Track(FunnelEvents.PurchaseStarted, new Dictionary<string, string>
         {
             [FunnelEvents.Props.SkuId] = skuId,
@@ -103,25 +122,16 @@ public partial class PaywallViewModel(
                 [FunnelEvents.Props.Currency] = product?.CurrencyCode ?? "USD",
             });
 
-            // Server-authoritative grant: POST the receipt; the server records entitlement_granted.
-            // The store already charged the user, so a validation failure must NOT lose the receipt:
-            // persist it for automatic retry on the next launch / restore and tell the user.
-            try
-            {
-                await api.ValidatePurchaseAsync(new ValidatePurchaseRequest(receipt.Platform, receipt.SkuId, receipt.Token));
-                await entitlements.RefreshAsync();
-            }
-            catch (Exception ex) when (ex is ApiException or HttpRequestException)
-            {
-                pendingPurchases.Add(receipt);
-                await dialogs.AlertAsync(
-                    "Purchase received",
-                    "Your purchase went through. We couldn't finish activating it just now — it will complete automatically the next time you open the app or tap Restore.");
-            }
+            // On-device grant: the store now owns the receipt (incl. the one just purchased), so a
+            // restore derives and caches the new tier locally. _ = receipt: kept for the event props
+            // above; the receipt itself is never posted anywhere (serverless, client-trust).
+            _ = receipt;
+            await entitlements.RestoreAsync();
 
+            // Stay on the page: PurchaseSucceeded flips the view to the Unlocked (S9) state and
+            // "Go to logbook" dismisses.
             PurchaseSucceeded = true;
             await analytics.FlushAsync();
-            await navigator.GoBackAsync();
         }
         finally
         {
@@ -138,18 +148,33 @@ public partial class PaywallViewModel(
         {
             reconciled = await entitlements.RestoreAsync();
         }
-        catch (Exception ex) when (ex is ApiException or HttpRequestException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await dialogs.AlertAsync("Restore failed", "We couldn't reach the store or server. Check your connection and try again.");
+            _ = ex;
+            await dialogs.AlertAsync("Restore failed", "We couldn't reach the store. Check your connection and try again.");
             return;
         }
 
         await dialogs.ToastAsync(reconciled > 0
             ? "Purchases restored."
-            : "No previous purchases found for this account.");
+            : "No previous purchases found on this device.");
         if (reconciled > 0)
         {
             await navigator.GoBackAsync();
         }
     }
+
+    /// <summary>"Not now": the single dismiss — free plan stays, held dives wait on the providers.</summary>
+    [RelayCommand]
+    private async Task NotNowAsync()
+    {
+        await navigator.GoBackAsync();
+        await dialogs.ToastAsync(PendingDives > 0
+            ? $"{PendingDives} dive{(PendingDives > 1 ? "s" : "")} on hold — upgrade anytime"
+            : "Free plan kept — upgrade anytime");
+    }
+
+    /// <summary>Unlocked state's "Go to logbook".</summary>
+    [RelayCommand]
+    private Task GoToLogbookAsync() => navigator.GoToAsync(Routes.Logbook);
 }

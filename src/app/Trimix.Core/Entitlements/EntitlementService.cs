@@ -1,45 +1,40 @@
 using Microsoft.Extensions.Logging;
 using Trimix.Contracts;
-using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Api;
 
 namespace Trimix.Core.Entitlements;
 
 /// <summary>
-/// Server-authoritative entitlement cache (architecture overview §1). The client NEVER decides
-/// tier from a receipt: receipts go to <c>POST /purchases/validate</c>, the server answers, and
-/// this service caches that answer in <see cref="ISecureStore"/> and refreshes on launch/sign-in.
-/// After sign-in on a fresh install it auto-restores store purchases once (PRD Flow D) — the
-/// server records <c>entitlement_granted</c>/<c>entitlement_restored</c>, not the client.
+/// On-device entitlement authority (serverless). The tier is derived locally from store receipts
+/// (<see cref="IBillingService"/> purchase/restore → SKU → <see cref="SkuDefinition.GrantsTier"/>) and
+/// cached in <see cref="ISecureStore"/>. There is no server receipt validation — client-trust is the
+/// accepted tradeoff of the serverless architecture (founder decision, 2026-07-27). Restore is the
+/// single grant path: after a purchase the store owns the receipt and a restore picks it up.
 /// </summary>
 public sealed class EntitlementService : IEntitlementService
 {
-    private readonly IApiClient _api;
     private readonly IBillingService _billing;
     private readonly ISecureStore _secureStore;
     private readonly IPreferences _preferences;
-    private readonly IPendingPurchaseStore _pendingPurchases;
+    private readonly IAnalytics _analytics;
     private readonly ILogger<EntitlementService> _logger;
 
     public EntitlementService(
-        IApiClient api,
         IBillingService billing,
         ISecureStore secureStore,
         IPreferences preferences,
-        IPendingPurchaseStore pendingPurchases,
         IAuthSession session,
+        IAnalytics analytics,
         ILogger<EntitlementService> logger)
     {
-        _api = api;
         _billing = billing;
         _secureStore = secureStore;
         _preferences = preferences;
-        _pendingPurchases = pendingPurchases;
+        _analytics = analytics;
         _logger = logger;
 
-        // Account-bound entitlement: dropping the account drops the cached paid tier so it never
-        // leaks to a signed-out guest or the next account on the device.
+        // Ending the local session drops the cached paid tier so it never leaks to the next identity
+        // on a shared device; a restore re-grants from the store at any time.
         session.AuthStateChanged += (_, isAuthenticated) =>
         {
             if (!isAuthenticated)
@@ -53,7 +48,7 @@ public sealed class EntitlementService : IEntitlementService
 
     public event EventHandler<EntitlementTier>? TierChanged;
 
-    /// <summary>Sign-out reset: clear the cached tier + secure key + one-shot restore flag, drop to Free.</summary>
+    /// <summary>Sign-out reset: clear the cached tier + one-shot restore flag, drop to Free.</summary>
     private void Reset()
     {
         _secureStore.Remove(SecureStoreKeys.EntitlementTier);
@@ -74,32 +69,15 @@ public sealed class EntitlementService : IEntitlementService
         }
     }
 
-    public async Task<EntitlementTier> RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var response = await _api.GetMyEntitlementAsync(cancellationToken).ConfigureAwait(false);
-            await SetTierAsync(response.Tier, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is ApiException or HttpRequestException or TaskCanceledException)
-        {
-            // Offline / unauthenticated: keep the cached answer.
-            _logger.LogInformation(ex, "Entitlement refresh failed; keeping cached tier {Tier}.", CurrentTier);
-        }
-
-        return CurrentTier;
-    }
+    /// <summary>Serverless: the local cache IS the authority — refresh just reports it.</summary>
+    public Task<EntitlementTier> RefreshAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(CurrentTier);
 
     public async Task OnSignedInAsync(CancellationToken cancellationToken = default)
     {
-        await RefreshAsync(cancellationToken).ConfigureAwait(false);
-
         // Fresh install (the preference flag is wiped on uninstall): reconcile store purchases once.
         if (_preferences.Get(PreferenceKeys.AutoRestoreDone) is not null)
         {
-            // Even after the one-shot window, always drain any receipts left pending by a failed
-            // post-purchase validate so a charged user eventually gets their entitlement.
-            await ReconcilePendingAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -107,7 +85,7 @@ public sealed class EntitlementService : IEntitlementService
         {
             await RestoreAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is ApiException or HttpRequestException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Auto-restore after sign-in failed; a later manual restore can reconcile.");
             return; // Leave the flag unset so the next sign-in retries.
@@ -116,73 +94,44 @@ public sealed class EntitlementService : IEntitlementService
         _preferences.Set(PreferenceKeys.AutoRestoreDone, "1");
     }
 
-    /// <summary>
-    /// Re-validates only the receipts left pending by a failed post-purchase validate (does not touch
-    /// the store). Called on launch/sign-in so a store-charged user is never stuck without entitlement.
-    /// </summary>
-    public async Task ReconcilePendingAsync(CancellationToken cancellationToken = default)
-    {
-        var pending = _pendingPurchases.GetAll();
-        if (pending.Count == 0)
-        {
-            return;
-        }
-
-        var reconciled = await ValidateReceiptsAsync(pending, cancellationToken).ConfigureAwait(false);
-        if (reconciled > 0)
-        {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
-        }
-    }
+    /// <summary>Serverless: there is no pending server-validation queue — nothing to reconcile.</summary>
+    public Task ReconcilePendingAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public async Task<int> RestoreAsync(CancellationToken cancellationToken = default)
     {
-        var storeReceipts = await _billing.RestoreAsync(cancellationToken).ConfigureAwait(false);
+        var receipts = await _billing.RestoreAsync(cancellationToken).ConfigureAwait(false);
 
-        // Restore both the store's receipts AND any receipt left pending by a failed validate,
-        // de-duplicated by token so we never double-post the same receipt.
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var receipts = new List<StoreReceipt>();
-        foreach (var receipt in storeReceipts.Concat(_pendingPurchases.GetAll()))
-        {
-            if (seen.Add(receipt.Token))
-            {
-                receipts.Add(receipt);
-            }
-        }
-
-        var reconciled = await ValidateReceiptsAsync(receipts, cancellationToken).ConfigureAwait(false);
-        if (reconciled > 0)
-        {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        return reconciled;
-    }
-
-    /// <summary>
-    /// Validates each receipt independently: one poisoned/foreign receipt (409) or a transient failure
-    /// does not abort reconciliation of the rest. Successfully validated receipts are dropped from the
-    /// pending queue. Returns the number reconciled.
-    /// </summary>
-    private async Task<int> ValidateReceiptsAsync(IReadOnlyList<StoreReceipt> receipts, CancellationToken cancellationToken)
-    {
         var reconciled = 0;
+        var best = CurrentTier;
+        StoreReceipt? grantingReceipt = null;
         foreach (var receipt in receipts)
         {
-            try
+            var sku = Skus.All.FirstOrDefault(s => s.Id == receipt.SkuId);
+            if (sku is null)
             {
-                await _api.ValidatePurchaseAsync(
-                        new ValidatePurchaseRequest(receipt.Platform, receipt.SkuId, receipt.Token),
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                _pendingPurchases.Remove(receipt);
-                reconciled++;
+                _logger.LogWarning("Restore: receipt for unknown SKU {Sku} ignored.", receipt.SkuId);
+                continue;
             }
-            catch (Exception ex) when (ex is ApiException or HttpRequestException)
+
+            reconciled++;
+            if (sku.GrantsTier > best)
             {
-                _logger.LogWarning(ex, "Restore: receipt for {Sku} failed validation; continuing with the rest.", receipt.SkuId);
+                best = sku.GrantsTier;
+                grantingReceipt = receipt;
             }
+        }
+
+        if (best != CurrentTier)
+        {
+            await SetTierAsync(best, cancellationToken).ConfigureAwait(false);
+
+            // Serverless: the on-device grant IS the entitlement authority now, so the frozen
+            // entitlement_granted event is emitted here (its former server emitter was deleted).
+            _analytics.Track(FunnelEvents.EntitlementGranted, new Dictionary<string, string>
+            {
+                [FunnelEvents.Props.Tier] = best.ToString(),
+                [FunnelEvents.Props.SourceReceiptId] = grantingReceipt?.Token ?? "local",
+            });
         }
 
         return reconciled;

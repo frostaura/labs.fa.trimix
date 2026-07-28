@@ -21,7 +21,11 @@ public static class EntitlementGate
     public static bool CanImportMore(EntitlementTier tier, int importedThisSession) =>
         importedThisSession < ImportSessionAllowance(tier);
 
-    /// <summary>Imports left this session (never negative; int.MaxValue when unlimited).</summary>
+    /// <summary>
+    /// Imports left before the free ceiling (never negative; int.MaxValue when unlimited).
+    /// <c>ImportService</c> passes the count of dives ALREADY STORED so "free keeps your last
+    /// 5" holds across sessions, not just within one batch.
+    /// </summary>
     public static int RemainingImports(EntitlementTier tier, int importedThisSession) =>
         IsPaid(tier)
             ? int.MaxValue

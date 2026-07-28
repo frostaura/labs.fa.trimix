@@ -9,6 +9,12 @@ public static class FunnelEvents
 {
     public const string Install = "install";
     public const string FirstRunCompleted = "first_run_completed";
+
+    // RETAINED-BUT-NO-LONGER-EMITTED (serverless rebuild, 2026-07-27). The taxonomy is frozen and
+    // additive-only — a name is NEVER deleted or renamed — but the emitters of the following events
+    // were removed with their features: account_created (passkey server accounts removed),
+    // dive_logged_manual (manual entry removed), ble_* + dives_fetched (BLE import removed),
+    // site_contribution_* (server moderation removed). They remain valid contract names.
     public const string AccountCreated = "account_created";
     public const string DiveLoggedManual = "dive_logged_manual";
     public const string BlePermissionRequested = "ble_permission_requested";
@@ -68,6 +74,7 @@ public static class FunnelEvents
         /// <summary><c>paywall_shown</c> requires <c>entitlement_state=free</c>.</summary>
         public const string EntitlementStateFree = "free";
 
+        // Retained-but-no-longer-emitted post-serverless (BLE import removed); frozen name.
         public const string TriggerBleImportCap = "ble_import_cap";
         public const string TriggerCloudSyncCap = "cloud_sync_cap";
         public const string TriggerLogbookCap = "logbook_cap";

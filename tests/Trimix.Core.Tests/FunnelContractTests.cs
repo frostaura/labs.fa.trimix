@@ -30,7 +30,9 @@ public class FunnelContractTests
     [Fact]
     public void Free_tier_caps_match_contract()
     {
-        Assert.Equal(3, FreeTier.FreeImportDivesPerSession);
-        Assert.Equal(25, FreeTier.FreeLogbookVisibleDives);
+        // Prototype alignment (2026-07): free keeps the last 5 dives; the 6th synced dive is the
+        // paywall moment. Both caps are the same 5-dive ceiling.
+        Assert.Equal(5, FreeTier.FreeImportDivesPerSession);
+        Assert.Equal(5, FreeTier.FreeLogbookVisibleDives);
     }
 }

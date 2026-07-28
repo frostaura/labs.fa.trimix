@@ -22,7 +22,18 @@ public class LogbookViewModelTests
     private readonly FakeNavigator _navigator = new();
 
     private LogbookViewModel CreateViewModel() =>
-        new(_store, _entitlements, _analytics, _navigator);
+        new(_store, _entitlements, _analytics, _navigator, new SyncSessionViewModel(
+            new FakeSyncCoordinator(),
+            [],
+            new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
+            _navigator,
+            new FakeDialogs(),
+            new Trimix.Core.Platform.InMemoryPreferences(),
+            new FakeClock()),
+            new Trimix.Core.Formatting.UnitFormatter(new Trimix.Core.Platform.InMemoryPreferences()),
+            new Trimix.Core.Sites.SiteAtlas(),
+            new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
+            []);
 
     private async Task SeedAsync(params DiveDto[] dives)
     {
@@ -70,12 +81,14 @@ public class LogbookViewModelTests
         // not double-count just because a second source synced the same dive (that inflates with each source).
         Assert.Equal(1, vm.TotalDives);
         Assert.Equal(3000, vm.TotalBottomTimeSec); // one dive's bottom time, not 6010
-        var merged = Assert.Single(vm.VisibleDives);
-        Assert.Equal(2, merged.Badges.Count);
-        Assert.Contains(merged.Badges, b => b.Label == "Shearwater");
-        Assert.Contains(merged.Badges, b => b.Label == "Apple Watch");
+        var row = Assert.Single(vm.VisibleDives);
+        Assert.Equal(2, row.Merged.Badges.Count);
+        Assert.Contains(row.Merged.Badges, b => b.Label == "Shearwater");
+        Assert.Contains(row.Merged.Badges, b => b.Label == "Apple Watch");
         // Richest-fidelity-per-field: the full-profile (tank-bearing) samples win.
-        Assert.Contains(merged.Primary.ProfileSamples, s => s.TankPressureBar is not null);
+        Assert.Contains(row.Merged.Primary.ProfileSamples, s => s.TankPressureBar is not null);
+        // Route string origin: the union's source vendor, uppercased.
+        Assert.StartsWith("SHEARWATER", row.Route, StringComparison.Ordinal);
     }
 
     [Fact]

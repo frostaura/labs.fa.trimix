@@ -14,13 +14,12 @@ namespace Trimix.Core.Tests;
 /// Launch-time connector-purge reconciliation (Finding 2b). An interrupted / failed sign-out purge can strand a
 /// vendor consent flag / exchanged token in the secure enclave (which survives uninstall on the iOS Keychain).
 /// AppStartupService re-runs the purge once on any UNAUTHENTICATED launch so a stranded link is cleared on the
-/// next open, and never runs it on the authenticated path (which syncs instead).
+/// next open, and never runs it on the authenticated path. (Server dive-sync was removed — serverless.)
 /// </summary>
 public sealed class AppStartupServiceTests
 {
     private static AppStartupService NewStartup(
         IAuthSession session,
-        ISyncService sync,
         IConnectorPurgeService purge,
         IPreferences? preferences = null) =>
         new(
@@ -28,34 +27,29 @@ public sealed class AppStartupServiceTests
             session,
             new FakeEntitlementService(),
             new RecordingAnalytics(),
-            sync,
             preferences ?? new InMemoryPreferences(),
             purge);
 
     [Fact]
     public async Task Unauthenticated_startup_reconciles_by_purging_connectors()
     {
-        var sync = new FakeSyncService();
         var purge = new RecordingConnectorPurgeService();
-        var startup = NewStartup(new FakeAuthSession { IsAuthenticated = false }, sync, purge);
+        var startup = NewStartup(new FakeAuthSession { IsAuthenticated = false }, purge);
 
         await startup.RunAsync();
 
         Assert.Equal(1, purge.PurgeAllCalls); // belt-and-suspenders reconciliation ran
-        Assert.Equal(0, sync.SyncCalls);      // …and the authenticated sync path did not
     }
 
     [Fact]
-    public async Task Authenticated_startup_syncs_and_does_not_purge()
+    public async Task Authenticated_startup_does_not_purge()
     {
-        var sync = new FakeSyncService();
         var purge = new RecordingConnectorPurgeService();
-        var startup = NewStartup(new FakeAuthSession { IsAuthenticated = true }, sync, purge);
+        var startup = NewStartup(new FakeAuthSession { IsAuthenticated = true }, purge);
 
         await startup.RunAsync();
 
         Assert.Equal(0, purge.PurgeAllCalls); // the reconciliation never disrupts a signed-in launch
-        Assert.Equal(1, sync.SyncCalls);
     }
 
     [Fact]
@@ -79,7 +73,7 @@ public sealed class AppStartupServiceTests
             [],
             consent,
             NullLogger<ConnectorPurgeService>.Instance);
-        var startup = NewStartup(session, new FakeSyncService(), purge, preferences);
+        var startup = NewStartup(session, purge, preferences);
 
         // First unauthenticated launch: the flaky store throws, the per-connector failure is swallowed inside
         // PurgeAllAsync (RunAsync does not throw), and the token is stranded.

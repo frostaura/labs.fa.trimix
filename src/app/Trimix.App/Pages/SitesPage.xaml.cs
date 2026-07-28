@@ -5,7 +5,6 @@ namespace Trimix.App.Pages;
 public partial class SitesPage : ContentPage
 {
     private readonly SitesViewModel _viewModel;
-    private bool _loadedOnce;
 
     public SitesPage(SitesViewModel viewModel)
     {
@@ -17,10 +16,8 @@ public partial class SitesPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        if (!_loadedOnce)
-        {
-            _loadedOnce = true;
-            await _viewModel.SearchCommand.ExecuteAsync(null); // Initial nearby list.
-        }
+        // Re-derive every appearance: sites aggregate from the local dive store (new syncs and the
+        // units toggle both change what the rows show).
+        await _viewModel.LoadCommand.ExecuteAsync(null);
     }
 }

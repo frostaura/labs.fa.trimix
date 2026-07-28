@@ -84,19 +84,21 @@ public class ChartGeometryTests
     }
 
     [Fact]
-    public void Fixture_profile_produces_full_range_geometry()
+    public void Realistic_profile_produces_full_range_geometry()
     {
-        // End-to-end sanity with a realistic profile shape from the Shearwater fixtures.
-        var dive = Core.DiveComputer.ShearwaterFixtures.Dives[1];
-        var samples = Enumerable.Range(0, dive.SampleCount)
-            .Select(i => Sample(
-                i * dive.SampleIntervalSec,
-                Core.DiveComputer.ShearwaterFixtures.DepthAt(dive, i)))
-            .ToList();
+        // End-to-end sanity with a realistic descend→bottom→ascend profile shape (synthetic; the
+        // Shearwater BLE fixtures this used were removed with the BLE import path).
+        const double maxDepth = 28.4;
+        const int intervalSec = 10;
+        var depths = new List<double>();
+        for (var i = 0; i <= 12; i++) depths.Add(maxDepth * i / 12.0);   // descent
+        for (var i = 0; i < 60; i++) depths.Add(maxDepth);               // bottom phase
+        for (var i = 12; i >= 0; i--) depths.Add(maxDepth * i / 12.0);   // ascent
+        var samples = depths.Select((d, i) => Sample(i * intervalSec, d)).ToList();
 
         var path = ChartGeometry.BuildDepthChart(samples);
 
-        Assert.Equal(dive.MaxDepthM, path.MaxDepthM, 3);
+        Assert.Equal(maxDepth, path.MaxDepthM, 3);
         Assert.Equal(1.0, path.Line.Max(p => p.Y), 3);  // bottom phase reaches the chart floor
         Assert.Equal(0.0, path.Line.Min(p => p.Y), 3);  // starts at the surface
         Assert.True(path.Line.SequenceEqual(path.Line.OrderBy(p => p.X))); // monotone X

@@ -1,112 +1,78 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Sites (PRD Flow C read path; design doc): search field + list with name, type, depth range
-     and distance from the device. No map control in the slice (architecture §10). -->
+<!-- Sites tab (prototype C7): DERIVED from the user's synced dives — dive-count badge · site name ·
+     location · deepest. Tap → the latest dive at that site. No search, no server browse/contribute
+     (the shared community site DB was removed with the backend). Empty: "No sites yet". -->
 <ContentPage
     x:Class="Trimix.App.Pages.SitesPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
-    xmlns:dtos="clr-namespace:Trimix.Contracts.Dtos;assembly=Trimix.Contracts"
     x:DataType="vm:SitesViewModel"
     BackgroundColor="{AppThemeBinding Light={StaticResource LightAbyss}, Dark={StaticResource Abyss}}"
     Title="Sites">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="0">
+    <Grid RowDefinitions="Auto,*" RowSpacing="0">
 
-        <!-- Header: mono eyebrow + big screen title -->
+        <!-- Header: big screen title + derivation sub-line. -->
         <VerticalStackLayout Grid.Row="0" Margin="24,16,24,8" Spacing="{StaticResource TightSpacing}">
-            <Label Style="{StaticResource MonoLabel}" Text="DIVE-SITE ATLAS" />
-            <Label Style="{StaticResource Title24}" Text="Sites" />
+            <Label Style="{StaticResource Title24}" Text="Sites" SemanticProperties.HeadingLevel="Level1" />
+            <Label Style="{StaticResource Caption13}" Text="Aggregated automatically from your synced dives." />
         </VerticalStackLayout>
 
-        <!-- Flat search: magnifier glyph + Entry (no native SearchBar chrome / filled box), aligned to
-             the page's 24px gutter. -->
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="24,4,24,10" VerticalOptions="Center">
-            <Label
-                Grid.Column="0"
-                Text="⌕"
-                FontSize="22"
-                VerticalOptions="Center"
-                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
-                AutomationProperties.IsInAccessibleTree="False" />
-            <Entry
-                Grid.Column="1"
-                Placeholder="Search dive sites"
-                Text="{Binding Query}"
-                ReturnCommand="{Binding SearchCommand}"
-                SemanticProperties.Description="Site search"
-                SemanticProperties.Hint="Searches the shared dive-site database; nearby sites rank first" />
-        </Grid>
-
-        <!-- Offline banner: icon + words + retry (never color-only). -->
-        <Border Grid.Row="2" Style="{StaticResource GlassCard}" Margin="24,4" IsVisible="{Binding IsOffline}">
-            <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                <Label Style="{StaticResource Body15}">
-                    <Label.FormattedText>
-                        <FormattedString>
-                            <Span Text="⚠ " TextColor="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}" />
-                            <Span Text="Offline — the shared site database is unreachable right now." />
-                        </FormattedString>
-                    </Label.FormattedText>
-                </Label>
-                <Button
-                    Style="{StaticResource SecondaryButton}"
-                    Text="Try again"
-                    Command="{Binding SearchCommand}"
-                    SemanticProperties.Description="Retry site search" />
-            </VerticalStackLayout>
-        </Border>
-
-        <Grid Grid.Row="3">
-            <CollectionView ItemsSource="{Binding Sites}" SelectionMode="None" Margin="24,4,24,0">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="dtos:SiteSummaryDto">
-                        <Border
-                            Style="{StaticResource GlassCard}"
-                            Margin="0,6"
-                            SemanticProperties.Description="{Binding Name}"
-                            SemanticProperties.Hint="Opens this dive site's details">
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer
-                                    Command="{Binding OpenSiteCommand, Source={RelativeSource AncestorType={x:Type vm:SitesViewModel}}, x:DataType=vm:SitesViewModel}"
-                                    CommandParameter="{Binding .}" />
-                            </Border.GestureRecognizers>
-                            <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48" ColumnSpacing="12">
-                                <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}" VerticalOptions="Center">
-                                    <Label Style="{StaticResource MonoLabel}" Text="SITE" />
-                                    <Label Style="{StaticResource Heading18}" Text="{Binding Name}" />
-                                    <Label Style="{StaticResource Caption13}" Text="{Binding ., Converter={StaticResource SiteSubtitle}}" />
-                                </VerticalStackLayout>
-                                <Label
-                                    Grid.Column="1"
-                                    Style="{StaticResource Heading18}"
-                                    Text="›"
-                                    VerticalOptions="Center"
-                                    AutomationProperties.IsInAccessibleTree="False"
-                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
-                            </Grid>
+        <!-- Derived site rows. -->
+        <CollectionView
+            Grid.Row="1"
+            ItemsSource="{Binding Sites}"
+            SelectionMode="None"
+            Margin="24,4,24,0"
+            IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:SiteRowItem">
+                    <Grid
+                        ColumnDefinitions="Auto,*,Auto"
+                        ColumnSpacing="13"
+                        Padding="4,14"
+                        SemanticProperties.Description="{Binding Name}"
+                        SemanticProperties.Hint="Opens the latest dive at this site">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding OpenSiteCommand, Source={RelativeSource AncestorType={x:Type vm:SitesViewModel}}, x:DataType=vm:SitesViewModel}"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+                        <!-- Dive-count badge. -->
+                        <Border Grid.Column="0" Style="{StaticResource BadgeMint}" WidthRequest="38" HeightRequest="38" VerticalOptions="Center"
+                                SemanticProperties.Description="{Binding CountText, StringFormat='{0} dives here'}">
+                            <Label Style="{StaticResource BadgeTextMint}" FontSize="13" Text="{Binding CountText}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                                   AutomationProperties.IsInAccessibleTree="False" />
                         </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-                <CollectionView.EmptyView>
-                    <Label
-                        Style="{StaticResource Caption13}"
-                        HorizontalTextAlignment="Center"
-                        Margin="0,32"
-                        Text="No sites found. Try a name, or clear the search to see sites near you." />
-                </CollectionView.EmptyView>
-                <!-- Bottom spacer so the last site scrolls clear of / under the floating iOS tab bar. -->
-                <CollectionView.Footer>
-                    <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
-                </CollectionView.Footer>
-            </CollectionView>
+                        <!-- Site · location. -->
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Style="{StaticResource Heading18}" FontSize="14" Text="{Binding Name}" />
+                            <Label Style="{StaticResource Caption13}" FontSize="11" Text="{Binding Location}" />
+                        </VerticalStackLayout>
+                        <!-- Deepest. -->
+                        <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="End" VerticalOptions="Center">
+                            <Label Style="{StaticResource Body15}" StyleClass="tnum" FontSize="12" FontFamily="JetBrainsMonoSemiBold" Text="{Binding MaxDepthText}" HorizontalTextAlignment="End" />
+                            <Label Style="{StaticResource MonoLabelDim}" FontSize="8.5" Text="DEEPEST" HorizontalTextAlignment="End" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <!-- Bottom spacer so the last site scrolls clear of / under the floating iOS tab bar. -->
+            <CollectionView.Footer>
+                <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+            </CollectionView.Footer>
+        </CollectionView>
 
-            <ActivityIndicator
-                IsRunning="{Binding IsBusy}"
-                IsVisible="{Binding IsBusy}"
-                VerticalOptions="Center"
-                HorizontalOptions="Center"
-                SemanticProperties.Description="Searching sites" />
-        </Grid>
+        <!-- Empty state. -->
+        <VerticalStackLayout Grid.Row="1" IsVisible="{Binding IsEmpty}" VerticalOptions="Center" Spacing="9" Padding="{StaticResource PageContentPadding}">
+            <Label Style="{StaticResource Heading18}" FontSize="15" Text="No sites yet" HorizontalTextAlignment="Center" />
+            <Label
+                Style="{StaticResource Body15}"
+                FontSize="13"
+                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                Text="Sites appear as dives sync in."
+                HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
     </Grid>
 </ContentPage>

@@ -1,98 +1,57 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Api;
 
 namespace Trimix.Core.ViewModels;
 
 /// <summary>
-/// Account sign-in (PRD Flow A step 2) — PASSKEY ONLY (no email/password, no OAuth). "Create a
-/// passkey" registers a new account bound to a WebAuthn credential; "Sign in with a passkey" does a
-/// usernameless assertion. After either: entitlement refresh + once-per-install auto-restore
-/// (<see cref="IEntitlementService.OnSignedInAsync"/>), then a dive sync so guest dives upload to the
-/// account. The server logs the frozen <c>account_created</c> funnel event on register — the client
-/// does not duplicate it. "Continue as guest" stays local-only until a passkey account is created.
+/// The account step (prototype S3): a biometric-only LOCAL unlock — "Yours, on this phone." No
+/// cloud, no servers, no passkeys, no email. The ring button drives
+/// <see cref="IBiometricUnlock.AuthenticateAsync"/> (iOS LocalAuthentication / Android
+/// BiometricPrompt; dev fallback succeeds on emulators) and lands on the logbook with the
+/// "Signed in on-device" toast. The frozen <c>account_created</c> funnel constant remains in the
+/// taxonomy but is no longer emitted (no server account exists to create).
 /// </summary>
 public partial class AuthViewModel(
-    IApiClient api,
-    IPasskeyAuthService passkeys,
-    IAuthSession session,
-    IEntitlementService entitlements,
-    ISyncService sync,
-    IAnalytics analytics,
+    IBiometricUnlock biometrics,
     INavigator navigator,
     IUserDialogs dialogs) : ObservableObject
 {
+    /// <summary>Ring-button label: "Continue with biometrics" → "Authenticating…" while the sheet is up.</summary>
+    public string AuthLabel => IsAuthenticating ? "Authenticating…" : "Continue with biometrics";
+
     [ObservableProperty]
-    private bool _isBusy;
+    [NotifyPropertyChangedFor(nameof(AuthLabel))]
+    private bool _isAuthenticating;
 
-    /// <summary>Drives whether the passkey buttons are shown (hidden on platforms without an authenticator).</summary>
-    public bool IsPasskeyAvailable => passkeys.IsAvailable;
-
-    /// <summary>Back navigation (cancel sign-in), wired to the page's Back button.</summary>
+    /// <summary>Back navigation, wired to the page's "← Back".</summary>
     [RelayCommand]
     private Task Close() => navigator.GoBackAsync();
 
-    /// <summary>Create a new account + passkey (WebAuthn registration).</summary>
     [RelayCommand]
-    private Task CreatePasskeyAsync() => RunPasskeyAsync(async () =>
+    private async Task AuthenticateAsync()
     {
-        var begin = await api.PasskeyRegisterBeginAsync(new PasskeyRegisterBeginRequest(null));
-        var attestation = await passkeys.CreatePasskeyAsync(begin.CreationOptionsJson);
-        return await api.PasskeyRegisterFinishAsync(new PasskeyRegisterFinishRequest(begin.ChallengeId, attestation));
-    });
-
-    /// <summary>Sign in with an existing passkey (WebAuthn assertion, usernameless).</summary>
-    [RelayCommand]
-    private Task SignInWithPasskeyAsync() => RunPasskeyAsync(async () =>
-    {
-        var begin = await api.PasskeyLoginBeginAsync();
-        var assertion = await passkeys.GetPasskeyAsync(begin.RequestOptionsJson);
-        return await api.PasskeyLoginFinishAsync(new PasskeyLoginFinishRequest(begin.ChallengeId, assertion));
-    });
-
-    [RelayCommand]
-    private Task ContinueAsGuestAsync() =>
-        // Guest mode: local-only until a passkey account is created (architecture overview §6/§8).
-        navigator.GoToAsync(Routes.Logbook);
-
-    private async Task RunPasskeyAsync(Func<Task<AuthResponse>> authenticate)
-    {
-        if (IsBusy)
+        if (IsAuthenticating)
         {
             return;
         }
 
-        IsBusy = true;
+        IsAuthenticating = true;
         try
         {
-            var auth = await authenticate();
-            await session.SignInAsync(auth);
-            await entitlements.OnSignedInAsync();
-            await sync.SyncAsync();
-            await analytics.FlushAsync();
+            var result = await biometrics.AuthenticateAsync(
+                "Unlock your logbook — everything stays on this phone.");
+            if (!result.Succeeded)
+            {
+                return; // cancelled/failed — stay here so the diver can retry the ring
+            }
+
             await navigator.GoToAsync(Routes.Logbook);
-        }
-        catch (PasskeyCancelledException)
-        {
-            // User dismissed the system passkey sheet — no error, just abort.
-        }
-        catch (PasskeyException ex)
-        {
-            await dialogs.AlertAsync("Passkey unavailable", ex.Message);
-        }
-        catch (ApiException ex)
-        {
-            await dialogs.AlertAsync("Sign-in failed", ex.Error.Message);
-        }
-        catch (HttpRequestException)
-        {
-            await dialogs.AlertAsync("Offline", "Could not reach the server. Try again, or continue as guest.");
+            await dialogs.ToastAsync("Signed in on-device");
         }
         finally
         {
-            IsBusy = false;
+            IsAuthenticating = false;
         }
     }
 }

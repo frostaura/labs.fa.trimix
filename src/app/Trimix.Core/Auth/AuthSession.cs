@@ -5,9 +5,9 @@ using Trimix.Core.Abstractions;
 namespace Trimix.Core.Auth;
 
 /// <summary>
-/// Holds the signed-in state. The JWT + user snapshot live in <see cref="ISecureStore"/>
-/// (<see cref="SecureStoreKeys.AuthToken"/> / <see cref="SecureStoreKeys.AuthUser"/>);
-/// <see cref="Api.ApiClient"/> reads the token from the same key.
+/// Holds the signed-in state. The token + user snapshot live in <see cref="ISecureStore"/>
+/// (<see cref="SecureStoreKeys.AuthToken"/> / <see cref="SecureStoreKeys.AuthUser"/>). Serverless:
+/// nothing reads the token remotely — the session is purely local device state.
 /// </summary>
 public sealed class AuthSession(ISecureStore secureStore) : IAuthSession
 {

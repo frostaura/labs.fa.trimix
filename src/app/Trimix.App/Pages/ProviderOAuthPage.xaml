@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Provider sign-in (prototype S6): an in-app-browser-styled sheet — dark chrome bar with "Done" +
+     lock + {provider}.com, then the provider's own light "web page": logo, "Sign in to {Provider}",
+     "This is {Provider}'s own sign-in page. Trimix only asks to read your dive log.", credential
+     fields, "Sign in & authorize", and the "Read-only access · revoke anytime." footer. The page is
+     deliberately LIGHT regardless of the app's forced dark theme (it plays the vendor's page).
+     The VM owns the guardrail chain: disclosure → consent → one-shot credential exchange (token
+     only, never the password) → first-link auto-sync. -->
+<ContentPage
+    x:Class="Trimix.App.Pages.ProviderOAuthPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:ProviderOAuthViewModel"
+    Shell.PresentationMode="ModalAnimated"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="{StaticResource Abyss}"
+    Title="Provider sign-in">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Browser chrome: Done + lock + domain -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,8,12,8" ColumnSpacing="8">
+            <Button
+                Grid.Column="0"
+                Style="{StaticResource BackButton}"
+                Text="Done"
+                Command="{Binding CloseCommand}"
+                SemanticProperties.Description="Done"
+                SemanticProperties.Hint="Closes the provider sign-in without connecting" />
+            <HorizontalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                <Label
+                    Text="🔒"
+                    FontSize="12"
+                    VerticalOptions="Center"
+                    AutomationProperties.IsInAccessibleTree="False" />
+                <Label
+                    Style="{StaticResource MonoLabel}"
+                    Text="{Binding Domain}"
+                    TextColor="{StaticResource TextPrimary}"
+                    TextTransform="None"
+                    VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <!-- Spacer balancing the Done button so the domain stays centered -->
+            <BoxView Grid.Column="2" WidthRequest="52" HeightRequest="1" Color="Transparent" />
+        </Grid>
+
+        <!-- The provider's "web page" (light, framed like an in-app browser viewport) -->
+        <Border
+            Grid.Row="1"
+            Margin="0"
+            Padding="0"
+            StrokeThickness="0"
+            Background="#F6F8F8"
+            StrokeShape="RoundRectangle 18,18,0,0">
+            <ScrollView>
+                <VerticalStackLayout Padding="26,30,26,30" Spacing="14">
+
+                    <!-- Provider "logo" (truthful monogram placeholder, never a claimed official mark) -->
+                    <Border
+                        WidthRequest="46"
+                        HeightRequest="46"
+                        StrokeShape="RoundRectangle 12"
+                        Stroke="#DBE1E3"
+                        Background="#FFFFFF"
+                        HorizontalOptions="Start"
+                        AutomationProperties.IsInAccessibleTree="False">
+                        <Label
+                            Text="{Binding Monogram}"
+                            FontFamily="SpaceGroteskBold"
+                            FontSize="20"
+                            TextColor="#0C1512"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" />
+                    </Border>
+
+                    <Label
+                        Text="{Binding SignInHeading}"
+                        FontFamily="SpaceGroteskBold"
+                        FontSize="22"
+                        TextColor="#0C1512"
+                        SemanticProperties.HeadingLevel="Level1" />
+
+                    <Label
+                        Text="{Binding OwnPageCaption}"
+                        FontFamily="HankenGrotesk"
+                        FontSize="14"
+                        TextColor="#46524D" />
+
+                    <!-- Credential fields (fed ONCE into the connector; password never persisted) -->
+                    <Border StrokeShape="RoundRectangle 10" Stroke="#CDDAD3" Background="#FFFFFF" Padding="12,2">
+                        <Entry
+                            Text="{Binding Username}"
+                            Placeholder="Email or username"
+                            Keyboard="Email"
+                            TextColor="#0C1512"
+                            PlaceholderColor="#8A968F"
+                            BackgroundColor="Transparent"
+                            SemanticProperties.Description="Provider account email or username" />
+                    </Border>
+                    <Border StrokeShape="RoundRectangle 10" Stroke="#CDDAD3" Background="#FFFFFF" Padding="12,2">
+                        <Entry
+                            Text="{Binding Password}"
+                            Placeholder="Password"
+                            IsPassword="True"
+                            TextColor="#0C1512"
+                            PlaceholderColor="#8A968F"
+                            BackgroundColor="Transparent"
+                            SemanticProperties.Description="Provider account password" />
+                    </Border>
+
+                    <Button
+                        Text="Sign in &amp; authorize"
+                        FontFamily="SpaceGroteskBold"
+                        BackgroundColor="#0B6C59"
+                        TextColor="#FFFFFF"
+                        CornerRadius="12"
+                        MinimumHeightRequest="52"
+                        Margin="0,6,0,0"
+                        Command="{Binding SignInAndAuthorizeCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                        SemanticProperties.Description="Sign in and authorize"
+                        SemanticProperties.Hint="Signs in on the provider's page and authorizes read-only access" />
+
+                    <ActivityIndicator
+                        IsRunning="{Binding IsBusy}"
+                        IsVisible="{Binding IsBusy}"
+                        Color="#0B6C59"
+                        HorizontalOptions="Center"
+                        SemanticProperties.Description="Signing in" />
+
+                    <Label
+                        Text="Read-only access · revoke anytime.&#10;You'll be sent back to Trimix."
+                        FontFamily="HankenGrotesk"
+                        FontSize="12.5"
+                        TextColor="#8A968F"
+                        HorizontalTextAlignment="Center"
+                        Margin="0,8,0,0" />
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+    </Grid>
+</ContentPage>

@@ -6,7 +6,7 @@ public sealed record SiteContributionRequest(Guid? SiteId, string PayloadJson);
 /// <summary>
 /// Canonical shape of <see cref="SiteContributionRequest.PayloadJson"/> — the single source of truth
 /// for the contribution payload shared by client and server. Field names/casing match the server's
-/// <c>Trimix.Api.Sites.ContributionPayload</c> EXACTLY (web/camelCase JSON keys: <c>name</c>, <c>lat</c>,
+/// the former server contribution payload EXACTLY (web/camelCase JSON keys: <c>name</c>, <c>lat</c>,
 /// <c>lng</c>, <c>depthMinM</c>, <c>depthMaxM</c>, <c>type</c>, <c>hazardsCsv</c>, <c>marineLifeCsv</c>,
 /// <c>accessNotes</c>, <c>communityNote</c>). All fields optional; on moderator approval every non-null
 /// field is applied to the target site (Name/Lat/Lng required when proposing a NEW site).
@@ -14,7 +14,8 @@ public sealed record SiteContributionRequest(Guid? SiteId, string PayloadJson);
 /// NOTE (client): <c>ContributeViewModel</c> MUST serialize its form to THIS DTO. The current app sends
 /// <c>{"note":...}</c>, which the server's payload parser cannot read (there is no <c>note</c> field) —
 /// the note belongs in <see cref="CommunityNote"/>. Backend agent: converge
-/// <c>Trimix.Api.Sites.ContributionPayload</c> onto this shared record.
+/// the former server contribution payload onto this shared record. (Backend removed — serverless;
+/// retained as a frozen shape.)
 /// </para>
 /// </summary>
 public sealed record SiteContributionPayload(

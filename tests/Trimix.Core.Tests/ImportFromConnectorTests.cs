@@ -17,22 +17,23 @@ namespace Trimix.Core.Tests;
 public class ImportFromConnectorTests
 {
     private readonly InMemoryLocalStore _store = new();
-    private readonly FakeApiClient _api = new();
-    private readonly FakeLocation _location = new(); // Fix stays null → no site match, no API call.
+    private readonly FakeLocation _location = new(); // Fix stays null → no site match (serverless: always null anyway).
     private readonly FakeEntitlementService _entitlements = new();
     private readonly RecordingAnalytics _analytics = new();
 
-    private ImportService CreateService(FakeSourceConnector connector) =>
-        new(
-            [connector],
-            _api,
+    private ImportService CreateService(FakeSourceConnector connector)
+    {
+        _ = connector; // the pipeline takes the connector per-call now, not via DI
+        return new(
             _location,
             _entitlements,
             _store,
             _analytics,
             new FakeAppInfo(),
             new FakeClock(),
+            new Trimix.Core.Sites.SiteAtlas(),
             NullLogger<ImportService>.Instance);
+    }
 
     [Fact]
     public async Task Generic_connector_persists_all_dives_and_emits_dive_logged_import()
@@ -156,6 +157,67 @@ public class ImportFromConnectorTests
         var paywall = Assert.Single(_analytics.Events, e => e.Name == FunnelEvents.PaywallShown);
         Assert.Equal(FunnelEvents.Values.TriggerCloudSyncCap, paywall.Props[FunnelEvents.Props.Trigger]);
         Assert.Equal(FunnelEvents.Values.EntitlementStateFree, paywall.Props[FunnelEvents.Props.EntitlementState]);
+    }
+
+    [Fact]
+    public async Task Free_ceiling_counts_dives_already_stored_so_the_sixth_dive_caps_across_sessions()
+    {
+        // "Free keeps your last 5" is a TOTAL ceiling, not per-batch: a first sync that stored dives
+        // consumes the allowance, and the dive that would exceed the ceiling in a LATER sync is the
+        // paywall moment too.
+        _entitlements.CurrentTier = EntitlementTier.Free;
+        var first = new FakeSourceConnector("garmin_connect", ManyDives(FreeTier.FreeImportDivesPerSession - 1));
+        await CreateService(first).ImportFromConnectorAsync(first, SyncCursor.None);
+        Assert.Equal(FreeTier.FreeImportDivesPerSession - 1, (await _store.GetDivesAsync()).Count);
+
+        // Second session: two NEW dives (different start times) — only one slot remains.
+        var later = Enumerable.Range(100, 2).Select(i => new ImportedDive(
+            new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc).AddDays(i), 2400, 22.0, 12.0, 24.0, "AIR",
+            [new ProfileSampleDto(0, 0, null, null), new ProfileSampleDto(60, 22.0, 24.0, null)])).ToList();
+        var second = new FakeSourceConnector("garmin_connect", later);
+        var result = await CreateService(second).ImportFromConnectorAsync(second, SyncCursor.None);
+
+        Assert.True(result.CapReached);
+        Assert.Single(result.ImportedDives);
+        Assert.Equal(FreeTier.FreeImportDivesPerSession, (await _store.GetDivesAsync()).Count);
+        var paywall = Assert.Single(_analytics.Events, e => e.Name == FunnelEvents.PaywallShown);
+        Assert.Equal(FunnelEvents.Values.TriggerCloudSyncCap, paywall.Props[FunnelEvents.Props.Trigger]);
+    }
+
+    [Fact]
+    public async Task Reimporting_already_stored_dives_never_retriggers_the_cap()
+    {
+        // Deterministic ids make a re-sync of the same dives an upsert, not new imports — the free
+        // ceiling must not fire on it (PRD Flow B step 5: unlock-at-cap re-imports onto the same ids).
+        _entitlements.CurrentTier = EntitlementTier.Free;
+        var dives = ManyDives(FreeTier.FreeImportDivesPerSession);
+        var connector = new FakeSourceConnector("garmin_connect", dives);
+        await CreateService(connector).ImportFromConnectorAsync(connector, SyncCursor.None);
+
+        var again = new FakeSourceConnector("garmin_connect", dives);
+        var result = await CreateService(again).ImportFromConnectorAsync(again, SyncCursor.None);
+
+        Assert.False(result.CapReached);
+        Assert.Equal(FreeTier.FreeImportDivesPerSession, result.ImportedDives.Count); // upserts, same ids
+        Assert.Equal(FreeTier.FreeImportDivesPerSession, (await _store.GetDivesAsync()).Count);
+        Assert.DoesNotContain(_analytics.Events, e => e.Name == FunnelEvents.PaywallShown);
+    }
+
+    [Fact]
+    public async Task Location_fix_near_an_atlas_site_auto_matches_the_site()
+    {
+        // Bundled-atlas auto-match (serverless replacement for the server geo-search): a fix within
+        // 2 km of Liberty Wreck (Tulamben) claims the imported dives for that site.
+        _entitlements.CurrentTier = EntitlementTier.Pro;
+        _location.Fix = new GeoLocation(-8.2750, 115.5940);
+        var connector = new FakeSourceConnector();
+        var service = CreateService(connector);
+
+        var result = await service.ImportFromConnectorAsync(connector, SyncCursor.None);
+
+        Assert.True(result.SiteMatched);
+        var expectedSiteId = new Trimix.Core.Sites.SiteAtlas().FindByName("Liberty Wreck")!.Id;
+        Assert.All(await _store.GetDivesAsync(), d => Assert.Equal(expectedSiteId, d.SiteId));
     }
 
     private static IReadOnlyList<ImportedDive> ManyDives(int count) =>

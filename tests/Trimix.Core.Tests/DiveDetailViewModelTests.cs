@@ -17,11 +17,17 @@ namespace Trimix.Core.Tests;
 public class DiveDetailViewModelTests
 {
     private readonly InMemoryLocalStore _store = new();
-    private readonly FakeApiClient _api = new();
     private readonly UnitFormatter _units = new(new InMemoryPreferences());
     private readonly FakeNavigator _navigator = new();
 
-    private DiveDetailViewModel CreateViewModel() => new(_store, _api, _units, _navigator);
+    private DiveDetailViewModel CreateViewModel() => new(
+        _store,
+        _units,
+        _navigator,
+        new Trimix.Core.Sites.SiteAtlas(),
+        new FakeClock(),
+        new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
+        []);
 
     [Fact]
     public async Task Builds_recorded_overlays_and_the_columnar_table()

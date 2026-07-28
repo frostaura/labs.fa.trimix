@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Onboarding (storyboard 1:1): 3-pane swipe carousel over full-bleed Abyss.
-     S1 hero ("Your logbook fills itself.") · S2 "The loop" (01/02/03 glass cards) ·
-     S3 "Create your logbook" (account choice). Progress via 3 mint dots + per-pane CTAs.
-     Completing/entering any account path fires first_run_completed via the VM's existing
-     completion + guest commands. Visual layer only — all bindings/converters preserved. -->
+<!-- Onboarding (prototype S1 + S2): 2-pane swipe carousel over full-bleed Abyss.
+     S1 Welcome — TRIMIX wordmark, "Your logbook fills itself.", the auto-import promise, the
+     SYNCS WITH provider marquee, "Get started" / "I already have an account".
+     S2 "How it works" — the 3-step loop (01 Dive / 02 Sync / 03 Log) + "Continue" (→ biometric
+     account step). No Bluetooth copy anywhere: the app is serverless and API-sync-only.
+     Every completion path fires first_run_completed via the VM. -->
 <ContentPage
     x:Class="Trimix.App.Pages.OnboardingPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -19,13 +20,23 @@
         <x:Array x:Key="PaneIndices" Type="{x:Type x:Int32}">
             <x:Int32>0</x:Int32>
             <x:Int32>1</x:Int32>
-            <x:Int32>2</x:Int32>
+        </x:Array>
+
+        <!-- SYNCS WITH marquee entries (prototype order). -->
+        <x:Array x:Key="MarqueeBrands" Type="{x:Type x:String}">
+            <x:String>GARMIN DIVE</x:String>
+            <x:String>SUUNTO</x:String>
+            <x:String>SCUBAPRO</x:String>
+            <x:String>MARES</x:String>
+            <x:String>OCEANIC+</x:String>
+            <x:String>PADI</x:String>
+            <x:String>SSI</x:String>
         </x:Array>
     </ContentPage.Resources>
 
     <Grid RowDefinitions="*,Auto">
 
-        <!-- ================= Swipe carousel: 3 panes ================= -->
+        <!-- ================= Swipe carousel: 2 panes ================= -->
         <CarouselView
             Grid.Row="0"
             ItemsSource="{StaticResource PaneIndices}"
@@ -38,7 +49,7 @@
                 <DataTemplate x:DataType="x:Int32">
                     <Grid>
 
-                        <!-- ===== S1 · Hero ===== -->
+                        <!-- ===== S1 · Welcome ===== -->
                         <Grid
                             Padding="24,28,24,8"
                             RowDefinitions="Auto,*,Auto"
@@ -73,7 +84,7 @@
                                 </Grid>
                             </Grid>
 
-                            <!-- Headline + body, pinned toward the bottom of the pane -->
+                            <!-- Headline + promise + SYNCS WITH marquee, pinned toward the bottom -->
                             <VerticalStackLayout Grid.Row="2" Spacing="16">
                                 <Label
                                     Style="{StaticResource Display32}"
@@ -82,18 +93,41 @@
                                     SemanticProperties.HeadingLevel="Level1" />
                                 <Label
                                     Style="{StaticResource Body15}"
-                                    Text="Auto-import from every major dive computer over Bluetooth, on a dive-site atlas built by divers."
+                                    Text="Auto-import from every dive computer you own — and keep PADI, SSI and your other dive apps in sync, automatically."
                                     TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
                                     HorizontalTextAlignment="Start" />
+
+                                <!-- SYNCS WITH brand marquee -->
+                                <VerticalStackLayout Spacing="10" Margin="0,4,0,0">
+                                    <Label Style="{StaticResource MonoLabel}" Text="SYNCS WITH" />
+                                    <ScrollView
+                                        Orientation="Horizontal"
+                                        HorizontalScrollBarVisibility="Never"
+                                        SemanticProperties.Description="Syncs with Garmin Dive, Suunto, ScubaPro, Mares, Oceanic plus, PADI and SSI">
+                                        <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{StaticResource MarqueeBrands}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border Style="{StaticResource Chip}" AutomationProperties.IsInAccessibleTree="False">
+                                                        <Label
+                                                            Style="{StaticResource BadgeText}"
+                                                            Text="{Binding .}"
+                                                            TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </HorizontalStackLayout>
+                                    </ScrollView>
+                                </VerticalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
 
-                        <!-- ===== S2 · The loop ===== -->
+                        <!-- ===== S2 · How it works ===== -->
                         <VerticalStackLayout
                             Padding="24,0"
                             Spacing="{StaticResource CardSpacing}"
                             VerticalOptions="Center"
                             IsVisible="{Binding ., Converter={StaticResource IntEquals}, ConverterParameter=1}">
+                            <Label Style="{StaticResource MonoLabel}" Text="HOW IT WORKS" />
                             <Label
                                 Style="{StaticResource Title24}"
                                 Text="The loop"
@@ -107,7 +141,7 @@
                                         <Label Style="{StaticResource Heading18}" Text="Dive" />
                                         <Label
                                             Style="{StaticResource Body15}"
-                                            Text="Your computer records the profile, as always."
+                                            Text="Your computer records the profile and uploads to its own platform, as always."
                                             TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
                                     </VerticalStackLayout>
                                 </Grid>
@@ -120,7 +154,7 @@
                                         <Label Style="{StaticResource Heading18}" Text="Sync" />
                                         <Label
                                             Style="{StaticResource Body15}"
-                                            Text="Open Trimix near it — dives pull over Bluetooth."
+                                            Text="Link your computer providers once — dives flow in on their own."
                                             TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
                                     </VerticalStackLayout>
                                 </Grid>
@@ -130,30 +164,14 @@
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
                                     <Label Grid.Column="0" Style="{StaticResource MonoIndex}" Text="03" VerticalOptions="Start" />
                                     <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}">
-                                        <Label Style="{StaticResource Heading18}" Text="Enrich" />
+                                        <Label Style="{StaticResource Heading18}" Text="Log" />
                                         <Label
                                             Style="{StaticResource Body15}"
-                                            Text="Site, hazards and marine life auto-attach from the atlas."
+                                            Text="Every dive lands in your logbook — origin, sync status and profile, laid out beautifully."
                                             TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
                                     </VerticalStackLayout>
                                 </Grid>
                             </Border>
-                        </VerticalStackLayout>
-
-                        <!-- ===== S3 · Create your logbook ===== -->
-                        <VerticalStackLayout
-                            Padding="24,52,24,0"
-                            Spacing="16"
-                            VerticalOptions="Start"
-                            IsVisible="{Binding ., Converter={StaticResource IntEquals}, ConverterParameter=2}">
-                            <Label
-                                Style="{StaticResource Title24}"
-                                Text="Create your&#10;logbook"
-                                SemanticProperties.HeadingLevel="Level1" />
-                            <Label
-                                Style="{StaticResource Body15}"
-                                Text="Your dives sync across devices and survive a reinstall — bound to your account, not your phone."
-                                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
                         </VerticalStackLayout>
 
                     </Grid>
@@ -164,15 +182,13 @@
         <!-- ================= Bottom action zone (per-pane CTAs + dots) ================= -->
         <VerticalStackLayout Grid.Row="1" Padding="24,12,24,32" Spacing="{StaticResource SectionSpacing}">
 
-            <!-- Page dots (mint active). Progress is announced on the indicator for screen readers;
-                 no visible counter caption (not in the storyboard). -->
             <IndicatorView
                 x:Name="pageIndicator"
                 HorizontalOptions="Center"
                 IndicatorSize="8"
                 SemanticProperties.Description="{Binding PageIndex, Converter={StaticResource PageCounter}}" />
 
-            <!-- Pane 1 actions -->
+            <!-- Pane 1 (Welcome) actions -->
             <VerticalStackLayout
                 Spacing="{StaticResource TightSpacing}"
                 IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=0}">
@@ -181,18 +197,19 @@
                     Text="Get started"
                     Command="{Binding NextCommand}"
                     SemanticProperties.Description="Get started"
-                    SemanticProperties.Hint="Advances to the next introduction pane" />
+                    SemanticProperties.Hint="Shows how automatic sync works" />
                 <Button
                     Style="{StaticResource GhostButton}"
                     Text="I already have an account"
                     HorizontalOptions="Center"
                     Command="{Binding SkipCommand}"
                     SemanticProperties.Description="I already have an account"
-                    SemanticProperties.Hint="Skips the introduction and opens sign-in" />
+                    SemanticProperties.Hint="Skips the introduction and opens your logbook" />
             </VerticalStackLayout>
 
-            <!-- Pane 2 actions -->
+            <!-- Pane 2 (How it works) actions -->
             <VerticalStackLayout
+                Spacing="{StaticResource TightSpacing}"
                 IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=1}">
                 <Button
                     Style="{StaticResource PrimaryButton}"
@@ -200,33 +217,13 @@
                     Command="{Binding NextCommand}"
                     SemanticProperties.Description="Continue"
                     SemanticProperties.Hint="Advances to the account step" />
-            </VerticalStackLayout>
-
-            <!-- Pane 3 actions -->
-            <VerticalStackLayout
-                Spacing="{StaticResource CardSpacing}"
-                IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=2}">
-                <!-- Passkey-only account path. NextCommand on the last pane completes onboarding
-                     (fires first_run_completed exactly once) then routes to the Auth page, where the
-                     WebAuthn create/sign-in happens. -->
-                <Button
-                    Style="{StaticResource PrimaryButton}"
-                    Text="Continue with a passkey"
-                    Command="{Binding NextCommand}"
-                    SemanticProperties.Description="Continue with a passkey"
-                    SemanticProperties.Hint="Opens sign-in to create your logbook with a passkey" />
                 <Button
                     Style="{StaticResource GhostButton}"
-                    Text="Continue as guest"
+                    Text="← Back"
                     HorizontalOptions="Center"
-                    Command="{Binding ContinueAsGuestCommand}"
-                    SemanticProperties.Description="Continue as guest"
-                    SemanticProperties.Hint="Uses the app without an account; dives stay on this device" />
-                <Label
-                    Style="{StaticResource Caption13}"
-                    Text="Guest dives stay on this device until you create an account."
-                    TextColor="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}"
-                    HorizontalTextAlignment="Center" />
+                    Command="{Binding PreviousPaneCommand}"
+                    SemanticProperties.Description="Back"
+                    SemanticProperties.Hint="Returns to the welcome pane" />
             </VerticalStackLayout>
         </VerticalStackLayout>
     </Grid>

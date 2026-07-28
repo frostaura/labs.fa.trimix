@@ -4,7 +4,7 @@ using Trimix.Contracts.Dtos;
 namespace Trimix.Core.Stats;
 
 /// <summary>
-/// One physical dive can land in the logbook from several sources (BLE + HealthKit + a FIT file),
+/// One physical dive can land in the logbook from several provider sources,
 /// each keyed to a distinct deterministic id, so the raw store holds duplicates. This policy is the
 /// single home for the cross-source identity rule (aggregator architecture §3 / §8.2) and its
 /// tolerance constants — nothing else redefines them.

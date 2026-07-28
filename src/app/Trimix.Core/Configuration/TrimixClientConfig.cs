@@ -1,36 +1,19 @@
 namespace Trimix.Core.Configuration;
 
 /// <summary>
-/// External, deploy-time client configuration (aggregator architecture §9.4). This POCO tree is the
-/// single surface a deployer edits — via the shipped <c>Resources/Raw/appsettings.json</c> asset — to
-/// point the app at a real API, hand real (legal-cleared) reverse-eng connector endpoints to the dark
-/// connectors, override per-vendor BLE GATT UUIDs verified against hardware, and flip the connector
-/// family master switches. <b>No value here is a secret and none carries a real default</b>: every
-/// field is nullable/off so the shipped asset boots against safe dev defaults and a wrong/missing file
-/// never bricks startup. The App loads the asset (<c>AppConfigLoader</c>) → <see cref="ClientConfigBinder.Parse"/>
-/// → this tree; <c>MauiProgram</c> maps it onto <c>TrimixCoreOptions</c> + the connector option objects
-/// BEFORE <c>AddTrimixCore</c> so no code edit is required to deploy.
+/// External, deploy-time client configuration (serverless): the single surface a deployer edits — via
+/// the shipped <c>Resources/Raw/appsettings.json</c> asset — to hand real (legal-cleared) reverse-eng
+/// connector endpoints to the dark connectors and flip the connector family master switches. <b>No value
+/// here is a secret and none carries a real default</b>: every field is nullable/off so the shipped
+/// asset boots against safe dev defaults and a wrong/missing file never bricks startup. The App loads
+/// the asset (<c>AppConfigLoader</c>) → <see cref="ClientConfigBinder.Parse"/> → this tree; MauiProgram
+/// maps it onto the connector option objects BEFORE <c>AddTrimixCore</c>.
 /// </summary>
 public sealed class TrimixClientConfig
 {
-    public ApiConfig Api { get; init; } = new();
-
     public ConnectorsConfig Connectors { get; init; } = new();
 
-    /// <summary>
-    /// Per-vendor BLE GATT overrides keyed by vendor name (e.g. <c>"Shearwater"</c>). Absent ⇒ the
-    /// in-source BLE profile is used. Slice 3's <c>BleGattOverrides.Apply(...)</c> consumes this at startup.
-    /// </summary>
-    public Dictionary<string, BleVendorConfig> Ble { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-
     public FeaturesConfig Features { get; init; } = new();
-}
-
-/// <summary>Trimix API endpoint. <see cref="BaseUrl"/> null ⇒ the built-in <c>TrimixCoreOptions</c> default.</summary>
-public sealed class ApiConfig
-{
-    /// <summary>DEPLOY INPUT: real API base URL. Null keeps the code default (dev loopback).</summary>
-    public string? BaseUrl { get; init; }
 }
 
 /// <summary>Reverse-engineered personal-export connector endpoints. All null ⇒ the connectors ship dark.</summary>
@@ -61,6 +44,10 @@ public sealed class CloudConfig
     public CloudVendorConfig Suunto { get; init; } = new();
 
     public CloudVendorConfig Oceanic { get; init; } = new();
+
+    /// <summary>The shared MySSI (DiveSSI) read corridor serving BOTH the Mares and ScubaPro sources —
+    /// neither vendor has a cloud API of its own. AuthUrl ⇒ login; ListUrl ⇒ logbook list/detail base.</summary>
+    public CloudVendorConfig MySsi { get; init; } = new();
 }
 
 /// <summary>
@@ -80,23 +67,6 @@ public sealed class CloudVendorConfig
 
     /// <summary>DEPLOY INPUT: profile / original-file download URL. Null ⇒ in-source default.</summary>
     public string? DownloadUrl { get; init; }
-}
-
-/// <summary>
-/// Per-vendor BLE GATT UUID override (aggregator architecture §9.3). Any field null/absent ⇒ the
-/// in-source BLE profile value is kept. <b>DEPLOY INPUT:</b> supply only UUIDs / handshake bytes
-/// verified against real hardware — never a guessed identifier.
-/// </summary>
-public sealed class BleVendorConfig
-{
-    public string? ServiceUuid { get; init; }
-
-    public string? WriteCharUuid { get; init; }
-
-    public string? NotifyCharUuid { get; init; }
-
-    /// <summary>Hex-encoded download handshake command(s), e.g. <c>"a5..."</c>. Null ⇒ in-source handshake.</summary>
-    public string? HandshakeCommandsHex { get; init; }
 }
 
 /// <summary>

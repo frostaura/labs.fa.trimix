@@ -4,7 +4,10 @@ using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Charts;
+using Trimix.Core.Connectors;
+using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Formatting;
+using Trimix.Core.Sites;
 using Trimix.Core.Stats;
 
 namespace Trimix.Core.ViewModels;
@@ -28,9 +31,12 @@ public sealed record RecordedReadout(string Label, string Value);
 /// </summary>
 public partial class DiveDetailViewModel(
     ILocalStore store,
-    IApiClient api,
     UnitFormatter units,
-    INavigator navigator) : ObservableObject
+    INavigator navigator,
+    SiteAtlas atlas,
+    IClock clock,
+    IConnectorConsentStore consent,
+    IEnumerable<IDiveDestinationConnector> destinations) : ObservableObject
 {
     [ObservableProperty]
     private DiveDto? _dive;
@@ -107,6 +113,193 @@ public partial class DiveDetailViewModel(
     [ObservableProperty]
     private string _minTempText = "";
 
+    /// <summary>Gas tile value ("EAN32" / "AIR").</summary>
+    [ObservableProperty]
+    private string _gasText = "AIR";
+
+    /// <summary>Bottom-time tile numeral, prototype format m:ss (e.g. "47:00").</summary>
+    [ObservableProperty]
+    private string _bottomTimeText = "";
+
+    /// <summary>Header meta line: "Dive #N · 14 Jun 2026 · Tulamben".</summary>
+    [ObservableProperty]
+    private string _metaText = "";
+
+    /// <summary>Origin chip + route strip "FROM {VENDOR}" label (uppercase vendor).</summary>
+    [ObservableProperty]
+    private string _originLabel = "";
+
+    /// <summary>Route strip destination chips, each "PADI ✓" (linked push providers).</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _routeDestinations = [];
+
+    [ObservableProperty]
+    private bool _hasRouteDestinations;
+
+    /// <summary>X-axis mid label (half the bottom time, m:ss).</summary>
+    [ObservableProperty]
+    private string _axisMidText = "";
+
+    /// <summary>X-axis end label (total bottom time, m:ss).</summary>
+    [ObservableProperty]
+    private string _axisEndText = "";
+
+    /// <summary>Depth value of the upper dashed gridline (35% of max depth), unit-formatted.</summary>
+    [ObservableProperty]
+    private string _gridDepth1Text = "";
+
+    /// <summary>Depth value of the lower dashed gridline (65% of max depth), unit-formatted.</summary>
+    [ObservableProperty]
+    private string _gridDepth2Text = "";
+
+    // ── Touch-to-scrub (C6): crosshair + "depth · time" tooltip at the touched point ──
+
+    /// <summary>True while a finger is on the chart (shows the crosshair + tooltip).</summary>
+    [ObservableProperty]
+    private bool _isScrubbing;
+
+    /// <summary>Normalized scrub X ∈ [0,1] (chart space; the page maps touch → this).</summary>
+    [ObservableProperty]
+    private double _scrubX;
+
+    /// <summary>Normalized scrub Y ∈ [0,1] on the depth polyline at <see cref="ScrubX"/>.</summary>
+    [ObservableProperty]
+    private double _scrubY;
+
+    /// <summary>Tooltip: unit-formatted depth at the scrub point.</summary>
+    [ObservableProperty]
+    private string _scrubDepthText = "";
+
+    /// <summary>Tooltip: elapsed time (m:ss) at the scrub point.</summary>
+    [ObservableProperty]
+    private string _scrubTimeText = "";
+
+    /// <summary>
+    /// Maps a normalized touch X onto the depth polyline: interpolated crosshair Y, unit-formatted
+    /// depth and elapsed-time tooltip values. Pure display math over recorded samples.
+    /// </summary>
+    public void UpdateScrub(double normalizedX)
+    {
+        if (Chart.IsEmpty)
+        {
+            return;
+        }
+
+        var x = Math.Clamp(normalizedX, 0, 1);
+        var y = ChartGeometry.YAtX(Chart, x);
+        ScrubX = x;
+        ScrubY = y;
+        ScrubDepthText = units.FormatDepth(y * Chart.MaxDepthM);
+        ScrubTimeText = units.FormatElapsed((int)Math.Round(x * Chart.DurationSeconds));
+        IsScrubbing = true;
+    }
+
+    /// <summary>Ends the scrub gesture (hides the crosshair + tooltip).</summary>
+    public void EndScrub() => IsScrubbing = false;
+
+    // ── "NEAR THIS SITE" carousel (C6): 3 auto-rotating cards from the bundled atlas ──
+
+    /// <summary>True when the dive matched a bundled atlas site (shows the carousel).</summary>
+    [ObservableProperty]
+    private bool _hasSite;
+
+    /// <summary>Header: "NEAR THIS SITE · 8.274°S 115.593°E" coordinate part.</summary>
+    [ObservableProperty]
+    private string _siteCoordsText = "";
+
+    /// <summary>The card currently shown (site fact / conditions / community-atlas line).</summary>
+    [ObservableProperty]
+    private string _currentFactText = "";
+
+    [ObservableProperty]
+    private int _factIndex;
+
+    [ObservableProperty]
+    private bool _isFact0Active = true;
+
+    [ObservableProperty]
+    private bool _isFact1Active;
+
+    [ObservableProperty]
+    private bool _isFact2Active;
+
+    private IReadOnlyList<string> _facts = [];
+
+    /// <summary>Advances the carousel (auto-rotate tick ~4s, or a tap on the card).</summary>
+    [RelayCommand]
+    private void NextFact() => ShowFact(FactIndex + 1);
+
+    /// <summary>Jumps to a specific card (the dot buttons).</summary>
+    [RelayCommand]
+    private void GoToFact(string index) =>
+        ShowFact(int.TryParse(index, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : 0);
+
+    private void ShowFact(int index)
+    {
+        if (_facts.Count == 0)
+        {
+            return;
+        }
+
+        FactIndex = ((index % _facts.Count) + _facts.Count) % _facts.Count;
+        CurrentFactText = _facts[FactIndex];
+        IsFact0Active = FactIndex == 0;
+        IsFact1Active = FactIndex == 1;
+        IsFact2Active = FactIndex == 2;
+    }
+
+    // ── Notes (C6): view / edit / save / empty — persisted locally on the dive ──
+
+    [ObservableProperty]
+    private bool _isNotesEditing;
+
+    [ObservableProperty]
+    private string _notesDraft = "";
+
+    [ObservableProperty]
+    private string _notesText = "";
+
+    /// <summary>True when the dive has saved notes and the editor is closed (view state).</summary>
+    [ObservableProperty]
+    private bool _hasNotes;
+
+    /// <summary>True when the dive has no notes and the editor is closed ("+ Add notes").</summary>
+    [ObservableProperty]
+    private bool _isNotesEmpty = true;
+
+    [RelayCommand]
+    private void StartNotesEdit()
+    {
+        NotesDraft = NotesText;
+        IsNotesEditing = true;
+        HasNotes = false;
+        IsNotesEmpty = false;
+    }
+
+    /// <summary>"Done": persists the draft onto the dive row (local-only, UpdatedAtUtc bumped).</summary>
+    [RelayCommand]
+    private async Task SaveNotesAsync()
+    {
+        if (Dive is not { } dive)
+        {
+            IsNotesEditing = false;
+            return;
+        }
+
+        var text = NotesDraft.Trim();
+        var updated = dive with
+        {
+            Notes = text.Length == 0 ? null : text,
+            UpdatedAtUtc = clock.UtcNow.UtcDateTime,
+        };
+        await store.UpsertDiveAsync(updated);
+        Dive = updated;
+        NotesText = text;
+        IsNotesEditing = false;
+        HasNotes = text.Length > 0;
+        IsNotesEmpty = text.Length == 0;
+    }
+
     /// <summary>Back navigation, wired to the page's Back button.</summary>
     [RelayCommand]
     private Task Close() => navigator.GoBackAsync();
@@ -132,6 +325,54 @@ public partial class DiveDetailViewModel(
         MaxDepthText = units.FormatDepth(display.MaxDepthM);
         DurationText = units.FormatDuration(display.DurationSec);
         MinTempText = units.FormatTemp(display.MinTempC);
+        GasText = display.GasMix ?? "AIR";
+        BottomTimeText = units.FormatElapsed(display.DurationSec);
+        AxisMidText = units.FormatElapsed(display.DurationSec / 2);
+        AxisEndText = BottomTimeText;
+        GridDepth1Text = units.FormatDepth(display.MaxDepthM * 0.35);
+        GridDepth2Text = units.FormatDepth(display.MaxDepthM * 0.65);
+
+        // Header meta: "Dive #N · 14 Jun 2026 · Tulamben" — N is the chronological sequence number.
+        var sequence = active
+            .OrderBy(d => d.StartUtc)
+            .ToList()
+            .FindIndex(d => d.Id == display.Id) + 1;
+        var site = display.SiteId is Guid sid ? atlas.GetById(sid) : null;
+        var datePart = display.StartUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+        MetaText = site is null
+            ? $"Dive #{Math.Max(1, sequence)} · {datePart}"
+            : $"Dive #{Math.Max(1, sequence)} · {datePart} · {site.Location}";
+
+        // Origin chip + FROM {VENDOR} → PADI ✓ SSI ✓ route strip (linked push providers).
+        OriginLabel = ProviderCatalog.ShortLabelFor(display.SourceVendor);
+        RouteDestinations = destinations
+            .Where(d => consent.HasConsent(d.Descriptor.ConnectorId))
+            .Select(d => ProviderCatalog.ShortLabelFor(d.Descriptor.ConnectorId) + " ✓")
+            .ToList();
+        HasRouteDestinations = RouteDestinations.Count > 0;
+
+        // "NEAR THIS SITE" carousel — bundled atlas cards; hidden when no site matched.
+        HasSite = site is not null;
+        if (site is not null)
+        {
+            SiteCoordsText = SiteAtlas.CoordinatesLabel(site);
+            _facts = atlas.FactsFor(site);
+            ShowFact(0);
+        }
+        else
+        {
+            _facts = [];
+            SiteCoordsText = "";
+            CurrentFactText = "";
+        }
+
+        // Notes state (view / edit / empty).
+        NotesText = display.Notes?.Trim() ?? "";
+        IsNotesEditing = false;
+        HasNotes = NotesText.Length > 0;
+        IsNotesEmpty = NotesText.Length == 0;
+        IsScrubbing = false;
+
         Chart = ChartGeometry.BuildDepthChart(display.ProfileSamples);
         Overlays = ChartGeometry.BuildProfileOverlays(display.ProfileSamples, Chart);
 
@@ -152,7 +393,8 @@ public partial class DiveDetailViewModel(
         RecordedReadouts = BuildRecordedReadouts(display.ProfileSamples);
         HasRecordedReadouts = RecordedReadouts.Count > 0;
 
-        SiteName = await ResolveSiteNameAsync(display.SiteId);
+        // Screen title is the site name (prototype); honest fallback when nothing matched.
+        SiteName = site?.Name ?? "Open water";
     }
 
     [RelayCommand]
@@ -164,22 +406,6 @@ public partial class DiveDetailViewModel(
         if (Dive?.SiteId is Guid siteId)
         {
             await navigator.GoToAsync(Routes.SiteDetail, new Dictionary<string, object> { [Routes.Params.SiteId] = siteId });
-        }
-    }
-
-    /// <summary>
-    /// Opens the export chooser (UDDF / DL7 / PDF) for the displayed dive — the clean, ToS-free "hand a
-    /// file to any agency yourself" path (aggregator architecture §2). Additive: no existing binding or
-    /// readout changes; the export screen re-derives the same merged union from the dive id.
-    /// </summary>
-    [RelayCommand]
-    private async Task ExportAsync()
-    {
-        if (Dive is { } dive)
-        {
-            await navigator.GoToAsync(
-                ExportDiveViewModel.Route,
-                new Dictionary<string, object> { [Routes.Params.DiveId] = dive.Id });
         }
     }
 
@@ -301,21 +527,4 @@ public partial class DiveDetailViewModel(
             "Use the view-as-table button below for the data as text.";
     }
 
-    private async Task<string> ResolveSiteNameAsync(Guid? siteId)
-    {
-        if (siteId is null)
-        {
-            return "";
-        }
-
-        try
-        {
-            var site = await api.GetSiteAsync(siteId.Value);
-            return site.Name;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            return ""; // Offline: the dive renders without site enrichment.
-        }
-    }
 }

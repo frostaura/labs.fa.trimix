@@ -3,10 +3,8 @@
     <Project Path="src/shared/Trimix.Contracts/Trimix.Contracts.csproj" />
     <Project Path="src/app/Trimix.Core/Trimix.Core.csproj" />
     <Project Path="src/app/Trimix.App/Trimix.App.csproj" />
-    <Project Path="src/backend/Trimix.Api/Trimix.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Trimix.Core.Tests/Trimix.Core.Tests.csproj" />
-    <Project Path="tests/Trimix.Api.Tests/Trimix.Api.Tests.csproj" />
   </Folder>
 </Solution>

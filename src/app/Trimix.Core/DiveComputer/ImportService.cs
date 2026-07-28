@@ -6,78 +6,30 @@ using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Entitlements;
+using Trimix.Core.Sites;
 
 namespace Trimix.Core.DiveComputer;
 
 /// <summary>
-/// Orchestrates one BLE import session (architecture overview §4/§9, PRD Flow B):
-/// connect → fetch via the vendor protocol → site auto-match (nearest site within
-/// <see cref="SiteAutoMatchRadiusKm"/> of the device via <c>GET /sites</c> geo search) → save
-/// locally, truncating at the EntitlementGate free-session cap and invoking the paywall trigger
-/// callback when truncation happened. The BLE path emits <c>ble_device_connected</c>, <c>dives_fetched</c>;
-/// the generic multi-source path (<see cref="ImportFromConnectorAsync"/>) emits <c>source_connected</c>,
-/// <c>dives_synced</c>; both emit <c>dive_logged_import</c> per saved dive. The generic cap emits
-/// <c>paywall_shown</c> with <c>trigger=cloud_sync_cap</c> from this service (so the aggregator purchase
-/// moment is instrumented regardless of which sync UI drives it — <c>onCapReached</c> is only the UI hook);
-/// the BLE-only path keeps <c>trigger=ble_import_cap</c> (emitted by <c>ImportViewModel</c>).
+/// The source-agnostic import pipeline (serverless): authenticate a source connector, list dives since
+/// the cursor, fetch each profile, then site auto-match → free-tier truncation → <c>ToDiveDto</c> →
+/// local upsert → <c>dive_logged_import</c> per saved dive → paywall trigger on truncation. The generic
+/// path emits <c>source_connected</c>, <c>dives_synced</c>, and (on cap) <c>paywall_shown</c> with
+/// <c>trigger=cloud_sync_cap</c>. The BLE path and its <c>ble_*</c> events are removed — the constants
+/// stay frozen in <see cref="FunnelEvents"/> but are no longer emitted.
 /// </summary>
 public sealed class ImportService(
-    IEnumerable<IDiveSourceConnector> sourceConnectors,
-    IApiClient api,
     ILocationService location,
     IEntitlementService entitlements,
     ILocalStore store,
     IAnalytics analytics,
     IAppInfo appInfo,
     IClock clock,
+    SiteAtlas atlas,
     ILogger<ImportService> logger) : IImportService
 {
     /// <summary>Auto-match radius: nearest known site within 2 km of the device claims the dive.</summary>
     public const double SiteAutoMatchRadiusKm = 2.0;
-
-    /// <summary>The BLE connector owns the interactive scan/select affordances the BLE UI path needs.</summary>
-    private BleDeviceSourceConnector Ble =>
-        sourceConnectors.OfType<BleDeviceSourceConnector>().FirstOrDefault()
-        ?? throw new InvalidOperationException("No BLE source connector registered.");
-
-    public IAsyncEnumerable<DiscoveredComputer> ScanAsync(CancellationToken cancellationToken = default) =>
-        Ble.ScanAsync(cancellationToken);
-
-    public async Task<ImportResult> ImportAsync(
-        DiscoveredComputer computer,
-        Func<Task>? onCapReached = null,
-        IProgress<ImportProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(computer);
-        var vendor = VendorName(computer.Vendor);
-        Ble.SelectDevice(computer);
-
-        progress?.Report(new ImportProgress("Connecting", 0, 0));
-        await Ble.AuthenticateAsync(cancellationToken).ConfigureAwait(false);
-        analytics.Track(FunnelEvents.BleDeviceConnected, new Dictionary<string, string>
-        {
-            [FunnelEvents.Props.Vendor] = vendor,
-            [FunnelEvents.Props.Model] = computer.Model,
-        });
-
-        progress?.Report(new ImportProgress("Reading dives", 0, 0));
-        var refs = await Ble.ListDivesSinceAsync(SyncCursor.None, cancellationToken).ConfigureAwait(false);
-        analytics.Track(FunnelEvents.DivesFetched, new Dictionary<string, string>
-        {
-            [FunnelEvents.Props.Vendor] = vendor,
-            [FunnelEvents.Props.Count] = refs.Count.ToString(CultureInfo.InvariantCulture),
-        });
-
-        var fetched = new List<(ImportedDive Dive, string Vendor)>(refs.Count);
-        foreach (var diveRef in refs)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            fetched.Add((await Ble.FetchProfileAsync(diveRef, cancellationToken).ConfigureAwait(false), vendor));
-        }
-
-        return await PersistFetchedAsync(fetched, onCapReached, progress, cancellationToken).ConfigureAwait(false);
-    }
 
     public async Task<ImportResult> ImportFromConnectorAsync(
         IDiveSourceConnector connector,
@@ -90,8 +42,8 @@ public sealed class ImportService(
 
         var auth = await connector.AuthenticateAsync(cancellationToken).ConfigureAwait(false);
         // Guardrail (iii) — proceed ONLY when the connector is fully Granted. NeedsInteraction is the
-        // designed pre-consent / pre-sign-in state for every gated cloud + HealthKit connector (it carries
-        // the disclosure / sign-in prompt for the UI). It, like Denied/Unavailable, must short-circuit to a
+        // designed pre-consent / pre-sign-in state for every gated cloud connector (it carries the
+        // disclosure / sign-in prompt for the UI). It, like Denied/Unavailable, must short-circuit to a
         // clean empty result BEFORE any ListDivesSince/FetchProfile network I/O — and before source_connected
         // is emitted, so a not-yet-connected source never appears connected in the frozen aggregator funnel.
         if (auth.Status != ConnectorAuthStatus.Granted)
@@ -100,8 +52,8 @@ public sealed class ImportService(
         }
 
         // The generic cloud-aggregator spine (PRD Amendments set 2, item 10): the connector id is the
-        // free-text 'source' channel (e.g. apple_health, garmin_connect); it is NOT the frozen
-        // dive_logged_import 'import' value. The BLE-only path keeps ble_device_connected/dives_fetched.
+        // free-text 'source' channel (e.g. garmin_connect, suunto_app); it is NOT the frozen
+        // dive_logged_import 'import' value.
         var source = connector.Descriptor.ConnectorId;
         analytics.Track(FunnelEvents.SourceConnected, new Dictionary<string, string>
         {
@@ -121,14 +73,7 @@ public sealed class ImportService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var dive = await connector.FetchProfileAsync(diveRef, cancellationToken).ConfigureAwait(false);
-            // File-import carries the real per-file format id (garmin_fit / uddf / dan_dl7 / suunto_json) on
-            // DiveRef.Label; use it as the provenance vendor so merge badges show the true vendor and the
-            // deterministic id keeps per-format identity (two formats of one dive stay distinct rows). Other
-            // connectors' Label is a human dive name, so only the file-import kind overrides the source id.
-            var vendor = connector.Descriptor.Kind == ConnectorKind.FileImport && !string.IsNullOrEmpty(diveRef.Label)
-                ? diveRef.Label!
-                : source;
-            fetched.Add((dive, vendor));
+            fetched.Add((dive, source));
         }
 
         var result = await PersistFetchedAsync(fetched, onCapReached, progress, cancellationToken).ConfigureAwait(false);
@@ -161,9 +106,36 @@ public sealed class ImportService(
     {
         var matchedSiteId = await TryAutoMatchSiteAsync(cancellationToken).ConfigureAwait(false);
 
-        var allowance = EntitlementGate.ImportSessionAllowance(entitlements.CurrentTier);
-        IReadOnlyList<(ImportedDive Dive, string Vendor)> toImport =
-            fetched.Count <= allowance ? fetched : fetched.Take(allowance).ToList();
+        // "Free keeps your last 5" (prototype monetization moment): the allowance for THIS batch is
+        // the free ceiling minus the dives already on device, so the 6th dive is the paywall moment
+        // whichever sync it arrives in. Re-imports of dives already stored (deterministic id match)
+        // are updates, not new dives — they never consume allowance and never re-trigger the cap
+        // (PRD Flow B step 5: unlocking at the cap re-imports onto the same ids).
+        var existingIds = (await store.GetDivesAsync(cancellationToken).ConfigureAwait(false))
+            .Where(d => !d.Deleted)
+            .Select(d => d.Id)
+            .ToHashSet();
+        var allowance = EntitlementGate.RemainingImports(entitlements.CurrentTier, existingIds.Count);
+
+        var toImport = new List<(ImportedDive Dive, string Vendor)>(fetched.Count);
+        var newTotal = 0;
+        var newTaken = 0;
+        foreach (var (dive, vendor) in fetched)
+        {
+            if (existingIds.Contains(DeterministicDiveId(vendor, dive.StartUtc, dive.DurationSec)))
+            {
+                toImport.Add((dive, vendor)); // update of an already-stored dive — always allowed
+                continue;
+            }
+
+            newTotal++;
+            if (newTaken < allowance)
+            {
+                newTaken++;
+                toImport.Add((dive, vendor));
+            }
+        }
+
         var imported = new List<DiveDto>(toImport.Count);
         foreach (var (dive, vendor) in toImport)
         {
@@ -180,7 +152,7 @@ public sealed class ImportService(
             progress?.Report(new ImportProgress("Importing", imported.Count, toImport.Count));
         }
 
-        var capReached = fetched.Count > allowance;
+        var capReached = newTotal > allowance;
         if (capReached && onCapReached is not null)
         {
             await onCapReached().ConfigureAwait(false);
@@ -189,7 +161,11 @@ public sealed class ImportService(
         return new ImportResult(imported, fetched.Count, capReached, matchedSiteId is not null);
     }
 
-    /// <summary>Nearest site within the radius, via the API's haversine-ranked geo search; null when offline/no fix/no match.</summary>
+    /// <summary>
+    /// Site auto-match against the bundled on-device atlas (the server geo-search's serverless
+    /// replacement): current fix → bounding-box prefilter → haversine → nearest site within
+    /// <see cref="SiteAutoMatchRadiusKm"/>. Null when permission is denied, no fix, or nothing near.
+    /// </summary>
     private async Task<Guid?> TryAutoMatchSiteAsync(CancellationToken cancellationToken)
     {
         var fix = await location.GetCurrentLocationAsync(cancellationToken).ConfigureAwait(false);
@@ -198,20 +174,15 @@ public sealed class ImportService(
             return null;
         }
 
-        try
+        var site = atlas.FindNearest(fix.Lat, fix.Lng, SiteAutoMatchRadiusKm);
+        if (site is null)
         {
-            var response = await api.SearchSitesAsync(null, fix.Lat, fix.Lng, 5, cancellationToken).ConfigureAwait(false);
-            return response.Sites
-                .Where(s => s.DistanceKm is not null && s.DistanceKm <= SiteAutoMatchRadiusKm)
-                .OrderBy(s => s.DistanceKm)
-                .Select(s => (Guid?)s.Id)
-                .FirstOrDefault();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Site auto-match search failed; importing without a site.");
+            logger.LogDebug("Site auto-match: no atlas site within {RadiusKm} km of the fix.", SiteAutoMatchRadiusKm);
             return null;
         }
+
+        logger.LogDebug("Site auto-match: {Site} ({Location}).", site.Name, site.Location);
+        return site.Id;
     }
 
     private DiveDto ToDiveDto(ImportedDive dive, string vendor, Guid? siteId) => new(
@@ -233,8 +204,8 @@ public sealed class ImportService(
         UpdatedAtUtc: clock.UtcNow.UtcDateTime,
         Deleted: false,
         ProfileSamples: dive.Samples,
-        // Carry through any cylinders the source reported (null/empty for today's protocols); typed-condition
-        // population is left to the stats branch.
+        // Carry through any cylinders the source reported; typed-condition population is left to the
+        // stats branch.
         Cylinders: dive.Cylinders);
 
     /// <summary>
@@ -249,16 +220,4 @@ public sealed class ImportService(
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(key));
         return new Guid(hash.AsSpan(0, 16));
     }
-
-    /// <summary>Frozen-contract <c>vendor</c> prop value (lowercase vendor name).</summary>
-    public static string VendorName(DiveComputerVendor vendor) => vendor switch
-    {
-        DiveComputerVendor.Shearwater => "shearwater",
-        DiveComputerVendor.Suunto => "suunto",
-        DiveComputerVendor.Garmin => "garmin",
-        DiveComputerVendor.Mares => "mares",
-        DiveComputerVendor.ScubaPro => "scubapro",
-        DiveComputerVendor.Aqualung => "aqualung",
-        _ => vendor.ToString().ToLowerInvariant(),
-    };
 }

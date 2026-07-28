@@ -15,6 +15,9 @@
     x:DataType="vm:LogbookViewModel"
     Title="Logbook">
 
+    <!-- Outer grid overlays the `+` FAB, the add sheet and the streaming sync sheet on the page. -->
+    <Grid>
+
     <Grid RowDefinitions="Auto,Auto,Auto,*">
 
         <!-- Header: big screen title + circular mint-ringed avatar. -->
@@ -31,32 +34,29 @@
             </Grid>
         </Grid>
 
-        <!-- Running-stats strip: dives (mint) · max depth · bottom time (instrument numerals). Hidden while empty. -->
-        <Border Grid.Row="1" Style="{StaticResource GlassCard}" Margin="24,4" IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
-            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                <!-- Each stat group announces once via SemanticProperties.Description; its numeral,
-                     suffix and caption children are excluded from the a11y tree so TalkBack does not
-                     announce the value a second (and third) time. -->
-                <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding TotalDives, StringFormat='{0} dives logged'}">
+        <!-- Stat strip (prototype C3): three tiles — DIVES (mint) · MAX (unit-aware) · BOTTOM (hours).
+             Hidden while empty. Each tile announces once; numeral + caption children excluded from
+             the a11y tree so TalkBack does not announce the value twice. -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="7" Margin="24,4" IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
+            <Border Grid.Column="0" Style="{StaticResource GlassCard}" SemanticProperties.Description="{Binding TotalDives, StringFormat='{0} dives logged'}">
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
                     <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding TotalDives}" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Style="{StaticResource MonoLabel}" Text="Dives" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Style="{StaticResource MonoLabel}" Text="DIVES" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
                 </VerticalStackLayout>
-                <VerticalStackLayout Grid.Column="1" Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding MaxDepthM, Converter={StaticResource DepthFormat}, StringFormat='Max depth {0}'}">
-                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="3">
-                        <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding MaxDepthM, Converter={StaticResource DepthNumber}}" AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Style="{StaticResource UnitSuffix}" Text="{Binding MaxDepthM, Converter={StaticResource DepthSuffix}}" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
-                    </HorizontalStackLayout>
-                    <Label Style="{StaticResource MonoLabel}" Text="Max m" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource GlassCard}" SemanticProperties.Description="{Binding StatMaxText, StringFormat='Max depth {0}'}">
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                    <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding StatMaxText}" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Style="{StaticResource MonoLabel}" Text="{Binding StatMaxLabel}" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
                 </VerticalStackLayout>
-                <VerticalStackLayout Grid.Column="2" Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding TotalBottomTimeSec, Converter={StaticResource BottomTimeFormat}, StringFormat='Bottom time {0}'}">
-                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="3">
-                        <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding TotalBottomTimeSec, Converter={StaticResource BottomTimeNumber}}" AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Style="{StaticResource UnitSuffix}" Text="{Binding TotalBottomTimeSec, Converter={StaticResource BottomTimeSuffix}}" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
-                    </HorizontalStackLayout>
-                    <Label Style="{StaticResource MonoLabel}" Text="Bottom" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource GlassCard}" SemanticProperties.Description="{Binding StatHoursText, StringFormat='Total bottom time {0}'}">
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                    <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding StatHoursText}" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Style="{StaticResource MonoLabel}" Text="BOTTOM" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
                 </VerticalStackLayout>
-            </Grid>
-        </Border>
+            </Border>
+        </Grid>
 
         <!-- Free-tier cap meter (visible near/over the cap; icon + text + meter, never color alone). -->
         <Border Grid.Row="2" Style="{StaticResource GlassCard}" Margin="24,4" IsVisible="{Binding IsCapMeterVisible}">
@@ -99,52 +99,47 @@
             Margin="24,8,24,0"
             IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
             <CollectionView.ItemTemplate>
-                <!-- Each card is a MergedDive: cross-source duplicates collapse to one entry, badged
-                     with every contributing source. Bindings read the richest-fidelity union (Primary);
-                     tapping opens that union's dive. -->
-                <DataTemplate x:DataType="stats:MergedDive">
-                    <Border
-                        Style="{StaticResource GlassCard}"
-                        Margin="0,6"
-                        SemanticProperties.Description="{Binding Primary, Converter={StaticResource DiveCardTitle}}"
+                <!-- Prototype C3 dive row: sequence # (mint) · site · "location · date" · the
+                     origin→destination route string (GARMIN → PADI · SSI) · right column depth /
+                     NNmin / gas tag. Each row is a DiveRowItem over a MergedDive union; tapping
+                     opens the union's dive. -->
+                <DataTemplate x:DataType="vm:DiveRowItem">
+                    <Grid
+                        ColumnDefinitions="Auto,*,Auto"
+                        ColumnSpacing="13"
+                        Padding="4,13"
+                        SemanticProperties.Description="{Binding Site}"
                         SemanticProperties.Hint="Opens the dive's details">
-                        <Border.GestureRecognizers>
+                        <Grid.GestureRecognizers>
                             <TapGestureRecognizer
                                 Command="{Binding OpenDiveCommand, Source={RelativeSource AncestorType={x:Type vm:LogbookViewModel}}, x:DataType=vm:LogbookViewModel}"
-                                CommandParameter="{Binding Primary}" />
-                        </Border.GestureRecognizers>
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <!-- Left: site name · date · source badges + rating. -->
-                            <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
-                                <Label Style="{StaticResource Heading18}" Text="{Binding Primary, Converter={StaticResource DiveCardTitle}}" />
-                                <Label Style="{StaticResource Caption13}" Text="{Binding Primary.StartUtc, Converter={StaticResource DateFormat}}" />
-                                <HorizontalStackLayout Spacing="10">
-                                    <FlexLayout Wrap="Wrap" AlignItems="Center" BindableLayout.ItemsSource="{Binding Badges}">
-                                        <BindableLayout.ItemTemplate>
-                                            <DataTemplate x:DataType="stats:DiveSourceBadge">
-                                                <Border Style="{StaticResource Chip}" VerticalOptions="Center" Margin="0,0,6,0">
-                                                    <Label Style="{StaticResource ChipLabel}" Text="{Binding Label}" />
-                                                </Border>
-                                            </DataTemplate>
-                                        </BindableLayout.ItemTemplate>
-                                    </FlexLayout>
-                                    <Label
-                                        Style="{StaticResource Body15}"
-                                        Text="{Binding Primary.Rating, Converter={StaticResource RatingToStars}}"
-                                        VerticalOptions="Center"
-                                        SemanticProperties.Description="{Binding Primary.Rating, Converter={StaticResource RatingToWords}}" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                            <!-- Right: depth numeral (big) · duration caption. -->
-                            <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End" VerticalOptions="Start">
-                                <HorizontalStackLayout HorizontalOptions="End" Spacing="3">
-                                    <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding Primary.MaxDepthM, Converter={StaticResource DepthNumber}}" />
-                                    <Label Style="{StaticResource UnitSuffix}" Text="{Binding Primary.MaxDepthM, Converter={StaticResource DepthSuffix}}" VerticalOptions="End" Margin="0,0,0,4" />
-                                </HorizontalStackLayout>
-                                <Label Style="{StaticResource Caption13}" Text="{Binding Primary.DurationSec, Converter={StaticResource DurationFormat}}" HorizontalTextAlignment="End" />
-                            </VerticalStackLayout>
-                        </Grid>
-                    </Border>
+                                CommandParameter="{Binding Merged.Primary}" />
+                        </Grid.GestureRecognizers>
+                        <!-- Sequence number (mint, mono). -->
+                        <Label
+                            Grid.Column="0"
+                            Style="{StaticResource MonoLabelMint}"
+                            StyleClass="tnum"
+                            Text="{Binding Number}"
+                            FontSize="13"
+                            WidthRequest="24"
+                            VerticalOptions="Center"
+                            AutomationProperties.IsInAccessibleTree="False" />
+                        <!-- Site · location · date · route string. -->
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Style="{StaticResource Heading18}" FontSize="14" Text="{Binding Site}" />
+                            <Label Style="{StaticResource Caption13}" FontSize="11" Text="{Binding Meta}" />
+                            <Label Style="{StaticResource MonoLabelMint}" FontSize="8.5" Opacity="0.75" Text="{Binding Route}" TextTransform="None" />
+                        </VerticalStackLayout>
+                        <!-- Depth · minutes · gas tag. -->
+                        <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="End" VerticalOptions="Center">
+                            <Label Style="{StaticResource Body15}" StyleClass="tnum" FontSize="12" FontFamily="JetBrainsMonoSemiBold" Text="{Binding DepthText}" HorizontalTextAlignment="End" />
+                            <Label Style="{StaticResource Caption13}" StyleClass="tnum" FontSize="12" FontFamily="JetBrainsMono" Text="{Binding TimeText}" HorizontalTextAlignment="End" />
+                            <Border Style="{StaticResource Chip}" HorizontalOptions="End" Padding="6,2" Margin="0,4,0,0">
+                                <Label Style="{StaticResource ChipLabel}" FontSize="8.5" Text="{Binding Gas}" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <!-- Bottom spacer so the last dive scrolls clear of / under the floating iOS tab bar. -->
@@ -169,34 +164,116 @@
                 <Label
                     Style="{StaticResource Body15}"
                     TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
-                    Text="Log your first one to start the streak."
+                    Text="Connect a dive computer or training center and your dives will appear here on their own."
                     HorizontalTextAlignment="Center" />
             </VerticalStackLayout>
 
-            <VerticalStackLayout Grid.Row="1" Spacing="{StaticResource CardSpacing}">
-                <!-- Mint CTA-card: whole card imports; RECOMMENDED pill contrasts on the mint fill. -->
-                <Border
-                    Style="{StaticResource MintCard}"
-                    MinimumHeightRequest="58"
-                    SemanticProperties.Description="Import from computer"
-                    SemanticProperties.Hint="Opens the Bluetooth dive-computer import">
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding ImportCommand}" />
-                    </Border.GestureRecognizers>
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <Label Grid.Column="0" Style="{StaticResource Heading18}" TextColor="{StaticResource Abyss}" Text="Import from computer" VerticalOptions="Center" />
-                        <Border Grid.Column="1" Background="{StaticResource AbyssBrush}" Stroke="Transparent" StrokeShape="RoundRectangle 6" Padding="8,3" VerticalOptions="Center">
-                            <Label Style="{StaticResource BadgeTextMint}" Text="Recommended" />
-                        </Border>
-                    </Grid>
-                </Border>
-                <Button
-                    Style="{StaticResource SecondaryButton}"
-                    Text="Log a dive manually"
-                    Command="{Binding AddManualCommand}"
-                    SemanticProperties.Description="Add dive manually"
-                    SemanticProperties.Hint="Opens the manual dive entry form" />
-            </VerticalStackLayout>
+            <!-- Empty-state CTA (prototype S4): route to Providers — no manual entry, no BLE. -->
+            <Button
+                Grid.Row="1"
+                Style="{StaticResource PrimaryButton}"
+                Text="Connect your computer or dive center"
+                Command="{Binding ManageProvidersCommand}"
+                SemanticProperties.Description="Connect your computer or dive center"
+                SemanticProperties.Hint="Opens the Providers list to link a platform" />
         </Grid>
+    </Grid>
+
+    <!-- ================= `+` FAB (opens the add sheet) ================= -->
+    <Button
+        Text="+"
+        Command="{Binding OpenAddSheetCommand}"
+        HorizontalOptions="End"
+        VerticalOptions="End"
+        Margin="0,0,20,24"
+        WidthRequest="56"
+        HeightRequest="56"
+        MinimumWidthRequest="56"
+        MinimumHeightRequest="56"
+        Padding="0"
+        CornerRadius="28"
+        FontSize="26"
+        FontFamily="SpaceGroteskBold"
+        BackgroundColor="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
+        TextColor="{StaticResource MintInk}"
+        SemanticProperties.Description="Add"
+        SemanticProperties.Hint="Opens sync and provider options" />
+
+    <!-- ================= Add sheet scrim + sheet (Sync now · Manage providers ONLY) ================= -->
+    <BoxView
+        Color="#7304080A"
+        IsVisible="{Binding IsAddSheetOpen}"
+        SemanticProperties.Description="Dismiss options">
+        <BoxView.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding CloseAddSheetCommand}" />
+        </BoxView.GestureRecognizers>
+    </BoxView>
+
+    <Border
+        IsVisible="{Binding IsAddSheetOpen}"
+        VerticalOptions="End"
+        StrokeThickness="0"
+        Background="{AppThemeBinding Light={StaticResource LightSurfaceBrush}, Dark={StaticResource SurfaceBrush}}"
+        StrokeShape="RoundRectangle 24,24,0,0"
+        Padding="22,14,22,30">
+        <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+            <BoxView WidthRequest="36" HeightRequest="4" CornerRadius="2" HorizontalOptions="Center"
+                     Color="{AppThemeBinding Light={StaticResource LightGlassStroke}, Dark={StaticResource GlassStroke}}"
+                     AutomationProperties.IsInAccessibleTree="False" />
+
+            <!-- Sync now -->
+            <Border Style="{StaticResource GlassCard}"
+                    SemanticProperties.Description="Sync now"
+                    SemanticProperties.Hint="Pulls and pushes dives across linked providers">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SyncNowCommand}" />
+                </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="2">
+                    <Label Style="{StaticResource Heading18}" Text="Sync now" />
+                    <Label Style="{StaticResource Caption13}" Text="Pull and push dives across linked providers" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Manage providers -->
+            <Border Style="{StaticResource GlassCard}"
+                    SemanticProperties.Description="Manage providers"
+                    SemanticProperties.Hint="Link or unlink your platforms">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ManageProvidersCommand}" />
+                </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="2">
+                    <Label Style="{StaticResource Heading18}" Text="Manage providers" />
+                    <Label Style="{StaticResource Caption13}" Text="Link or unlink your platforms" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </Border>
+
+    <!-- ================= Streaming sync sheet (bound to the shared SyncSessionViewModel) ================= -->
+    <BoxView
+        Color="#5904080A"
+        IsVisible="{Binding Sync.IsSyncing}"
+        InputTransparent="True" />
+
+    <Border
+        IsVisible="{Binding Sync.IsSyncing}"
+        VerticalOptions="End"
+        StrokeThickness="0"
+        Background="{AppThemeBinding Light={StaticResource LightSurfaceBrush}, Dark={StaticResource SurfaceBrush}}"
+        StrokeShape="RoundRectangle 24,24,0,0"
+        Padding="22,16,22,28">
+        <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+            <Label Style="{StaticResource Heading18}" Text="Syncing…" SemanticProperties.HeadingLevel="Level2" />
+            <Label Style="{StaticResource MonoLabelMint}" Text="{Binding Sync.SyncLabel}" TextTransform="None" />
+            <ProgressBar
+                Progress="{Binding Sync.Progress}"
+                SemanticProperties.Description="{Binding Sync.SyncSub}" />
+            <Label
+                Style="{StaticResource Caption13}"
+                Text="{Binding Sync.SyncSub}"
+                AutomationProperties.IsInAccessibleTree="False" />
+        </VerticalStackLayout>
+    </Border>
+
     </Grid>
 </ContentPage>

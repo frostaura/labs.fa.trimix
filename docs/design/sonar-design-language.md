@@ -1,5 +1,7 @@
 # Trimix — "Sonar" Design Language (direction A)
 
+> **Superseded historical document.** `mockup-spec.md` is the authoritative visual contract (different palette/fonts), and the screens/flows described below (BLE import, 4-tab bar with raised Import button, manual entry, site contribution, Settings-tab account) predate the 2026-07-27 serverless / API-sync-only pivot and no longer exist. Kept for provenance only.
+
 > **Provenance.** The selected direction is **Sonar (A)** from the claude.ai design project (`Wreckline Storyboard.dc.html`, project `fb253415-935b-43f4-af5e-9f8f11d849a4`). The storyboard could not be imported at scaffold time (design MCP unauthorized, Chrome extension disconnected); this document re-derives the direction under founder-granted creative liberty, aligned with FrostAura brand posture (frosty/glass, light blue on dark blue, clean, minimalist, elegant). When the storyboard becomes importable via `/design-login` + DesignSync, reconcile this doc against it and record deltas here.
 
 ## Concept

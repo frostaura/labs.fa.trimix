@@ -1,5 +1,11 @@
 # Trimix — Mockup 1:1 Spec (authoritative)
 
+> **Update 2026-07-27 (serverless rebuild).** The screen list in §4 was re-reconciled against the
+> founder's interactive prototype `~/Desktop/Trimix Prototype.html` — **11 screens**, replacing the
+> storyboard-era set (BLE import, email/passkey account, moderated site contribution are gone).
+> Palette, typography and components (§1–§3) are **unchanged**: mint `#2FE3C4` on `#0A1013`,
+> Space Grotesk / JetBrains Mono / Hanken Grotesk, 3-tab **Log · Sites · You**.
+
 > **Provenance.** RECONCILED 2026-07-03 against the actual storyboard CSS — `Wreckline
 > Storyboard.dc.html` (project `fb253415-935b-43f4-af5e-9f8f11d849a4`), pulled via DesignSync after
 > `/design-login`. The exact Sonar-(A) values below are now wired into `Colors.xaml` / `Styles.xaml` /
@@ -97,55 +103,51 @@ letter-spaced labels, badges/pills, index numbers (01/02/03), the wordmark.
 
 ---
 
-## 4. Per-screen layouts (match 1:1). **Preserve ALL existing bindings/commands/x:DataType/converters/SemanticProperties and funnel-event calls — restyle & restructure the visual layer only.**
+## 4. Per-screen layouts — the 11 prototype screens (re-reconciled 2026-07-27 against `~/Desktop/Trimix Prototype.html`). **Preserve ALL existing bindings/commands/x:DataType/converters/SemanticProperties and funnel-event calls — restyle & restructure the visual layer only.**
 
-### S1 · Onboarding — hero (`OnboardingPage`, pane 1)
-Full-bleed `Abyss`. Top row: "TRIMIX" wordmark (`Wordmark`, mint, top-left) · sonar rings top-right (concentric mint circles bleeding off the top-right corner). Big gap. Hero headline `Display32` white, 2 lines, left-aligned: "Your logbook fills itself." Body `Body15`/TextSecondary: "Auto-import from every major dive computer over Bluetooth, on a dive-site atlas built by divers." Push to bottom: page dots (3, first active, mint pill). Primary pill "Get started". Below, centered ghost text button "I already have an account" (SpaceGroteskBold, TextSecondary).
+The storyboard-era screens this section previously specced (BLE Import/Connect, email/passkey account creation, "Match the site" contribution flow) are **gone with their features** — the app is serverless and API-sync-only. Component styles from §3 carry over unchanged; screen-obsolete components (`AuthButtonLight`/`AuthButtonOutline` for Apple/email sign-in) are retired with their screens.
 
-### S2 · Onboarding — the loop (pane 2)
-Title `Title24` "The loop". Three `GlassCard`s stacked (spacing ~14). Each card: `MonoIndex` mint number ("01"/"02"/"03") left, then title `Heading18` + body `Body15`/TextSecondary:
-- 01 **Dive** — "Your computer records the profile, as always."
-- 02 **Sync** — "Open Trimix near it — dives pull over Bluetooth."
-- 03 **Enrich** — "Site, hazards and marine life auto-attach from the atlas."
+### 1 · Welcome (`OnboardingPage`, hero pane)
+Full-bleed `Abyss`. "TRIMIX" wordmark (`Wordmark`, mint, top-left) · sonar rings bleeding off the top-right. Hero `Display32` white, left-aligned: "Your logbook fills itself." Body `Body15`/TextSecondary on the serverless promise: dives sync in from the platforms you already use — **no cloud, no servers; your logbook and links never leave this device.** Page dots, primary pill "Get started".
+
+### 2 · How it works (`OnboardingPage`, pane 2)
+Title `Title24`. Three `GlassCard`s with `MonoIndex` mint "01/02/03":
+- 01 **Dive** — your computer records the profile and syncs to its own app, as always.
+- 02 **Link** — connect the platforms where your dives already live (Garmin, Suunto, ScubaPro, Mares, Oceanic+).
+- 03 **Sync** — Trimix pulls them in, enriches from the atlas, and can push out to PADI / SSI.
 Bottom: primary pill "Continue".
 
-### S3 · Onboarding — account (pane 3) → maps to `AuthPage` content
-Title `Title24` 2-line "Create your logbook". Body TextSecondary: "Your dives sync across devices and survive a reinstall — bound to your account, not your phone." Spacer. Buttons stacked: `AuthButtonLight` " Continue with Apple" (Apple glyph) · `AuthButtonOutline` "Continue with email" · centered ghost "Continue as guest" (SpaceGroteskBold). Fine print `Caption13`/TextDisabled centered: "Guest dives stay on this device until you create an account."
-(Keep the real email/password entries + Register/Login/Guest commands — this hero/button treatment sits above them, or the entries appear after "Continue with email".)
+### 3 · Account — biometric (`AuthPage`)
+No account creation — there are no accounts. Title + body explain local unlock: your logbook is protected by your device's biometrics (Face ID / fingerprint). Single primary pill triggers `IBiometricUnlock`; fine print `Caption13`/TextDisabled: everything stays on this device.
 
-### S4 · Logbook — empty (`LogbookPage`, empty state)
-Header row: title `Title24` "Logbook" left, circular avatar (mint-ring circle) right. Centered empty block: mint line-chart glyph, `Heading18` "No dives yet", `Body15`/TextSecondary "Log your first one to start the streak." Bottom: mint filled CTA-card "Import from computer" with `BadgeMintFill` "RECOMMENDED" pill on its right; below it a ghost/outline "Log a dive manually". Tab bar Log·Sites·You (Log active).
+### 4 · Logbook (`LogbookPage`, empty + populated states)
+Header `Title24` "Logbook" + avatar. **Empty state:** mint chart glyph, `Heading18` "No dives yet", body pointing at linking a provider; CTA-card (mint fill) "Link a dive platform" → Providers. **Populated:** summary strip (three stat groups — `StatNumeral` mint DIVES · white MAX m · white BOTTOM), dive rows (`GlassCard`: index, site name + `Caption13` place/date, right `StatNumeral` depth + duration, provider `ShortLabel` badge). Tab bar Log·Sites·You.
 
-### S5 · Import/Connect (`ImportPage`)
-Back header "← Import" (mono/ghost). Centered: large sonar-ring cluster with a mint filled disc holding a device+Bluetooth glyph. Body `Body15` TextSecondary centered: "Trimix uses Bluetooth to read dives straight off your computer. Parsing happens on-device — nothing leaves your phone." `MonoLabel` "FOUND NEARBY". Device row card: `Heading18` "Shearwater Perdix AI" + `Caption13` "Paired · signal strong", right-aligned mint "Connect" action. (Keep scan/connect/import commands + progress + cap→paywall.)
+### 5 · Providers (`ConnectedAccountsPage`)
+The seven provider rows from `ProviderCatalog` — **IN:** Garmin Dive, Suunto, ScubaPro, Mares, Oceanic+; **OUT:** PADI, SSI — each a `GlassCard` row: name `Heading18`, legal-posture badge ("Unofficial · personal export"), linked/unlinked state, Connect/Disconnect. Connecting a `ToSRiskReverseEng` provider first shows the plain-language ToS-risk disclosure (consent gate) before any I/O. "Sync now" entry point (`SyncCoordinator`) with per-provider progress.
 
-### S6 · Profile / Dive detail (`DiveDetailPage`)
-Header: `Title24` "Dive #38" with `BadgeMint` "IMPORTED" to its right; subtitle `Caption13` "14 Jun 2026 · 09:18 · Perdix AI". 2×2 stat grid of `GlassCard`s, each: `MonoLabel` label + big `StatNumeral` value + `UnitSuffix`:
-- MAX DEPTH → value **mint** "28.4" + "m"
-- BOTTOM TIME → value **white** "47:12"
-- MIN TEMP → value **mint** "26" + "°C"
-- GAS → value **white** "EAN32"
-Then `GlassCard` "DEPTH / TIME" (`MonoLabel`) with the mint profile chart. Bottom primary pill "Match the site →". (Keep the profile GraphicsView + view-as-table a11y alternative + real bindings.)
+### 6 · Provider sign-in (`ProviderOAuthPage`)
+In-app OAuth-style sheet with browser chrome: provider monogram "logo", vendor domain (`ProviderCatalog.DomainFor`), credential fields. Password is used once for the token exchange and never persisted (guardrail; token → Keychain/Keystore). Truthful labelling — never "official <Vendor> integration".
 
-### S7 · Site atlas / Site detail (`SiteDetailPage`)
-Top: mint dot + `MonoLabel` "MATCHED FROM ATLAS · 98%". Hero photo card (`GlassCard`, `SurfaceRaised` placeholder with `MonoLabel` "WRECK PHOTO"): `Heading18` "Liberty Wreck" + `Caption13` "Tulamben, Bali · shore". Chip row: `Chip` "5–30m", `ChipWarn` "⚠ current", `Chip` "shore access". `MonoLabel` "MARINE LIFE" + row of 3 `SurfaceRaised` thumbnail squares. Quote `Body15` italic "“Bumphead parrotfish at dawn on the wreck's stern.”" + `Caption13` "— 24 divers". Bottom primary pill "Confirm site". (Keep site data bindings + contribute/open commands + back-nav CloseCommand.)
+### 7 · Dive detail (`DiveDetailPage`)
+Header `Title24` "Dive #n" + `BadgeMint` provider badge; subtitle date · time · source. 2×2 stat grid (`MonoLabel` + `StatNumeral` + `UnitSuffix`): MAX DEPTH (mint) · BOTTOM TIME · MIN TEMP (mint) · GAS. "DEPTH / TIME" `GlassCard` with the mint profile chart — **touch-to-scrub**: crosshair + "depth · time" tooltip follows the finger (keep the view-as-table a11y alternative). Below: **"NEAR THIS SITE · <coords>"** carousel — 3 auto-rotating cards from the bundled atlas (`SiteAtlas`). Notes block (editable, local).
 
-### S8 · Purchase moment (`PaywallPage`)
-Top `BadgeWarn` "⚠ FREE LIMIT REACHED · 5/5 DIVES". Hero `Display32` "Unlock unlimited import." Body `Body15`/TextSecondary "3 more dives are waiting on your Perdix. Free keeps your last 5." Two SKU cards:
-- Pro (`GlassCard`): `Heading18` "Pro" + `Caption13` "Unlimited import · full logbook" left, `StatNumeral` white "$14.99" right.
-- Lifetime (`GlassCardGold`→ now mint 1.5px border): `BadgeMintFill` "BEST VALUE" top-left, `Heading18` "Lifetime" + `Caption13` "+ offline packs · all future perks", `StatNumeral` **mint** "$29.99".
-Bottom primary pill "Unlock — one-time". Footer row `MonoLabel`: "NO SUBSCRIPTIONS" · "Restore purchases" (mint link). (Keep SKU bindings, purchase/restore commands, price-visible-before-store rule, single dismiss.)
+### 8 · Paywall — purchase moment (`PaywallPage`, state 1)
+Top `BadgeWarn` "⚠ FREE LIMIT REACHED · 5/5 DIVES" (binds to the `FreeTier` constant — free keeps your last 5; the 6th synced dive fires this). Hero `Display32` "Unlock unlimited import." Two SKU cards: Pro `GlassCard` ("Unlimited import · full logbook", white "$14.99") · Lifetime (mint 1.5px border, `BadgeMintFill` "BEST VALUE", mint "$29.99"). Primary pill "Unlock — one-time"; footer `MonoLabel` "NO SUBSCRIPTIONS" · "Restore purchases" (mint link). Keep price-visible-before-store-sheet rule, single dismiss.
 
-### S9 · Unlocked / "You're Pro" (post-purchase confirmation)
-Centered: large mint filled disc with `Abyss` checkmark. `Display32` "You're Pro." centered. Body `Body15`/TextSecondary centered "All dives imported and multi-vendor unlock is active — bound to your account, restorable forever." `BadgeMint` "ENTITLEMENT · PRO · ACTIVE" centered. Bottom primary pill "Go to logbook". (Wire to the real entitlement-granted state after purchase.)
+### 9 · Unlocked (`PaywallPage`, state 2 — post-purchase)
+Large mint disc with `Abyss` checkmark, `Display32` "You're Pro.", body: all dives synced in, unlock is active — **restorable through the store** (no account; the store owns the receipt). `BadgeMint` "ENTITLEMENT · PRO · ACTIVE". Primary pill "Go to logbook".
 
-### S10 · Logbook — populated (`LogbookPage`, list state)
-Title `Title24` "Logbook". Summary strip: three stat groups — `StatNumeral` **mint** "38" + `MonoLabel` "DIVES"; white "41.2" + "MAX m"; white "31h" + "BOTTOM". Dive list rows (`GlassCard`/row): left `MonoIndex`-ish number ("38"), `Heading18` site name + `Caption13` "Tulamben · 14 Jun"; right `StatNumeral` depth "28.4m" + `Caption13` duration "47min". Tab bar Log·Sites·You.
+### 10 · Sites (`SitesPage` / `SiteDetailPage`)
+**Derived from the diver's own synced dives** — no community DB, no contribution, no moderation. List of sites the diver has actually dived (name, region, dive count, depth range); detail enriched from the bundled atlas where matched (blurb, `Chip` depth/entry chips, `ChipWarn` hazards). Read-only.
+
+### 11 · You (`StatsPage`, with `SettingsPage` behind the gear)
+Avatar initials + **inline-editable name** (local-only) + cert line. Career stat cards (`DiveStats`, each with its completeness caption). **Units toggle** (m/ft · °C/°F). **Nitrox MOD planner** — O₂% slider (21–40) with live MOD readout at ppO₂ 1.4; display math only (MOD = (1.4/FO₂ − 1) × 10), never deco computation. Gear → Settings (entitlement state, Restore purchases, about/licenses).
 
 ---
 
 ## 5. Hard constraints for implementers
-- Do **not** touch ViewModels, commands, converters, DI, funnel-event names, or backend. Visual layer only.
+- Do **not** touch ViewModels, commands, converters, DI, or funnel-event names. Visual layer only.
 - Keep every `SemanticProperties.*`, `AutomationProperties.*`, and the "view as table" a11y alternative.
 - Keep the "← Back" CloseCommand bar already added to modal pages (restyle to match: ghost mint "←").
 - Every tappable ≥44pt. Numerals carry `StyleClass="tnum"`.

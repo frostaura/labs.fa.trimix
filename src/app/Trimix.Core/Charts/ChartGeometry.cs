@@ -58,4 +58,37 @@ public static partial class ChartGeometry
 
         return new DepthChartPath(line, area, maxDepth, duration);
     }
+
+    /// <summary>
+    /// Linear interpolation of the normalized depth polyline at normalized elapsed
+    /// <paramref name="x"/> ∈ [0,1] — the touch-to-scrub crosshair's Y (C6). Clamped to the
+    /// chart's ends; 0 for an empty chart.
+    /// </summary>
+    public static double YAtX(DepthChartPath path, double x)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        var line = path.Line;
+        if (line.Count == 0)
+        {
+            return 0;
+        }
+
+        if (x <= line[0].X)
+        {
+            return line[0].Y;
+        }
+
+        for (var i = 1; i < line.Count; i++)
+        {
+            if (x <= line[i].X)
+            {
+                var (x0, y0) = (line[i - 1].X, line[i - 1].Y);
+                var (x1, y1) = (line[i].X, line[i].Y);
+                var t = x1 <= x0 ? 0 : (x - x0) / (x1 - x0);
+                return y0 + (y1 - y0) * t;
+            }
+        }
+
+        return line[^1].Y;
+    }
 }

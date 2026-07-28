@@ -35,19 +35,6 @@ public sealed class FakeLocation : ILocationService
         Task.FromResult(Fix);
 }
 
-public sealed class FakePermissions : IPermissions
-{
-    public bool GrantBluetooth { get; set; } = true;
-
-    public int Requests { get; private set; }
-
-    public Task<bool> RequestBluetoothAsync(CancellationToken cancellationToken = default)
-    {
-        Requests++;
-        return Task.FromResult(GrantBluetooth);
-    }
-}
-
 public sealed class FakeNavigator : INavigator
 {
     public List<(string Route, IReadOnlyDictionary<string, object>? Parameters)> Navigations { get; } = [];
@@ -199,17 +186,6 @@ public sealed class FakeEntitlementService : IEntitlementService
     }
 }
 
-public sealed class FakeSyncService : ISyncService
-{
-    public int SyncCalls { get; private set; }
-
-    public Task SyncAsync(CancellationToken cancellationToken = default)
-    {
-        SyncCalls++;
-        return Task.CompletedTask;
-    }
-}
-
 /// <summary>
 /// Records tracked events in order AND validates them against the frozen contract — a VM emitting
 /// an unknown event or missing a required prop fails the test at the Track call site.
@@ -255,105 +231,10 @@ public sealed class RecordingAnalytics : IAnalytics
     }
 }
 
-/// <summary>Configurable <see cref="IApiClient"/> recording every call; unconfigured routes throw.</summary>
-public sealed class FakeApiClient : IApiClient
-{
-    public List<ValidatePurchaseRequest> ValidatePurchaseRequests { get; } = [];
-
-    public Func<ValidatePurchaseRequest, ValidatePurchaseResponse>? ValidatePurchaseHandler { get; set; }
-
-    public Func<EntitlementResponse>? EntitlementHandler { get; set; }
-
-    public List<DiveSyncRequest> SyncRequests { get; } = [];
-
-    public Func<DiveSyncRequest, DiveSyncResponse>? SyncHandler { get; set; }
-
-    public Func<SiteSearchResponse>? SitesHandler { get; set; }
-
-    public List<AnalyticsBatchRequest> AnalyticsBatches { get; } = [];
-
-    public Func<AnalyticsBatchRequest, AnalyticsBatchResponse>? AnalyticsHandler { get; set; }
-
-    public Func<Guid, SiteDetailDto>? SiteDetailHandler { get; set; }
-
-    public Func<SiteContributionRequest, SiteContributionResponse>? ContributionHandler { get; set; }
-
-    public Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<PasskeyRegisterBeginResponse> PasskeyRegisterBeginAsync(PasskeyRegisterBeginRequest request, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<AuthResponse> PasskeyRegisterFinishAsync(PasskeyRegisterFinishRequest request, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<PasskeyLoginBeginResponse> PasskeyLoginBeginAsync(CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<AuthResponse> PasskeyLoginFinishAsync(PasskeyLoginFinishRequest request, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<EntitlementResponse> GetMyEntitlementAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult((EntitlementHandler ?? throw new InvalidOperationException("Not configured."))());
-
-    public Task<ValidatePurchaseResponse> ValidatePurchaseAsync(ValidatePurchaseRequest request, CancellationToken cancellationToken = default)
-    {
-        ValidatePurchaseRequests.Add(request);
-        return Task.FromResult((ValidatePurchaseHandler ?? throw new InvalidOperationException("Not configured."))(request));
-    }
-
-    public Task<DiveSyncResponse> SyncDivesAsync(DiveSyncRequest request, CancellationToken cancellationToken = default)
-    {
-        SyncRequests.Add(request);
-        return Task.FromResult((SyncHandler ?? throw new InvalidOperationException("Not configured."))(request));
-    }
-
-    public Task<SiteSearchResponse> SearchSitesAsync(string? query, double? lat, double? lng, int? limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult((SitesHandler ?? throw new InvalidOperationException("Not configured."))());
-
-    public Task<SiteDetailDto> GetSiteAsync(Guid id, CancellationToken cancellationToken = default) =>
-        Task.FromResult((SiteDetailHandler ?? throw new InvalidOperationException("Not configured."))(id));
-
-    public Task<SiteContributionResponse> SubmitContributionAsync(SiteContributionRequest request, CancellationToken cancellationToken = default) =>
-        Task.FromResult((ContributionHandler ?? throw new InvalidOperationException("Not configured."))(request));
-
-    public Task<ModerationQueueResponse> GetModerationQueueAsync(string status, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<ResolveContributionResponse> ResolveContributionAsync(Guid contributionId, ResolveContributionRequest request, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException("Not configured.");
-
-    public Task<AnalyticsBatchResponse> SendAnalyticsAsync(AnalyticsBatchRequest request, CancellationToken cancellationToken = default)
-    {
-        AnalyticsBatches.Add(request);
-        return Task.FromResult((AnalyticsHandler ?? (r => new AnalyticsBatchResponse(r.Events.Count)))(request));
-    }
-
-    /// <summary>Number of times <see cref="DeleteMyDataAsync"/> was invoked (GDPR erasure).</summary>
-    public int DeleteMyDataCalls { get; private set; }
-
-    /// <summary>When set, <see cref="DeleteMyDataAsync"/> throws it (offline / server-error erasure taps).</summary>
-    public Exception? DeleteMyDataThrows { get; set; }
-
-    public Task<PrivacyDeleteResponse> DeleteMyDataAsync(CancellationToken cancellationToken = default)
-    {
-        DeleteMyDataCalls++;
-        if (DeleteMyDataThrows is { } ex)
-        {
-            throw ex;
-        }
-
-        return Task.FromResult(new PrivacyDeleteResponse(0, 0, 0));
-    }
-}
-
 /// <summary>
-/// A non-BLE <see cref="IDiveSourceConnector"/> (a stand-in for a future HealthKit / file / cloud
-/// source) that returns canned <see cref="ImportedDive"/>s straight into the seam — proving
-/// <c>ImportService.ImportFromConnectorAsync</c> runs the source-agnostic downstream for any connector.
+/// A generic <see cref="IDiveSourceConnector"/> that returns canned <see cref="ImportedDive"/>s straight
+/// into the seam — proving <c>ImportService.ImportFromConnectorAsync</c> runs the source-agnostic
+/// downstream for any connector.
 /// </summary>
 public sealed class FakeSourceConnector : IDiveSourceConnector
 {
@@ -412,6 +293,54 @@ public sealed class FakeSourceConnector : IDiveSourceConnector
             new DateTime(2026, 6, 2, 9, 30, 0, DateTimeKind.Utc), 1800, 18.0, 12.0, 22.0, "Air",
             [new ProfileSampleDto(0, 0, null, null), new ProfileSampleDto(60, 18.0, 22.0, null)]),
     ];
+}
+
+/// <summary>Scripted <see cref="ISyncCoordinator"/> for the sync-session/UI seam tests.</summary>
+public sealed class FakeSyncCoordinator : ISyncCoordinator
+{
+    /// <summary>Static link state; overridden by <see cref="HasLinkedSourcesFunc"/> when set (e.g. to
+    /// derive it from a consent store so a granted consent flips the state mid-test).</summary>
+    public bool HasLinkedSourcesValue { get; set; }
+
+    public Func<bool>? HasLinkedSourcesFunc { get; set; }
+
+    public bool HasLinkedSources => HasLinkedSourcesFunc?.Invoke() ?? HasLinkedSourcesValue;
+
+    public int SyncCalls { get; private set; }
+
+    /// <summary>Report returned by the next run (defaults to an empty successful run).</summary>
+    public SyncReport NextReport { get; set; } = new([], [], [], CapReached: false);
+
+    /// <summary>Progress ticks replayed to the caller before the report returns.</summary>
+    public List<SyncProgress> TicksToEmit { get; } = [];
+
+    public Task<SyncReport> SyncNowAsync(
+        Func<Task>? onCapReached = null,
+        IProgress<SyncProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        SyncCalls++;
+        foreach (var tick in TicksToEmit)
+        {
+            progress?.Report(tick);
+        }
+
+        return Task.FromResult(NextReport);
+    }
+}
+
+/// <summary>Records <see cref="IBiometricUnlock"/> prompts; scriptable outcome.</summary>
+public sealed class FakeBiometricUnlock : IBiometricUnlock
+{
+    public int Prompts { get; private set; }
+
+    public BiometricUnlockResult Result { get; set; } = new(true);
+
+    public Task<BiometricUnlockResult> AuthenticateAsync(string reason, CancellationToken cancellationToken = default)
+    {
+        Prompts++;
+        return Task.FromResult(Result);
+    }
 }
 
 public static class AsyncStream

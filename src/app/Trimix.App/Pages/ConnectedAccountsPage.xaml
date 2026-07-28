@@ -1,139 +1,139 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Settings → Connected accounts (aggregator activation UI, Slice 2). A registry-driven list over every
-     self-registered connector: name + legal-posture badge + fidelity caption + connect/disconnect for the
-     reverse-engineered "personal export" connectors. Connect shows the connector's own ToS-risk disclosure
-     (via the VM's ConfirmAsync) and only then reveals a credential sheet that feeds the password once into
-     the connector (never persisted). An SSI card renders the diver-scanned MySSI QR when produced. Pushed
-     route (Shell provides the back arrow). Sonar styling per docs/design/mockup-spec.md. -->
+<!-- Providers (prototype S5): one row per registered connector — Garmin Dive · Suunto · ScubaPro ·
+     Mares · Oceanic+ then PADI · SSI — states Not connected → Linked ✓ / Syncing…. Header hosts the
+     radar "Sync now" button (dimmed until a provider is linked) + the last-sync label. Connect
+     pushes the provider's own in-app sign-in sheet; arriving via an unlinked "Sync now" flashes the
+     Connect buttons red (nudge). Tapping a linked row offers unlink (revoke anytime). -->
 <ContentPage
     x:Class="Trimix.App.Pages.ConnectedAccountsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     x:DataType="vm:ConnectedAccountsViewModel"
-    Title="Connected accounts">
+    Title="Providers">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+    <Grid RowDefinitions="Auto,Auto,*">
 
-            <Label
-                Style="{StaticResource Title24}"
-                Text="Connected accounts"
-                Margin="0,4,0,0"
-                SemanticProperties.HeadingLevel="Level1" />
-            <Label
-                Style="{StaticResource Caption13}"
-                Text="Your dive computer over Bluetooth and standard file imports are always available. The unofficial 'personal export' connectors sign in to your own vendor account to pull your dives — they are not official integrations, so read the notice before connecting." />
+        <!-- Header: title + radar Sync-now button -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="24,16,24,4" ColumnSpacing="12">
+            <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
+                <Label
+                    Style="{StaticResource Title24}"
+                    Text="Providers"
+                    SemanticProperties.HeadingLevel="Level1" />
+                <Label
+                    Style="{StaticResource Caption13}"
+                    Text="Your phone syncs each platform directly — links stay on-device." />
+            </VerticalStackLayout>
 
-            <!-- Connector registry -->
-            <CollectionView ItemsSource="{Binding Connectors}" SelectionMode="None">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:ConnectorRow">
-                        <Border Style="{StaticResource GlassCard}" Margin="0,6">
-                            <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                    <Label
-                                        Grid.Column="0"
-                                        Style="{StaticResource Heading18}"
-                                        Text="{Binding DisplayName}"
-                                        VerticalOptions="Center" />
-                                    <Border Grid.Column="1" Style="{StaticResource BadgeMint}">
-                                        <Label Style="{StaticResource BadgeTextMint}" Text="{Binding LegalBadge}" />
-                                    </Border>
-                                </Grid>
+            <!-- Radar "Sync now": concentric mint rings; dimmed when nothing is linked. An unlinked
+                 tap nudges the Connect buttons (the shared command routes here + nudges). -->
+            <Grid
+                Grid.Column="1"
+                WidthRequest="48"
+                HeightRequest="48"
+                VerticalOptions="Start"
+                Opacity="1"
+                SemanticProperties.Description="Sync now"
+                SemanticProperties.Hint="Pulls and pushes dives across your linked providers">
+                <Grid.Triggers>
+                    <DataTrigger TargetType="Grid" Binding="{Binding Sync.HasLinkedSources}" Value="False">
+                        <Setter Property="Opacity" Value="0.4" />
+                    </DataTrigger>
+                </Grid.Triggers>
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding Sync.SyncNowCommand}" />
+                </Grid.GestureRecognizers>
+                <Ellipse WidthRequest="46" HeightRequest="46" Fill="Transparent" StrokeThickness="1" Opacity="0.35"
+                         Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                         HorizontalOptions="Center" VerticalOptions="Center" />
+                <Ellipse WidthRequest="32" HeightRequest="32" Fill="Transparent" StrokeThickness="1" Opacity="0.6"
+                         Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                         HorizontalOptions="Center" VerticalOptions="Center" />
+                <Ellipse WidthRequest="18" HeightRequest="18" Fill="Transparent" StrokeThickness="1" Opacity="0.85"
+                         Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                         HorizontalOptions="Center" VerticalOptions="Center" />
+                <Ellipse WidthRequest="6" HeightRequest="6"
+                         Fill="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
+                         HorizontalOptions="Center" VerticalOptions="Center" />
+            </Grid>
+        </Grid>
 
-                                <Label Style="{StaticResource Caption13}" Text="{Binding FidelityCaption}" />
+        <!-- Last-sync label -->
+        <Label
+            Grid.Row="1"
+            Style="{StaticResource MonoLabel}"
+            Text="{Binding Sync.LastSyncLabel}"
+            Margin="24,4,24,4" />
 
-                                <!-- ToS-risk notice, shown only for the unofficial reverse-engineered connectors. -->
+        <!-- Provider rows -->
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Providers}" SelectionMode="None" Margin="24,8,24,0">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:ProviderRow">
+                    <Border Style="{StaticResource GlassCard}" Margin="0,6">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+
+                            <!-- Monogram "logo" box -->
+                            <Border
+                                Grid.Column="0"
+                                WidthRequest="40"
+                                HeightRequest="40"
+                                StrokeShape="RoundRectangle 10"
+                                Stroke="{AppThemeBinding Light={StaticResource LightGlassStroke}, Dark={StaticResource GlassStroke}}"
+                                Background="{AppThemeBinding Light={StaticResource LightSurfaceRaisedBrush}, Dark={StaticResource SurfaceRaisedBrush}}"
+                                VerticalOptions="Center"
+                                AutomationProperties.IsInAccessibleTree="False">
                                 <Label
-                                    Style="{StaticResource Caption13}"
-                                    TextColor="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
-                                    IsVisible="{Binding IsReverseEng}"
-                                    Text="⚠ Unofficial personal export — may breach the vendor's Terms of Service. Your password is used once to obtain a token and is never stored." />
+                                    Style="{StaticResource Heading18}"
+                                    Text="{Binding Monogram}"
+                                    HorizontalOptions="Center"
+                                    VerticalOptions="Center" />
+                            </Border>
 
-                                <Label
-                                    Style="{StaticResource MonoLabelMint}"
-                                    Text="{Binding StatusMessage}"
-                                    IsVisible="{Binding IsManaged}" />
-
-                                <Button
-                                    Style="{StaticResource SecondaryButton}"
-                                    Text="Connect"
-                                    IsVisible="{Binding CanConnect}"
-                                    Command="{Binding ConnectCommand, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
-                                    CommandParameter="{Binding .}"
-                                    SemanticProperties.Description="{Binding DisplayName, StringFormat='Connect {0}'}"
-                                    SemanticProperties.Hint="Shows the personal-export notice, then a sign-in sheet" />
-                                <Button
-                                    Style="{StaticResource GhostButton}"
-                                    Text="Disconnect"
-                                    IsVisible="{Binding CanDisconnect}"
-                                    Command="{Binding DisconnectCommand, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
-                                    CommandParameter="{Binding .}"
-                                    SemanticProperties.Description="{Binding DisplayName, StringFormat='Disconnect {0}'}"
-                                    SemanticProperties.Hint="Revokes consent and deletes the stored access token" />
+                            <!-- Name + status -->
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Style="{StaticResource Heading18}" Text="{Binding PlatformName}" />
+                                <Label Style="{StaticResource Caption13}" Text="{Binding StatusText}" />
                             </VerticalStackLayout>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
 
-            <!-- Credential sign-in sheet (inline, revealed after consent). -->
-            <Border Style="{StaticResource GlassCard}" IsVisible="{Binding IsCredentialSheetVisible}">
-                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                    <Label Style="{StaticResource MonoLabel}" Text="SIGN IN" SemanticProperties.HeadingLevel="Level2" />
-                    <Label
-                        Style="{StaticResource Body15}"
-                        Text="{Binding ActiveCredentialRow.DisplayName, StringFormat='Sign in to {0}'}" />
-                    <Entry
-                        Text="{Binding CredentialUsername}"
-                        Placeholder="Email or username"
-                        Keyboard="Email"
-                        SemanticProperties.Description="Account email or username" />
-                    <Entry
-                        Text="{Binding CredentialPassword}"
-                        Placeholder="Password"
-                        IsPassword="True"
-                        SemanticProperties.Description="Account password" />
-                    <Label
-                        Style="{StaticResource Caption13}"
-                        Text="Your password is sent once to obtain an access token and is never stored on this device." />
-                    <Button
-                        Text="Connect"
-                        Command="{Binding SubmitCredentialsCommand}"
-                        CommandParameter="{Binding ActiveCredentialRow}"
-                        SemanticProperties.Description="Sign in and connect"
-                        SemanticProperties.Hint="Exchanges your credentials for an access token" />
-                    <Button
-                        Style="{StaticResource GhostButton}"
-                        Text="Cancel"
-                        Command="{Binding CancelCredentialsCommand}"
-                        SemanticProperties.Description="Cancel sign-in" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Diver-scanned MySSI QR export (rendered when a dive is supplied). -->
-            <Border Style="{StaticResource GlassCard}" IsVisible="{Binding HasSsiQr}">
-                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                    <Label Style="{StaticResource MonoLabel}" Text="MYSSI QR EXPORT" SemanticProperties.HeadingLevel="Level2" />
-                    <Label
-                        Style="{StaticResource Caption13}"
-                        Text="Scan this in your own logged-in MySSI app to add the dive. Summary only (date, duration, max depth); no server contact, no credentials." />
-                    <GraphicsView
-                        x:Name="QrView"
-                        HeightRequest="240"
-                        WidthRequest="240"
-                        HorizontalOptions="Center"
-                        SemanticProperties.Description="MySSI dive export QR code" />
-                    <Label
-                        Style="{StaticResource Caption13}"
-                        Text="{Binding SsiQrPayload}"
-                        LineBreakMode="CharacterWrap" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Bottom spacer so the last card clears the floating tab bar / home indicator. -->
-            <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
-        </VerticalStackLayout>
-    </ScrollView>
+                            <!-- CTA: Connect (nudge-able) / Linked ✓ (tap to unlink) -->
+                            <Button
+                                Grid.Column="2"
+                                Style="{StaticResource SecondaryButton}"
+                                Text="{Binding CtaText}"
+                                VerticalOptions="Center"
+                                Command="{Binding ConnectCommand, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
+                                CommandParameter="{Binding .}"
+                                SemanticProperties.Description="{Binding PlatformName, StringFormat='Connect or unlink {0}'}"
+                                SemanticProperties.Hint="Opens the provider's own sign-in, or unlinks it">
+                                <Button.Triggers>
+                                    <!-- Linked: quiet mint pill -->
+                                    <DataTrigger TargetType="Button" Binding="{Binding IsLinked}" Value="True">
+                                        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
+                                        <Setter Property="BorderColor" Value="Transparent" />
+                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightSurfaceRaised}, Dark={StaticResource SurfaceRaised}}" />
+                                    </DataTrigger>
+                                    <!-- Unlinked: mint outline; flashes red while nudging -->
+                                    <DataTrigger TargetType="Button" Binding="{Binding IsLinked}" Value="False">
+                                        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
+                                        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
+                                    </DataTrigger>
+                                    <DataTrigger
+                                        TargetType="Button"
+                                        Binding="{Binding IsNudging, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
+                                        Value="True">
+                                        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightAlert}, Dark={StaticResource Alert}}" />
+                                        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightAlert}, Dark={StaticResource Alert}}" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.Footer>
+                <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+            </CollectionView.Footer>
+        </CollectionView>
+    </Grid>
 </ContentPage>

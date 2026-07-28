@@ -1,9 +1,7 @@
-using System.Net;
 using Microsoft.Extensions.Logging;
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Api;
 
 namespace Trimix.Core.Analytics;
 
@@ -24,27 +22,26 @@ public sealed class AnalyticsOptions
         false;
 #endif
 
-    /// <summary>Max events per <c>POST /analytics/events</c> batch.</summary>
+    /// <summary>Max events drained from the durable queue per flush batch.</summary>
     public int FlushBatchSize { get; set; } = 50;
 }
 
 /// <summary>
-/// The client analytics pipe (architecture overview §7):
+/// The client analytics pipe — LOCAL SINK ONLY (serverless; the ingest server was removed 2026-07-27):
 /// <list type="bullet">
 /// <item>validates every event against the frozen <see cref="FunnelEvents"/> contract
-/// (unknown name / missing required prop → throw in Debug, drop + log in Release),</item>
-/// <item>persists the queue through <see cref="ILocalStore"/> (offline buffer — nothing is lost
-/// when the device has no connectivity),</item>
-/// <item>batch-flushes through <see cref="IApiClient"/>, removing events only after the server
-/// acknowledged them,</item>
+/// (unknown name / missing required prop → throw in Debug, drop + log in Release) — the frozen
+/// taxonomy invariant is preserved even though nothing aggregates the events any more,</item>
+/// <item>persists the queue through <see cref="ILocalStore"/> (durable on-device buffer),</item>
+/// <item><see cref="FlushAsync"/> drains the buffer to the debug log and discards — there is no
+/// ingest endpoint. M3-style aggregate telemetry is an OPEN ITEM (see the rebuild plan): if the
+/// founder later wants a thin analytics beacon, this is the single place to re-point.</item>
 /// <item>emits <c>install</c> exactly once per install and <c>first_run_completed</c> once after
 /// onboarding, guarded by preference flags (wiped on uninstall — the correct per-install scope).</item>
 /// </list>
 /// </summary>
 public sealed class AnalyticsService(
     ILocalStore store,
-    IApiClient api,
-    IConnectivityService connectivity,
     IPreferences preferences,
     IAppInfo appInfo,
     IClock clock,
@@ -56,7 +53,7 @@ public sealed class AnalyticsService(
     private readonly SemaphoreSlim _flushGate = new(1, 1);
     private Task _enqueueTail = Task.CompletedTask;
 
-    /// <summary>Single source of truth (shared with <see cref="Api.ApiClient"/>) via the provider.</summary>
+    /// <summary>Single source of truth for the analytics pseudo-id, via the provider.</summary>
     public string UserPseudoId => pseudoIds.UserPseudoId;
 
     public void Track(string name, IReadOnlyDictionary<string, string>? props = null)
@@ -79,8 +76,6 @@ public sealed class AnalyticsService(
             clock.UtcNow.UtcDateTime,
             appInfo.Platform,
             appInfo.AppVersion,
-            // Client-generated idempotency key so a retried batch (ApiClient's retry, or a lost
-            // response on a flaky network) dedups server-side instead of double-appending the row.
             Guid.NewGuid());
 
         // Serialize writes onto a chain so Track stays synchronous and ordering is preserved.
@@ -135,17 +130,15 @@ public sealed class AnalyticsService(
         await DrainEnqueueTailAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Local drain: writes each queued event to the debug log and removes it from the durable queue so
+    /// the buffer stays bounded. Nothing leaves the device.
+    /// </summary>
     public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         await DrainEnqueueTailAsync().ConfigureAwait(false);
 
-        if (!connectivity.IsOnline)
-        {
-            return; // Offline: the queue stays buffered in the local store.
-        }
-
-        // Serialize concurrent flushes (startup flush vs. the post-purchase flush) so two callers
-        // cannot peek the same oldest rows and POST them twice.
+        // Serialize concurrent flushes so two callers cannot drain the same rows twice.
         await _flushGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -157,28 +150,9 @@ public sealed class AnalyticsService(
                     return;
                 }
 
-                try
+                foreach (var dto in batch)
                 {
-                    await api.SendAnalyticsAsync(new AnalyticsBatchRequest(batch), cancellationToken).ConfigureAwait(false);
-                }
-                catch (ApiException ex) when ((int)ex.StatusCode is >= 400 and < 500 && ex.StatusCode != HttpStatusCode.RequestTimeout)
-                {
-                    // A 4xx is a PERMANENT contract rejection, not a transient fault — retrying re-sends the same
-                    // rejected batch on every flush forever, poison-pilling the whole queue so no later event for
-                    // this install ever reaches the server. Quarantine it: drop the offending batch and continue
-                    // draining, so one bad row cannot block the funnel. (Client validation should already keep
-                    // drifted events out of the queue; this guards a batch queued by an older/edited build.)
-                    logger.LogError(
-                        ex, "Analytics batch rejected (HTTP {Status}); dropping {Count} events to unblock the queue.",
-                        (int)ex.StatusCode, batch.Count);
-                    await store.RemoveAnalyticsEventsAsync(batch, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // Best effort: keep the batch buffered and try again on the next flush.
-                    logger.LogWarning(ex, "Analytics flush failed; {Count} events stay queued.", batch.Count);
-                    return;
+                    logger.LogDebug("funnel {Event} {PseudoId} {Props}", dto.Name, dto.UserPseudoId, dto.Props);
                 }
 
                 await store.RemoveAnalyticsEventsAsync(batch, cancellationToken).ConfigureAwait(false);
@@ -218,9 +192,8 @@ public sealed class AnalyticsService(
             }
         }
 
-        // Enumerated-value check via the SAME shared contract the server ingest uses — so a drifted trigger /
-        // entitlement_state / status / outcome / dive_logged_import.source is caught HERE and never enters the
-        // durable queue (where it would be rejected batch-fatally and poison-pill every later event).
+        // Enumerated-value check via the shared frozen contract — a drifted trigger / entitlement_state /
+        // status / outcome / dive_logged_import.source is caught HERE and never enters the durable queue.
         var enumViolation = FunnelValidation.ValidateEnumeratedValues(name, props);
         if (enumViolation is not null)
         {

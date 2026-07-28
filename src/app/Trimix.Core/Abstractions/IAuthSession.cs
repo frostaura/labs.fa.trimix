@@ -4,7 +4,8 @@ namespace Trimix.Core.Abstractions;
 
 /// <summary>
 /// The signed-in state of the app. Guest mode = not authenticated (local-only features).
-/// The JWT lives in <see cref="ISecureStore"/>; <see cref="IApiClient"/> reads it from there.
+/// The session token lives in <see cref="ISecureStore"/>. Serverless: the session is purely local
+/// (kept as the seam the Phase-3 biometric unlock replaces).
 /// </summary>
 public interface IAuthSession
 {

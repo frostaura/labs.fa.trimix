@@ -2,7 +2,7 @@ namespace Trimix.Core.Stats;
 
 /// <summary>
 /// Data-completeness signal for a career aggregate (aggregator architecture §8.1). Multi-source
-/// dives have heterogeneous fidelity (a HealthKit dive carries depth+temp only; a Shearwater/FIT
+/// dives have heterogeneous fidelity (some sources carry depth+temp only; a full-profile FIT
 /// dive carries the full channel set), so every stat that depends on an optional channel reports
 /// how many dives could actually feed it — the UI renders this verbatim as
 /// "SAC available for 42 of 120 dives", so a depth-temp-only source never silently skews a stat.

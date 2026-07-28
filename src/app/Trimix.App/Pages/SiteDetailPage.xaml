@@ -151,26 +151,8 @@
                     </BindableLayout.ItemTemplate>
                 </VerticalStackLayout>
 
-                <!-- Primary pill: confirm/contribute (ContributeCommand). Free users hit the paywall. -->
-                <Button
-                    Style="{StaticResource PrimaryButton}"
-                    Text="Confirm site"
-                    Command="{Binding ContributeCommand}"
-                    Margin="0,6,0,0"
-                    SemanticProperties.Description="Confirm site"
-                    SemanticProperties.Hint="Contributes your confirmation; suggestions go through moderation before becoming public" />
-
-                <!-- Keep the explicit correction/contribute path + moderation disclosure. -->
-                <Button
-                    Style="{StaticResource GhostButton}"
-                    Text="Suggest a correction"
-                    Command="{Binding ContributeCommand}"
-                    SemanticProperties.Description="Suggest a correction"
-                    SemanticProperties.Hint="Opens the contribution form; suggestions go through moderation before becoming public" />
-                <Label
-                    Style="{StaticResource Caption13}"
-                    HorizontalTextAlignment="Center"
-                    Text="Corrections are reviewed by a moderator and become public to all divers once approved. Contributing requires Pro or Lifetime." />
+                <!-- Contribution/moderation flow removed (serverless — no shared community DB).
+                     Phase 3 feeds this screen from the bundled read-only site atlas. -->
 
             </VerticalStackLayout>
         </ScrollView>

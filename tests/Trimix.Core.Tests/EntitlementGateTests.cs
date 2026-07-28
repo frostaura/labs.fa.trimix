@@ -24,8 +24,8 @@ public class EntitlementGateTests
 
     [Theory]
     [InlineData(0, true)]
-    [InlineData(2, true)]
-    [InlineData(3, false)]
+    [InlineData(4, true)]
+    [InlineData(5, false)]
     [InlineData(10, false)]
     public void Free_can_import_until_session_cap(int imported, bool expected) =>
         Assert.Equal(expected, EntitlementGate.CanImportMore(EntitlementTier.Free, imported));
@@ -38,18 +38,18 @@ public class EntitlementGateTests
     }
 
     [Theory]
-    [InlineData(0, 3)]
-    [InlineData(2, 1)]
-    [InlineData(3, 0)]
+    [InlineData(0, 5)]
+    [InlineData(2, 3)]
+    [InlineData(5, 0)]
     [InlineData(99, 0)]
     public void Remaining_imports_never_negative(int imported, int expected) =>
         Assert.Equal(expected, EntitlementGate.RemainingImports(EntitlementTier.Free, imported));
 
     [Theory]
     [InlineData(EntitlementTier.Free, 0, 0, 0)]
-    [InlineData(EntitlementTier.Free, 10, 10, 0)]
-    [InlineData(EntitlementTier.Free, 25, 25, 0)]
-    [InlineData(EntitlementTier.Free, 30, 25, 5)]
+    [InlineData(EntitlementTier.Free, 3, 3, 0)]
+    [InlineData(EntitlementTier.Free, 5, 5, 0)]
+    [InlineData(EntitlementTier.Free, 8, 5, 3)]
     [InlineData(EntitlementTier.Pro, 30, 30, 0)]
     [InlineData(EntitlementTier.Lifetime, 500, 500, 0)]
     public void Logbook_visibility_cap(EntitlementTier tier, int total, int visible, int hidden)

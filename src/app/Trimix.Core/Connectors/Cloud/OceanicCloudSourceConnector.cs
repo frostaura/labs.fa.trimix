@@ -8,15 +8,15 @@ namespace Trimix.Core.Connectors.Cloud;
 
 /// <summary>
 /// Reverse-engineered Oceanic+ (Huish Outdoors) personal-export source. Signs in to the diver's own Oceanic+
-/// account (email/password → bearer token tied to the user id) and pulls the rich cloud dive records that the
-/// HealthKit path cannot see: 15 s waypoints, gas mix, NDL, dive site, notes. This is
+/// account (email/password → bearer token tied to the user id) and pulls the rich cloud dive records:
+/// 15 s waypoints, gas mix, NDL, dive site, notes. This is
 /// <see cref="LegalPosture.ToSRiskReverseEng"/> and <b>ships dark</b> (<c>EnabledByDefault=false</c>).
 ///
 /// <para><b>Endpoints unpublished.</b> Research established Huish publishes no developer API — the cloud path
 /// hits <em>unpublished</em> token-authenticated endpoints (the "Dive Converter" community tool does this). The
 /// host/paths below are placeholders to be confirmed with legal/BD before the flag flips; the connector ships
-/// dark so they are never called at runtime meanwhile. The clean Oceanic+ path is Apple HealthKit (iOS,
-/// depth+temp only) — a separate branch. Unlike HealthKit, this cloud path also works on Android, hence
+/// dark so they are never called at runtime meanwhile. (The former clean Oceanic+ path, Apple Health
+/// import on iOS, was removed with the serverless rebuild.) This cloud path works on both stores, hence
 /// <see cref="Platforms.Both"/>.</para>
 /// </summary>
 public sealed class OceanicCloudSourceConnector(

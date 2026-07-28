@@ -89,13 +89,6 @@ public sealed class NullLocationService : ILocationService
         Task.FromResult<GeoLocation?>(null);
 }
 
-/// <summary>Always-granted <see cref="IPermissions"/> (platform runtime permissions replace this in the App).</summary>
-public sealed class AlwaysGrantedPermissions : IPermissions
-{
-    public Task<bool> RequestBluetoothAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
-}
-
 /// <summary>Static <see cref="IAppInfo"/> (platform AppInfo replaces this in the App).</summary>
 public sealed class DefaultAppInfo : IAppInfo
 {
@@ -125,17 +118,22 @@ public sealed class NoopUserDialogs : IUserDialogs
 }
 
 /// <summary>
-/// Unavailable <see cref="IPasskeyAuthService"/> fallback (the App's iOS/Android platform
-/// authenticator replaces this; used on unsupported platforms + in tests). Reports unavailable so the
-/// UI hides the passkey buttons, and throws if invoked.
+/// Always-succeeding <see cref="IBiometricUnlock"/> (the App's platform BiometricPrompt /
+/// LocalAuthentication implementations replace this). The short delay mimics the platform sheet so
+/// the "Authenticating…" state is visible on emulators and in dev runs.
 /// </summary>
-public sealed class UnsupportedPasskeyAuthService : IPasskeyAuthService
+public sealed class DevBiometricUnlock : IBiometricUnlock
 {
-    public bool IsAvailable => false;
+    /// <summary>Delay before the simulated success; tests set 0.</summary>
+    public int SimulatedDelayMs { get; init; } = 700;
 
-    public Task<string> CreatePasskeyAsync(string creationOptionsJson, CancellationToken cancellationToken = default) =>
-        throw new PasskeyUnavailableException();
+    public async Task<BiometricUnlockResult> AuthenticateAsync(string reason, CancellationToken cancellationToken = default)
+    {
+        if (SimulatedDelayMs > 0)
+        {
+            await Task.Delay(SimulatedDelayMs, cancellationToken).ConfigureAwait(false);
+        }
 
-    public Task<string> GetPasskeyAsync(string requestOptionsJson, CancellationToken cancellationToken = default) =>
-        throw new PasskeyUnavailableException();
+        return new BiometricUnlockResult(true, "Dev fallback (no platform biometric hardware).");
+    }
 }

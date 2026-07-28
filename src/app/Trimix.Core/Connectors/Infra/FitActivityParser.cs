@@ -1,5 +1,5 @@
 using Trimix.Core.Abstractions;
-using Trimix.Core.Connectors.FileImport;
+using Trimix.Core.Connectors.Fit;
 
 namespace Trimix.Core.Connectors.Infra;
 

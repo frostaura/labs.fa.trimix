@@ -1,14 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Billing;
-using Trimix.Core.DiveComputer;
 using Trimix.Core.Storage;
 using Trimix.Core.ViewModels;
 using Xunit;
 
 namespace Trimix.Core.Tests;
 
-/// <summary>The AddTrimixCore DI graph is complete and picks the Debug defaults (sandbox + simulator).</summary>
+/// <summary>The AddTrimixCore DI graph is complete and picks the Debug defaults (sandbox billing).</summary>
 public class AddTrimixCoreTests
 {
     private static ServiceProvider Build(Action<TrimixCoreOptions>? configure = null) =>
@@ -25,43 +24,60 @@ public class AddTrimixCoreTests
 
         Assert.NotNull(provider.GetRequiredService<AppStartupService>());
         Assert.NotNull(provider.GetRequiredService<IAnalytics>());
-        Assert.NotNull(provider.GetRequiredService<IApiClient>());
         Assert.NotNull(provider.GetRequiredService<IAuthSession>());
         Assert.NotNull(provider.GetRequiredService<IEntitlementService>());
         Assert.NotNull(provider.GetRequiredService<IImportService>());
-        Assert.NotNull(provider.GetRequiredService<ISyncService>());
         Assert.NotNull(provider.GetRequiredService<ILocalStore>());
     }
 
     [Fact]
-    public void Debug_defaults_use_sandbox_billing_and_simulator_transport()
+    public void Debug_defaults_use_sandbox_billing()
     {
         using var provider = Build();
 
         Assert.IsType<SandboxBillingService>(provider.GetRequiredService<IBillingService>());
-        Assert.IsType<SimulatorTransport>(provider.GetRequiredService<IDiveComputerTransport>());
         Assert.IsType<InMemoryLocalStore>(provider.GetRequiredService<ILocalStore>());
     }
 
     [Fact]
-    public void Registers_all_six_vendor_protocols()
+    public void All_seven_provider_connectors_register_by_default()
     {
+        // Serverless rebuild: the connectors ARE the product surface, so the deploy master switches default
+        // ON and all 7 providers resolve (5 sources IN + 2 destinations OUT) for the Providers list.
+        // Per-user consent behind each disclosure remains the only thing that permits network I/O.
         using var provider = Build();
-        var protocols = provider.GetServices<IDiveComputerProtocol>().ToList();
 
-        // Shearwater + Suunto + Garmin(placeholder) + Mares + ScubaPro + Aqualung = 6 distinct vendors.
-        Assert.Equal(6, protocols.Select(p => p.Vendor).Distinct().Count());
+        var sourceIds = provider.GetServices<IDiveSourceConnector>()
+            .Select(c => c.Descriptor.ConnectorId).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        var destinationIds = provider.GetServices<IDiveDestinationConnector>()
+            .Select(c => c.Descriptor.ConnectorId).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+
+        Assert.Equal(["garmin_connect", "mares", "oceanic_cloud", "scubapro", "suunto_cloud"], sourceIds);
+        Assert.Equal(["padi_push_personal", "ssi_push_personal"], destinationIds);
     }
 
     [Fact]
-    public void Registers_the_ble_source_connector()
+    public void Every_registered_reverse_eng_connector_keeps_the_dark_descriptor_invariant()
+    {
+        // The promotion to default registration must NEVER relax the structural invariant: every
+        // ToSRiskReverseEng descriptor carries EnabledByDefault=false — availability comes from
+        // registration + per-user consent, not from the descriptor flag.
+        using var provider = Build();
+
+        Assert.All(
+            provider.GetServices<IDiveSourceConnector>().Where(c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng),
+            c => Assert.False(c.Descriptor.EnabledByDefault));
+        Assert.All(
+            provider.GetServices<IDiveDestinationConnector>().Where(c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng),
+            c => Assert.False(c.Descriptor.EnabledByDefault));
+    }
+
+    [Fact]
+    public void Resolves_the_sync_coordinator()
     {
         using var provider = Build();
-        var connectors = provider.GetServices<IDiveSourceConnector>().ToList();
 
-        var ble = Assert.Single(connectors, c => c.Descriptor.Kind == ConnectorKind.BleDevice);
-        Assert.Equal(LegalPosture.OwnedHardware, ble.Descriptor.Legal);
-        Assert.True(ble.Descriptor.EnabledByDefault);
+        Assert.NotNull(provider.GetRequiredService<ISyncCoordinator>());
     }
 
     [Fact]
@@ -74,12 +90,9 @@ public class AddTrimixCoreTests
         Assert.NotNull(provider.GetRequiredService<LogbookViewModel>());
         Assert.NotNull(provider.GetRequiredService<DiveDetailViewModel>());
         Assert.NotNull(provider.GetRequiredService<StatsViewModel>());
-        Assert.NotNull(provider.GetRequiredService<ManualEntryViewModel>());
-        Assert.NotNull(provider.GetRequiredService<ImportViewModel>());
         Assert.NotNull(provider.GetRequiredService<PaywallViewModel>());
         Assert.NotNull(provider.GetRequiredService<SitesViewModel>());
         Assert.NotNull(provider.GetRequiredService<SiteDetailViewModel>());
-        Assert.NotNull(provider.GetRequiredService<ContributeViewModel>());
         Assert.NotNull(provider.GetRequiredService<SettingsViewModel>());
     }
 
@@ -93,46 +106,24 @@ public class AddTrimixCoreTests
     }
 
     [Fact]
-    public void Reverse_eng_connector_families_are_dark_by_default_and_not_even_registered()
+    public void Disabling_EnableCloudConnectors_unregisters_the_source_family_entirely()
     {
-        // The deploy master switches default OFF: with no legal/BD sign-off, the reverse-eng cloud + push
-        // families are not registered at all — the documented gate ON TOP OF the per-connector consent gate.
-        using var provider = Build();
+        // The master switch remains the deploy kill-switch: OFF ⇒ the family is not registered at all, so
+        // it never surfaces in the providers UI, can never be consented, and sync can never pull it.
+        using var provider = Build(o => o.EnableCloudConnectors = false);
 
-        Assert.DoesNotContain(
-            provider.GetServices<IDiveSourceConnector>(),
-            c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng);
-        Assert.DoesNotContain(
-            provider.GetServices<IDiveDestinationConnector>(),
-            c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng);
+        Assert.Empty(provider.GetServices<IDiveSourceConnector>());
+        // The push family is independent and stays registered.
+        Assert.Equal(2, provider.GetServices<IDiveDestinationConnector>().Count());
     }
 
     [Fact]
-    public void EnableCloudConnectors_flag_registers_the_three_reverse_eng_cloud_sources()
+    public void Disabling_EnablePushConnectors_unregisters_the_push_family_entirely()
     {
-        using var provider = Build(o => o.EnableCloudConnectors = true);
+        using var provider = Build(o => o.EnablePushConnectors = false);
 
-        var reverseEngSources = provider.GetServices<IDiveSourceConnector>()
-            .Where(c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng)
-            .ToList();
-        Assert.Equal(3, reverseEngSources.Count); // Garmin + Suunto + Oceanic
-        // The push family stays dark — the flags are independent.
-        Assert.DoesNotContain(
-            provider.GetServices<IDiveDestinationConnector>(),
-            c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng);
-    }
-
-    [Fact]
-    public void EnablePushConnectors_flag_registers_the_two_reverse_eng_push_destinations()
-    {
-        using var provider = Build(o => o.EnablePushConnectors = true);
-
-        var reverseEngDestinations = provider.GetServices<IDiveDestinationConnector>()
-            .Where(c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng)
-            .ToList();
-        Assert.Equal(2, reverseEngDestinations.Count); // PADI + SSI
-        Assert.DoesNotContain(
-            provider.GetServices<IDiveSourceConnector>(),
-            c => c.Descriptor.Legal == LegalPosture.ToSRiskReverseEng);
+        Assert.Empty(provider.GetServices<IDiveDestinationConnector>());
+        // The cloud family is independent and stays registered (all five sources).
+        Assert.Equal(5, provider.GetServices<IDiveSourceConnector>().Count());
     }
 }

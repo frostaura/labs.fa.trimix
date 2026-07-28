@@ -33,4 +33,10 @@ public sealed class CloudSourceOptions
     public string? OceanicLoginUrl { get; set; }
 
     public string? OceanicDivesUrl { get; set; }
+
+    // ── MySSI (DiveSSI) shared cloud — the READ corridor serving BOTH the Mares and ScubaPro sources
+    //    (neither vendor has a cloud API of its own; both flow into MySSI). Consumed by MySsiCloudClient. ──
+    public string? MySsiLoginUrl { get; set; }
+
+    public string? MySsiDivesUrl { get; set; }
 }

@@ -89,27 +89,7 @@
     </ContentPage.Resources>
 
     <Grid RowDefinitions="Auto,*">
-
-        <!-- The single dismiss — disabled during an in-flight purchase so the paywall cannot be popped
-             mid-purchase (the trailing GoBack would then pop the wrong page). Ghost mint glyph. -->
-        <Button
-            Grid.Row="0"
-            Text="✕"
-            Clicked="OnDismissClicked"
-            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
-            HorizontalOptions="End"
-            Margin="12,12,12,0"
-            WidthRequest="44"
-            HeightRequest="44"
-            MinimumWidthRequest="44"
-            MinimumHeightRequest="44"
-            Padding="0"
-            CornerRadius="22"
-            BackgroundColor="Transparent"
-            TextColor="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
-            FontSize="18"
-            SemanticProperties.Description="Dismiss"
-            SemanticProperties.Hint="Closes the purchase options without buying" />
+        <!-- No ✕: "Not now" in the footer is the single dismiss (prototype S8). -->
 
         <!-- ===================== PURCHASE STATE (S8) ===================== -->
         <Grid
@@ -119,13 +99,14 @@
 
             <ScrollView Grid.Row="0">
                 <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+                    <!-- The cap numbers bind to FreeTier via the VM so copy and enforcement never drift. -->
                     <Border
                         Stroke="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 6"
                         Padding="8,3"
                         HorizontalOptions="Start">
-                        <Label Style="{StaticResource BadgeTextWarn}" Text="⚠ FREE LIMIT REACHED · 5/5 DIVES" />
+                        <Label Style="{StaticResource BadgeTextWarn}" Text="{Binding LimitLabel}" />
                     </Border>
 
                     <Label
@@ -136,7 +117,7 @@
                     <Label
                         Style="{StaticResource Body15}"
                         TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
-                        Text="3 more dives are waiting on your Perdix. Free keeps your last 5." />
+                        Text="{Binding PendingLabel}" />
 
                     <VerticalStackLayout
                         Spacing="{StaticResource CardSpacing}"
@@ -158,17 +139,29 @@
 
                 <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HorizontalOptions="Center" SemanticProperties.Description="Purchase in progress" />
 
+                <Label
+                    Style="{StaticResource Caption13}"
+                    Text="One-time purchase · no subscription, ever"
+                    HorizontalTextAlignment="Center" />
+
                 <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
-                    <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="NO SUBSCRIPTIONS" VerticalOptions="Center" />
                     <Button
-                        Grid.Column="2"
+                        Grid.Column="0"
                         Style="{StaticResource GhostButton}"
                         Text="Restore purchases"
                         TextColor="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
                         Command="{Binding RestoreCommand}"
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
                         SemanticProperties.Description="Restore purchases"
-                        SemanticProperties.Hint="Recovers a previous purchase made with this account" />
+                        SemanticProperties.Hint="Recovers a previous purchase made on this device" />
+                    <Button
+                        Grid.Column="2"
+                        Style="{StaticResource GhostButton}"
+                        Text="Not now"
+                        Command="{Binding NotNowCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                        SemanticProperties.Description="Not now"
+                        SemanticProperties.Hint="Keeps the free plan; waiting dives stay on your providers" />
                 </Grid>
             </VerticalStackLayout>
         </Grid>
@@ -206,19 +199,19 @@
                     Style="{StaticResource Body15}"
                     TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
                     HorizontalTextAlignment="Center"
-                    Text="All dives imported and multi-vendor unlock is active — bound to your account, restorable forever." />
+                    Text="{Binding UnlockedBody}" />
 
                 <Border Style="{StaticResource BadgeMint}" HorizontalOptions="Center">
-                    <Label Style="{StaticResource BadgeTextMint}" Text="ENTITLEMENT · PRO · ACTIVE" />
+                    <Label Style="{StaticResource BadgeTextMint}" Text="UNLOCKED · ON-DEVICE · PRO" />
                 </Border>
             </VerticalStackLayout>
 
             <VerticalStackLayout Grid.Row="1" Padding="24,8,24,24">
                 <Button
                     Text="Go to logbook"
-                    Clicked="OnDismissClicked"
+                    Command="{Binding GoToLogbookCommand}"
                     SemanticProperties.Description="Go to logbook"
-                    SemanticProperties.Hint="Closes the purchase screen and returns to your logbook" />
+                    SemanticProperties.Hint="Closes the purchase screen and opens your logbook" />
             </VerticalStackLayout>
         </Grid>
     </Grid>

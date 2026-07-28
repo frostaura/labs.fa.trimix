@@ -1,7 +1,6 @@
 using System.Text;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Connectors.Export;
 
 namespace Trimix.Core.Connectors.Push;
 

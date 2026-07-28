@@ -15,10 +15,16 @@ public static class ConnectorTokenKeys
     /// <summary>Key used by the gated cert-agency <em>push</em> connectors (PADI/SSI).</summary>
     public static string PushToken(string connectorId) => connectorId + ".token";
 
-    /// <summary>Every secure-store key a connector of this id could hold a token under (for revoke/erasure).</summary>
+    /// <summary>Key under which <c>SyncCoordinator</c> persists a connector's incremental-sync cursor.
+    /// Cleared with the tokens on revoke so a disconnect → reconnect re-syncs from scratch instead of
+    /// silently resuming a stale cursor.</summary>
+    public static string SyncCursor(string connectorId) => $"connector:{connectorId}:sync_cursor";
+
+    /// <summary>Every secure-store key a connector of this id could hold state under (for revoke/erasure).</summary>
     public static IEnumerable<string> AllFor(string connectorId)
     {
         yield return CloudSourceToken(connectorId);
         yield return PushToken(connectorId);
+        yield return SyncCursor(connectorId);
     }
 }

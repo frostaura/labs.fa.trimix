@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Api;
 using Trimix.Core.Formatting;
 using Trimix.Core.Privacy;
 
@@ -13,13 +12,9 @@ namespace Trimix.Core.ViewModels;
 /// Settings: account state, entitlement state, Restore purchases, units (m/ft · °C/°F via
 /// preference), privacy export/delete, about.
 ///
-/// Privacy posture (PRD: "GDPR/CCPA export + delete supported"): dives are LOCAL-FIRST, so export
-/// serializes the device's own dive store (which, for a signed-in user, already includes the synced
-/// server copies). Delete, for a signed-in user, calls the server erasure endpoint
-/// (<c>POST /privacy/delete</c>) BEFORE signing out — while the bearer token still resolves — so the
-/// account, analytics, receipts, entitlement, contributions, and synced dives are all hard-deleted
-/// server-side; it then wipes the local store on sign-out. If the server call fails (offline / error) the
-/// flow surfaces an error and does NOT sign out, so erasure is never silently skipped.
+/// Privacy posture (serverless): ALL data is on-device. Export serializes the device's own dive
+/// store; delete wipes the local store, the session, and every connector consent+token. There is no
+/// server-side copy to erase.
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
@@ -27,7 +22,6 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IEntitlementService _entitlements;
     private readonly IPreferences _preferences;
     private readonly ILocalStore _store;
-    private readonly IApiClient _api;
     private readonly IAppInfo _appInfo;
     private readonly INavigator _navigator;
     private readonly IUserDialogs _dialogs;
@@ -38,7 +32,6 @@ public partial class SettingsViewModel : ObservableObject
         IEntitlementService entitlements,
         IPreferences preferences,
         ILocalStore store,
-        IApiClient api,
         IAppInfo appInfo,
         INavigator navigator,
         IUserDialogs dialogs,
@@ -48,7 +41,6 @@ public partial class SettingsViewModel : ObservableObject
         _entitlements = entitlements;
         _preferences = preferences;
         _store = store;
-        _api = api;
         _appInfo = appInfo;
         _navigator = navigator;
         _dialogs = dialogs;
@@ -110,9 +102,10 @@ public partial class SettingsViewModel : ObservableObject
         {
             reconciled = await _entitlements.RestoreAsync();
         }
-        catch (Exception ex) when (ex is ApiException or HttpRequestException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await _dialogs.AlertAsync("Restore failed", "We couldn't reach the store or server. Check your connection and try again.");
+            _ = ex;
+            await _dialogs.AlertAsync("Restore failed", "We couldn't reach the store. Check your connection and try again.");
             return;
         }
 
@@ -132,7 +125,7 @@ public partial class SettingsViewModel : ObservableObject
     private async Task SignOutAsync()
     {
         // Sign-out clears the local dive store + entitlement cache (account-bound; prevents cross-account
-        // leakage). Synced dives re-download from the server on next sign-in.
+        // leakage on a shared device).
         await _session.SignOutAsync();
         // AWAIT the connector purge within the flow so it completes (not left to a fire-and-forget event
         // continuation an app teardown could interrupt), severing every device-global vendor link before the
@@ -154,41 +147,20 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// GDPR/CCPA delete. For a signed-in user, calls the server erasure endpoint (<c>POST /privacy/delete</c>)
-    /// while the bearer token still resolves — hard-deleting the account, analytics, receipts, entitlement,
-    /// contributions, and synced dives — and only then wipes the local store on sign-out. If the server call
-    /// fails, it surfaces an error and does NOT sign out, so erasure is never silently skipped. A guest has no
-    /// server-side data, so it just wipes the local store.
+    /// GDPR/CCPA delete, serverless: everything lives on-device, so erasure is a local wipe — dives,
+    /// session, entitlement cache, and every connector consent+token.
     /// </summary>
     [RelayCommand]
     private async Task DeleteMyDataAsync()
     {
         var confirmed = await _dialogs.ConfirmAsync(
             "Delete your data?",
-            "This erases your account and all your data — on this device and on our servers — and signs you out. This cannot be undone.",
+            "This erases all your data on this device and signs you out. This cannot be undone.",
             accept: "Delete",
             cancel: "Keep my data");
         if (!confirmed)
         {
             return;
-        }
-
-        // Signed-in: erase everything server-side FIRST, while the bearer token is still valid. On failure,
-        // stop here (no local wipe, no sign-out) so the diver can retry rather than lose local data with the
-        // server copy still present.
-        if (_session.IsAuthenticated)
-        {
-            try
-            {
-                await _api.DeleteMyDataAsync();
-            }
-            catch (Exception ex) when (ex is ApiException or HttpRequestException)
-            {
-                await _dialogs.AlertAsync(
-                    "Delete failed",
-                    "We couldn't reach the server to erase your account. Check your connection and try again.");
-                return;
-            }
         }
 
         // Wipe local dives, then sign out (which clears the local store + entitlement cache).
@@ -199,7 +171,7 @@ public partial class SettingsViewModel : ObservableObject
 
         await _session.SignOutAsync();
         // AWAIT the connector purge so GDPR erasure also severs every device-global vendor consent+token
-        // (the erasure path treats that linkage as personal data). Runs only after a successful server erase.
+        // (the erasure path treats that linkage as personal data).
         await _connectorPurge.PurgeAllAsync();
         await _dialogs.ToastAsync("Your data has been deleted.");
     }
