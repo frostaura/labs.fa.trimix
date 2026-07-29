@@ -23,7 +23,6 @@ public sealed class EntitlementService : IEntitlementService
         IBillingService billing,
         ISecureStore secureStore,
         IPreferences preferences,
-        IAuthSession session,
         IAnalytics analytics,
         ILogger<EntitlementService> logger)
     {
@@ -32,24 +31,17 @@ public sealed class EntitlementService : IEntitlementService
         _preferences = preferences;
         _analytics = analytics;
         _logger = logger;
-
-        // Ending the local session drops the cached paid tier so it never leaks to the next identity
-        // on a shared device; a restore re-grants from the store at any time.
-        session.AuthStateChanged += (_, isAuthenticated) =>
-        {
-            if (!isAuthenticated)
-            {
-                Reset();
-            }
-        };
     }
 
     public EntitlementTier CurrentTier { get; private set; } = EntitlementTier.Free;
 
     public event EventHandler<EntitlementTier>? TierChanged;
 
-    /// <summary>Sign-out reset: clear the cached tier + one-shot restore flag, drop to Free.</summary>
-    private void Reset()
+    /// <summary>
+    /// Factory-reset hook: clear the cached tier + one-shot restore flag and drop to Free. Called by
+    /// the Settings "Reset app" / "Delete my data" flows; a store restore re-grants at any time.
+    /// </summary>
+    public Task ClearLocalGrantAsync(CancellationToken cancellationToken = default)
     {
         _secureStore.Remove(SecureStoreKeys.EntitlementTier);
         _preferences.Remove(PreferenceKeys.AutoRestoreDone);
@@ -58,6 +50,8 @@ public sealed class EntitlementService : IEntitlementService
             CurrentTier = EntitlementTier.Free;
             TierChanged?.Invoke(this, EntitlementTier.Free);
         }
+
+        return Task.CompletedTask;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)

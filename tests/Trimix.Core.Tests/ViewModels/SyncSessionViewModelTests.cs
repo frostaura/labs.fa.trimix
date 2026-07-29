@@ -10,18 +10,18 @@ namespace Trimix.Core.Tests.ViewModels;
 /// <summary>
 /// The shared "Sync now" session (C5): unlinked taps route to Providers with the nudge, linked taps
 /// land on the logbook and stream the run into the sheet strings/progress, CapReached presents the
-/// paywall with the pending-dives count, and a NeedsInteraction source surfaces the relink toast.
+/// paywall with the pending-dives count, and a NeedsInteraction source surfaces inline relink state
+/// (the design removed toasts — state changes render inline/animated).
 /// </summary>
 public class SyncSessionViewModelTests
 {
     private readonly FakeSyncCoordinator _coordinator = new();
     private readonly InMemoryConnectorConsentStore _consent = new();
     private readonly FakeNavigator _navigator = new();
-    private readonly FakeDialogs _dialogs = new();
     private readonly InMemoryPreferences _preferences = new();
 
     private SyncSessionViewModel NewVm(IEnumerable<IDiveSourceConnector>? sources = null) => new(
-        _coordinator, sources ?? [], _consent, _navigator, _dialogs, _preferences, new FakeClock())
+        _coordinator, sources ?? [], _consent, _navigator, _preferences, new FakeClock())
     {
         AutoSyncDelayMs = 0,
         DoneLingerMs = 0,
@@ -94,7 +94,7 @@ public class SyncSessionViewModelTests
     }
 
     [Fact]
-    public async Task Auth_expired_source_surfaces_the_relink_toast()
+    public async Task Auth_expired_source_surfaces_inline_relink_state()
     {
         _coordinator.HasLinkedSourcesValue = true;
         _coordinator.NextReport = new SyncReport(
@@ -106,17 +106,18 @@ public class SyncSessionViewModelTests
 
         await vm.SyncNowCommand.ExecuteAsync(null);
 
-        Assert.Contains(_dialogs.Toasts, t => t.Contains("Relink Suunto", StringComparison.Ordinal));
+        // No toast (design): relink is inline state the provider rows render.
+        Assert.Contains(vm.NeedsRelink, n => n.Contains("Suunto", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task A_failed_run_never_strands_the_sheet_open()
+    public async Task A_failed_run_never_strands_the_sheet_open_and_shows_the_failure_inline()
     {
         _coordinator.HasLinkedSourcesValue = true;
         var vm = NewVm();
         var throwing = new ThrowingCoordinator();
         var vmThrowing = new SyncSessionViewModel(
-            throwing, [], _consent, _navigator, _dialogs, _preferences, new FakeClock())
+            throwing, [], _consent, _navigator, _preferences, new FakeClock())
         {
             DoneLingerMs = 0,
         };
@@ -124,8 +125,30 @@ public class SyncSessionViewModelTests
         await vmThrowing.SyncNowCommand.ExecuteAsync(null);
 
         Assert.False(vmThrowing.IsSyncing);
-        Assert.Contains(_dialogs.Toasts, t => t.Contains("Sync failed", StringComparison.Ordinal));
-        _ = vm;
+        // No toast (design): the failure renders inline in the sheet before it closes.
+        Assert.Contains("Sync failed", vmThrowing.SyncLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Cancel_sync_cancels_the_coordinator_token_and_hides_the_sheet()
+    {
+        SynchronizationContext.SetSynchronizationContext(null);
+        var blocking = new BlockingCoordinator();
+        var vm = new SyncSessionViewModel(
+            blocking, [], _consent, _navigator, _preferences, new FakeClock())
+        {
+            DoneLingerMs = 0,
+        };
+
+        var run = vm.SyncNowCommand.ExecuteAsync(null);
+        await blocking.Started.Task; // the run is inside the coordinator, holding the token
+        Assert.True(vm.IsSyncing);
+
+        vm.CancelSyncCommand.Execute(null);
+        await run;
+
+        Assert.True(blocking.ObservedToken.IsCancellationRequested);
+        Assert.False(vm.IsSyncing);
     }
 
     private sealed class ThrowingCoordinator : ISyncCoordinator
@@ -137,5 +160,26 @@ public class SyncSessionViewModelTests
             IProgress<SyncProgress>? progress = null,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("vendor endpoint broke");
+    }
+
+    /// <summary>Parks inside the run until its token is cancelled — the cancel-path double.</summary>
+    private sealed class BlockingCoordinator : ISyncCoordinator
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public CancellationToken ObservedToken { get; private set; }
+
+        public bool HasLinkedSources => true;
+
+        public async Task<SyncReport> SyncNowAsync(
+            Func<Task>? onCapReached = null,
+            IProgress<SyncProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            ObservedToken = cancellationToken;
+            Started.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new SyncReport([], [], [], CapReached: false);
+        }
     }
 }

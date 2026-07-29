@@ -1,36 +1,46 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!-- Settings (C10, serverless): grouped GlassCards — PLAN (local entitlement + Restore purchases) ·
-     UNITS · PRIVACY (local export / local delete) · ABOUT + licenses. All server-backed rows are
-     gone: no passkey sign-in, no server entitlement-restore, no server export/delete, no moderation.
-     Auth is a biometric local unlock, so there is no account card at all. -->
-<ContentPage
+     UNITS · PRIVACY (local export / local delete) · ABOUT + licenses · DEVELOPER (DEBUG-only demo
+     mode). Reference adoption of the shared foundation: TrimixPage base (screenIn entrance),
+     PageHeader with ShowBack (this pushed page previously had NO back affordance), AppIcon glyphs,
+     and width-constrained captions (the plan caption previously overflowed an unconstrained
+     HorizontalStackLayout). -->
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     x:DataType="vm:SettingsViewModel"
     Title="Settings">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+    <!-- Header FIXED outside the scroll (matches every other page — the ← back affordance must
+         never scroll away); the cards scroll beneath it. -->
+    <Grid RowDefinitions="Auto,*">
 
-            <!-- Screen title -->
-            <Label
-                Style="{StaticResource Title24}"
-                Text="Settings"
-                Margin="0,4,0,8"
-                SemanticProperties.HeadingLevel="Level1" />
+        <!-- Shared header: Settings is a pushed page, so it carries the ← back affordance. -->
+        <controls:PageHeader Grid.Row="0" Margin="24,8,24,0" Title="Settings" ShowBack="True" />
+
+    <ScrollView Grid.Row="1">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
 
             <!-- Plan / entitlement (on-device) -->
             <Border Style="{StaticResource GlassCard}">
                 <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
                     <Label Style="{StaticResource MonoLabel}" Text="PLAN" SemanticProperties.HeadingLevel="Level2" />
-                    <HorizontalStackLayout Spacing="10">
-                        <Border Style="{StaticResource BadgeMint}">
+                    <!-- Grid (not HorizontalStackLayout): the caption column is width-bounded so the
+                         text wraps instead of clipping off-screen. -->
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Border Grid.Column="0" Style="{StaticResource BadgeMint}" VerticalOptions="Center">
                             <Label Style="{StaticResource BadgeTextMint}" Text="{Binding EntitlementLabel}" />
                         </Border>
-                        <Label Style="{StaticResource Caption13}" VerticalOptions="Center" Text="One-time purchase · restorable through your app store." />
-                    </HorizontalStackLayout>
+                        <Label
+                            Grid.Column="1"
+                            Style="{StaticResource Caption13}"
+                            VerticalOptions="Center"
+                            LineBreakMode="WordWrap"
+                            Text="One-time purchase · restorable through your app store." />
+                    </Grid>
                     <Button
                         Style="{StaticResource SecondaryButton}"
                         Text="Restore purchases"
@@ -71,10 +81,14 @@
             <!-- Privacy -->
             <Border Style="{StaticResource GlassCard}">
                 <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                    <Label Style="{StaticResource MonoLabel}" Text="PRIVACY" SemanticProperties.HeadingLevel="Level2" />
+                    <HorizontalStackLayout Spacing="6">
+                        <controls:AppIcon Icon="lock" Size="13" VerticalOptions="Center" />
+                        <Label Style="{StaticResource MonoLabel}" Text="PRIVACY" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                    </HorizontalStackLayout>
                     <Label
                         Style="{StaticResource Caption13}"
-                        Text="Everything lives on this device — there is no server copy. Export gives you your dives as JSON; delete wipes this device, including provider links." />
+                        LineBreakMode="WordWrap"
+                        Text="Everything lives on this device — there is no account and no server copy. Export gives you your dives as JSON; delete wipes this device, including provider links." />
                     <Button
                         Style="{StaticResource SecondaryButton}"
                         Text="Export my data"
@@ -86,7 +100,13 @@
                         Text="Delete my data"
                         Command="{Binding DeleteMyDataCommand}"
                         SemanticProperties.Description="Delete my data"
-                        SemanticProperties.Hint="Removes all dives from this device and signs out; asks for confirmation first" />
+                        SemanticProperties.Hint="Removes all dives and provider links from this device; asks for confirmation first" />
+                    <Button
+                        Style="{StaticResource DestructiveButton}"
+                        Text="Reset app"
+                        Command="{Binding ResetAppCommand}"
+                        SemanticProperties.Description="Reset app"
+                        SemanticProperties.Hint="Factory reset — erases all dives, links and settings and restarts onboarding; asks for confirmation first" />
                 </VerticalStackLayout>
             </Border>
 
@@ -94,8 +114,14 @@
             <Border Style="{StaticResource GlassCard}">
                 <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
                     <Label Style="{StaticResource MonoLabel}" Text="ABOUT" SemanticProperties.HeadingLevel="Level2" />
-                    <Label Style="{StaticResource Body15}" Text="{Binding AboutText}" />
-                    <Label Style="{StaticResource Caption13}" Text="We log dives. We never compute decompression." />
+                    <Label Style="{StaticResource Body15}" LineBreakMode="WordWrap" Text="{Binding AboutText}" />
+                    <Label Style="{StaticResource Caption13}" LineBreakMode="WordWrap" Text="We log dives. We never compute decompression." />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Replay onboarding"
+                        Command="{Binding ReplayOnboardingCommand}"
+                        SemanticProperties.Description="Replay onboarding"
+                        SemanticProperties.Hint="Runs the intro again — your dives and links stay put; handy for showing a friend" />
                     <Button
                         Style="{StaticResource SecondaryButton}"
                         Text="Open-source licenses"
@@ -105,8 +131,41 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Developer (DEBUG-only: IsDeveloperVisible is compile-time false in Release builds,
+                 so this card can never render in a shipped binary). -->
+            <Border Style="{StaticResource GlassCard}" IsVisible="{Binding IsDeveloperVisible}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <HorizontalStackLayout Spacing="6">
+                        <controls:AppIcon Icon="warning" Size="13" Color="{StaticResource Warn}" VerticalOptions="Center" />
+                        <Label Style="{StaticResource MonoLabel}" Text="DEVELOPER" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                    </HorizontalStackLayout>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" MinimumHeightRequest="44">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                            <Label Style="{StaticResource Body15}" Text="Demo mode" />
+                            <Label
+                                Style="{StaticResource Caption13}"
+                                LineBreakMode="WordWrap"
+                                Text="Seeded demo providers with instant sign-in — walk connect → sync → paywall with zero vendor traffic." />
+                        </VerticalStackLayout>
+                        <Switch
+                            Grid.Column="1"
+                            IsToggled="{Binding DemoMode}"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Demo mode"
+                            SemanticProperties.Hint="Swaps the provider list for seeded demo providers" />
+                    </Grid>
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Reset demo data"
+                        Command="{Binding ResetDemoDataCommand}"
+                        SemanticProperties.Description="Reset demo data"
+                        SemanticProperties.Hint="Removes imported demo dives and unlinks the demo providers" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- Bottom spacer so the last card scrolls clear of / under the floating iOS tab bar. -->
             <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
         </VerticalStackLayout>
     </ScrollView>
-</ContentPage>
+    </Grid>
+</controls:TrimixPage>

@@ -20,7 +20,7 @@ Dean Martin (founder).
 
 ## Milestones
 1. **M1 Rails** — frozen funnel taxonomy on the client; on-device purchase → entitlement grant → restore verified against the sandbox store, surviving reinstall.
-2. **M2 Vertical slice** — every prototype flow on device (11 screens): biometric unlock, Providers + in-app OAuth, "Sync now" across the seven connectors, logbook + stats + derived Sites, dive detail with scrub + site-atlas carousel + notes, You tab (editable name, units, Nitrox MOD planner), paywall at the free cap, Unlocked — funnel spine reconciling end to end.
+2. **M2 Vertical slice** — every prototype flow on device: onboarding (no auth step — it opens straight to the logbook), Providers + in-app OAuth, "Sync now" across the seven connectors, logbook + stats + derived Sites, dive detail with scrub + site-atlas carousel + notes, You tab (editable name, units, Nitrox MOD planner), paywall at the free cap, Unlocked — funnel spine reconciling end to end.
 3. **M3 FREE community-demand gate** — ≥300 organic activated divers **and** ≥2 provider integrations importing reliably via API sync within the window. **No paid UA before this passes.**
 4. **M4 Purchase-intent gate** — ≥3% install→payer at the locked ladder, blended net per payer ≥$13, with ≥1 real sandbox-validated purchase.
 
@@ -40,10 +40,10 @@ M3 and M4 are field and market work, not build tasks. Neither can be closed by w
 - **We log dives; we do not compute deco.** Displaying imported NDL/ceiling/CNS and the Nitrox MOD planner is data/display math, not tissue-loading computation. Permanent liability non-goal.
 - **Non-goals:** no auto-renew ever, no loot-box/gacha, no ads, no deco engine, no social feed, **no backend/server** (serverless is now a product invariant), **API-sync-only import** (no BLE, no file import/export, no manual entry, no HealthKit), no web app.
 - **SKUs are a locked ladder:** `trimix.pro` $14.99 and `trimix.lifetime` $29.99 — exactly two, both true non-consumables, no auto-renew. **Free tier keeps the last 5 dives; the 6th fires the paywall** (`FreeTier` constants, currently 5). Copy binds to the constant, never a hardcoded number.
-- **Auth is biometric-only, on-device** (iOS LocalAuthentication / Android BiometricPrompt behind `IBiometricUnlock`, with an emulator success fallback). **No accounts, no passkeys, no email/OAuth for Trimix itself.** (This supersedes the former passkey-only invariant.)
+- **No auth of any kind — the phone IS the account.** There is no sign-in, no biometric unlock, no accounts, no passkeys, no email/OAuth for Trimix itself, and the app is never locked at launch. `IAuthSession`, `IBiometricUnlock`, `AuthPage`/`AuthViewModel` and the account UI were all removed 2026-07-29 (founder decision: bare-minimum cognitive load). This supersedes the former biometric-only invariant, which itself superseded passkey-only. Onboarding is kept and is re-runnable from Settings ("Replay onboarding", data-preserving) alongside a "Reset app" factory reset. **Vendor** OAuth for connectors (`ProviderOAuthViewModel`, PADI/SSI/Garmin credential exchange) is unrelated and stays.
 - **Entitlements are on-device / client-trust** — no server receipt validation. Piratable by design; the accepted cost of serverless.
 - **Reverse-engineered connector guardrails (do NOT relax, independent of the legal override):** (i) never persist a vendor password in plaintext — ephemeral exchange → token in Keychain/Keystore; (ii) per-user opt-in behind a plain-language ToS-risk disclosure shown *before* consent; (iii) truthful labelling — "user-assisted personal export", **never** "official <Vendor> integration". Every `ToSRiskReverseEng` descriptor still ships `EnabledByDefault=false`; the connectors are now *registered/visible by default* and gated by the per-user consent store, so availability comes from consent, not from flipping that flag. Real vendor production servers are never exercised — connectors are fixture-validated only.
-- **Design:** [`docs/design/mockup-spec.md`](docs/design/mockup-spec.md) is authoritative. Palette mint `#2FE3C4` on `#0A1013`; Space Grotesk 700 headings, JetBrains Mono numerals/eyebrows, Hanken Grotesk body; forced dark; 3-tab bar (Log · Sites · You); 11 screens.
+- **Design:** [`docs/design/mockup-spec.md`](docs/design/mockup-spec.md) is authoritative. Palette mint `#2FE3C4` on `#0A1013`; Space Grotesk 700 headings, JetBrains Mono numerals/eyebrows, Hanken Grotesk body; forced dark; 3-tab bar (Log · Sites · You); 10 screens (the biometric account step was removed with all auth).
 
 ## Build / test / run
 Toolchain is the **user-local `~/.dotnet`** (`DOTNET_ROOT=$HOME/.dotnet`, dotnet 10.0.301) — the system dotnet at `/usr/local/share/dotnet` is missing workload manifests and cannot build this repo. Android build also needs `JAVA_HOME=/opt/homebrew/opt/openjdk@17/...` and `ANDROID_HOME=$HOME/Library/Android/sdk` (**OpenJDK 17**, Android SDK API 36). **No Postgres, no docker-compose** — the app is serverless.
@@ -61,7 +61,7 @@ Real StoreKit/Play Billing, biometrics, and the vendor cloud endpoints are all *
 - Never ship a deco/tissue-loading calculation.
 - Never label a reverse-engineered connector as an official vendor integration, persist a vendor password in plaintext, or show consent before its disclosure.
 - Never exercise a connector against a real vendor production server.
-- Never re-add a backend, BLE, file import/export, manual entry, or HealthKit without explicit founder sign-off — their removal is a founder decision, not incidental.
+- Never re-add a backend, BLE, file import/export, manual entry, HealthKit, or any form of app auth/accounts/biometric-unlock without explicit founder sign-off — their removal is a founder decision, not incidental. (Vendor connector OAuth is separate and stays.)
 - Never claim a gate passed on the strength of a local build — there is no CI here to catch you.
 
 ## Upkeep

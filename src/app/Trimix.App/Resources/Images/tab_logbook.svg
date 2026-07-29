@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Logbook tab: open-book outline (Lucide-style, 1.75px stroke, rounded caps).
+<!-- Logbook tab: the design's book glyph (Icons.xaml IconLogbook, stroke 1.6, round caps).
      Base color = TextPrimary #EAF4FB; the Shell tab bar re-tints selected/unselected states. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-     stroke="#EAF4FB" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M12 6c-1.5-1.7-3.6-2.5-6-2.5H4.5A1.5 1.5 0 0 0 3 5v13a1.5 1.5 0 0 0 1.5 1.5H7c2 0 3.8.6 5 2 1.2-1.4 3-2 5-2h2.5A1.5 1.5 0 0 0 21 18V5a1.5 1.5 0 0 0-1.5-1.5H18c-2.4 0-4.5.8-6 2.5Z" />
-  <path d="M12 6v15.5" />
+     stroke="#EAF4FB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H19.5V17H6.5A2.5 2.5 0 0 0 4 19.5 2.5 2.5 0 0 0 6.5 22H19.5V17M8 8.5h7.5" />
 </svg>

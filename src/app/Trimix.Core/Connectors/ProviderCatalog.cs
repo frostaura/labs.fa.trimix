@@ -18,6 +18,14 @@ public static class ProviderCatalog
         ["oceanic_cloud"] = ("Oceanic+", "oceanicplus.com", "OCEANIC+"),
         ["padi_push_personal"] = ("PADI", "padi.com", "PADI"),
         ["ssi_push_personal"] = ("SSI", "divessi.com", "SSI"),
+
+        // DEBUG-only demo connectors (DemoModeState): same display names as the platforms they stand
+        // in for, so demo-mode QA screens read exactly like production. Never registered in Release.
+        ["demo_garmin"] = ("Garmin Dive", "garmin.com", "GARMIN"),
+        ["demo_suunto"] = ("Suunto", "suunto.com", "SUUNTO"),
+        ["demo_mares"] = ("Mares", "mares.com", "MARES"),
+        ["demo_padi"] = ("PADI", "padi.com", "PADI"),
+        ["demo_ssi"] = ("SSI", "divessi.com", "SSI"),
     };
 
     /// <summary>Short platform name for a connector id (falls back to the id itself).</summary>

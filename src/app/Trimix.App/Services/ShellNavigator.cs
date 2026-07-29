@@ -1,3 +1,4 @@
+using System.Linq;
 using Trimix.Core;
 using Trimix.Core.Abstractions;
 
@@ -21,6 +22,23 @@ public sealed class ShellNavigator : INavigator
     public Task GoToAsync(string route, IReadOnlyDictionary<string, object>? parameters = null) =>
         MainThread.InvokeOnMainThreadAsync(async () =>
         {
+            // First-run: onboarding was the window ROOT (no Shell yet — that is what keeps the Logbook
+            // from flashing before onboarding). Completing onboarding lands here; swap the root to the
+            // main Shell, which opens on the Logbook tab. This is the one-time onboarding → app handoff.
+            if (Shell.Current is null)
+            {
+                var window = Application.Current?.Windows.FirstOrDefault();
+                if (window is not null)
+                {
+                    window.Page = new AppShell();
+                }
+
+                if (route == Routes.Logbook)
+                {
+                    return; // the fresh AppShell already opens on the Logbook tab
+                }
+            }
+
             var target = TabRoutes.Contains(route) ? $"//{route}" : route;
             if (parameters is null)
             {

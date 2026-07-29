@@ -5,7 +5,7 @@
      "You're Pro.", entitlement badge, "Go to logbook"). Exactly two one-off SKUs (Lifetime = mint
      BEST VALUE accent), restore link, ONE dismiss, price always visible before the store sheet.
      No dark patterns; never auto-renew. -->
-<ContentPage
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.PaywallPage"
     x:Name="PaywallRoot"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -20,7 +20,7 @@
     Shell.NavBarIsVisible="False"
     Title="Unlock">
 
-    <ContentPage.Resources>
+    <controls:TrimixPage.Resources>
         <!-- Pro SKU (S8): GlassCard — title + subtitle left, white price right. The whole card is the
              purchase target so the mockup's clean card layout keeps the SkuId-parameterised command. -->
         <DataTemplate x:Key="ProSkuTemplate" x:DataType="abs:StoreProduct">
@@ -86,10 +86,18 @@
             x:Key="SkuTemplateSelector"
             ProTemplate="{StaticResource ProSkuTemplate}"
             LifetimeTemplate="{StaticResource LifetimeSkuTemplate}" />
-    </ContentPage.Resources>
+    </controls:TrimixPage.Resources>
 
     <Grid RowDefinitions="Auto,*">
-        <!-- No ✕: "Not now" in the footer is the single dismiss (prototype S8). -->
+
+        <!-- Shared header ← close (runs NotNowCommand — same "keep free plan" dismiss); "Not now"
+             stays in the footer as the design's secondary dismiss. Hidden once unlocked (S9 exits
+             via "Go to logbook"). -->
+        <controls:PageHeader
+            Grid.Row="0"
+            Margin="24,8,24,0"
+            ShowBack="{Binding PurchaseSucceeded, Converter={StaticResource InverseBool}}"
+            BackCommand="{Binding NotNowCommand}" />
 
         <!-- ===================== PURCHASE STATE (S8) ===================== -->
         <Grid
@@ -99,14 +107,23 @@
 
             <ScrollView Grid.Row="0">
                 <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
-                    <!-- The cap numbers bind to FreeTier via the VM so copy and enforcement never drift. -->
+                    <!-- The cap numbers bind to FreeTier via the VM so copy and enforcement never drift.
+                         Warning ICON is an AppIcon (never a ⚠ text glyph). -->
                     <Border
                         Stroke="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 6"
                         Padding="8,3"
                         HorizontalOptions="Start">
-                        <Label Style="{StaticResource BadgeTextWarn}" Text="{Binding LimitLabel}" />
+                        <HorizontalStackLayout Spacing="6">
+                            <controls:AppIcon
+                                Icon="warning"
+                                Size="12"
+                                Color="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
+                                VerticalOptions="Center"
+                                AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource BadgeTextWarn}" Text="{Binding LimitLabel}" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
                     </Border>
 
                     <Label
@@ -119,7 +136,9 @@
                         TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
                         Text="{Binding PendingLabel}" />
 
+                    <!-- swingUp entrance target (code-behind): perspective rotateX 58° → 0 over ~.5s. -->
                     <VerticalStackLayout
+                        x:Name="SkuCards"
                         Spacing="{StaticResource CardSpacing}"
                         Margin="0,6,0,0"
                         BindableLayout.ItemsSource="{Binding Products}"
@@ -168,24 +187,30 @@
 
         <!-- ===================== UNLOCKED STATE (S9) ===================== -->
         <Grid
-            Grid.Row="1"
+            x:Name="UnlockedRoot"
+            Grid.Row="0"
+            Grid.RowSpan="2"
             RowDefinitions="*,Auto"
             IsVisible="{Binding PurchaseSucceeded}">
 
             <VerticalStackLayout Grid.Row="0" Spacing="{StaticResource SectionSpacing}" Padding="24,0" VerticalOptions="Center">
-                <Grid WidthRequest="96" HeightRequest="96" HorizontalOptions="Center">
+                <!-- Check disc: mint fill + the design's exact check path (AppIcon, never a ✓ glyph).
+                     Pops in via the code-behind Unlocked entrance. -->
+                <Grid x:Name="CheckDisc" WidthRequest="96" HeightRequest="96" HorizontalOptions="Center">
                     <shapes:Ellipse
                         WidthRequest="96"
                         HeightRequest="96"
                         Fill="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
                         HorizontalOptions="Center"
                         VerticalOptions="Center" />
-                    <Label
-                        Style="{StaticResource StatNumeralDisplay}"
-                        Text="✓"
-                        TextColor="{StaticResource Abyss}"
+                    <controls:AppIcon
+                        Icon="check"
+                        Size="40"
+                        StrokeThickness="2.4"
+                        Color="{StaticResource MintInk}"
                         HorizontalOptions="Center"
-                        VerticalOptions="Center" />
+                        VerticalOptions="Center"
+                        AutomationProperties.IsInAccessibleTree="False" />
                 </Grid>
 
                 <Label
@@ -215,4 +240,4 @@
             </VerticalStackLayout>
         </Grid>
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

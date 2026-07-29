@@ -6,7 +6,7 @@ using Trimix.Core.ViewModels;
 namespace Trimix.App.Pages;
 
 [QueryProperty(nameof(DiveId), Routes.Params.DiveId)]
-public partial class DiveDetailPage : ContentPage
+public partial class DiveDetailPage : TrimixPage
 {
     /// <summary>Must mirror <see cref="DepthChartDrawable"/>'s plot padding for touch→chart mapping.</summary>
     private const double ChartPad = 8.0;
@@ -135,25 +135,31 @@ public partial class DiveDetailPage : ContentPage
 
         _drawable.Path = _viewModel.Chart;
 
-        // Design doc motion: the profile chart draws in over 400ms ONCE per view, honoring
-        // reduced-motion (render complete immediately when reduced).
+        // Design motion (Interactive.dc.html): drawLine 1.8s ease with a .15s delay, then
+        // fillFade .8s ease starting at 1.4s — one composite 2.2s timeline, ONCE per view,
+        // honoring reduced-motion (render complete immediately when reduced).
         if (!_chartAnimated && !MotionSettings.IsReducedMotionEnabled && !_viewModel.Chart.IsEmpty)
         {
             _chartAnimated = true;
             _drawable.Progress = 0;
-            this.Animate(
-                "TrimixChartDrawIn",
-                new Animation(progress =>
-                {
-                    _drawable.Progress = progress;
-                    ChartView.Invalidate();
-                }),
-                length: 400,
-                easing: Easing.CubicOut);
+            _drawable.FillOpacity = 0;
+
+            const double total = 2200.0;
+            var timeline = new Animation();
+            // drawLine: 150ms → 1950ms of the timeline.
+            timeline.Add(150 / total, 1950 / total, new Animation(
+                progress => _drawable.Progress = progress, 0, 1, Easing.CubicOut));
+            // fillFade: 1400ms → 2200ms of the timeline.
+            timeline.Add(1400 / total, 1.0, new Animation(
+                opacity => _drawable.FillOpacity = opacity, 0, 1, Easing.CubicOut));
+            // One shared invalidate per tick.
+            timeline.Add(0, 1, new Animation(_ => ChartView.Invalidate(), 0, 1));
+            timeline.Commit(this, "TrimixChartDrawIn", rate: 16, length: (uint)total, Easing.Linear);
         }
         else
         {
             _drawable.Progress = 1;
+            _drawable.FillOpacity = 1;
             ChartView.Invalidate();
         }
     }

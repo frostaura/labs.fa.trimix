@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- The one shared page header (replaces the five divergent hand-rolled headers and four divergent
+     back treatments): optional mint back chevron, Title24 title, and a right-action slot so top-right
+     buttons (sync radar / gear / plus) sit in the identical position on every page. Height + margin
+     come from the shared HeaderMinHeight / HeaderMargin tokens (Styles.xaml). -->
+<ContentView
+    x:Class="Trimix.App.Controls.PageHeader"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    x:Name="Root">
+
+    <Grid
+        ColumnDefinitions="Auto,*,Auto"
+        ColumnSpacing="8"
+        MinimumHeightRequest="{StaticResource HeaderMinHeight}"
+        Margin="{StaticResource HeaderMargin}">
+
+        <!-- Back (44pt tap target; ← chevron per the icon set). Hidden ⇒ zero width, title stays flush left. -->
+        <Grid
+            x:Name="BackTouch"
+            Grid.Column="0"
+            WidthRequest="44"
+            HeightRequest="44"
+            Margin="-10,0,0,0"
+            VerticalOptions="Center"
+            IsVisible="{Binding ShowBack, Source={x:Reference Root}, x:DataType=controls:PageHeader}"
+            SemanticProperties.Description="Back"
+            SemanticProperties.Hint="Returns to the previous screen">
+            <controls:AppIcon
+                Icon="back"
+                Size="22"
+                HorizontalOptions="Center"
+                VerticalOptions="Center" />
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnBackTapped" />
+            </Grid.GestureRecognizers>
+        </Grid>
+
+        <Label
+            Grid.Column="1"
+            Style="{StaticResource Title24}"
+            Text="{Binding Title, Source={x:Reference Root}, x:DataType=controls:PageHeader}"
+            VerticalOptions="Center"
+            LineBreakMode="TailTruncation"
+            SemanticProperties.HeadingLevel="Level1" />
+
+        <!-- Right-action slot (sync radar, gear, plus, …) — set via the RightAction property. -->
+        <ContentView
+            x:Name="RightSlot"
+            Grid.Column="2"
+            VerticalOptions="Center" />
+    </Grid>
+</ContentView>

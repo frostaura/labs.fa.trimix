@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!-- Onboarding (prototype S1 + S2): 2-pane swipe carousel over full-bleed Abyss.
-     S1 Welcome — TRIMIX wordmark, "Your logbook fills itself.", the auto-import promise, the
-     SYNCS WITH provider marquee, "Get started" / "I already have an account".
+     S1 Welcome — TRIMIX wordmark, animated SonarPulse hero rings (design blePulse 164/3.2s),
+     "Your logbook fills itself.", the auto-import promise, and the SYNCS WITH brand marquee
+     auto-scrolling on the design's brandSlide 22s loop (code-behind; static under reduced motion).
      S2 "How it works" — the 3-step loop (01 Dive / 02 Sync / 03 Log) + "Continue" (→ biometric
-     account step). No Bluetooth copy anywhere: the app is serverless and API-sync-only.
-     Every completion path fires first_run_completed via the VM. -->
-<ContentPage
+     account step); its back affordance is the shared PageHeader ← (replaces the old ghost button).
+     No Bluetooth copy anywhere: the app is serverless and API-sync-only. Every completion path
+     fires first_run_completed via the VM. -->
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.OnboardingPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     x:DataType="vm:OnboardingViewModel"
-    Shell.PresentationMode="ModalAnimated"
+    Shell.PresentationMode="Modal"
     Shell.NavBarIsVisible="False"
     Title="Welcome">
 
-    <ContentPage.Resources>
+    <controls:TrimixPage.Resources>
         <!-- Carousel item = the pane index; content toggles off IntEquals against it. -->
         <x:Array x:Key="PaneIndices" Type="{x:Type x:Int32}">
             <x:Int32>0</x:Int32>
@@ -32,9 +35,26 @@
             <x:String>PADI</x:String>
             <x:String>SSI</x:String>
         </x:Array>
-    </ContentPage.Resources>
 
-    <Grid RowDefinitions="*,Auto">
+        <!-- One marquee chip. The strip renders the brand list TWICE and translates by exactly half the
+             total width to loop seamlessly. For that half to land copy B pixel-on where copy A was, the
+             doubled row must be perfectly periodic — so the gap lives as a uniform TRAILING margin on
+             every chip (incl. the last), and every Spacing is 0. Do not reintroduce StackLayout Spacing
+             here: it would add a gap only *between* items, breaking the half-width periodicity. -->
+        <DataTemplate x:Key="MarqueeChip" x:DataType="x:String">
+            <Border Style="{StaticResource Chip}" Margin="0,0,8,0" AutomationProperties.IsInAccessibleTree="False">
+                <Label
+                    Style="{StaticResource BadgeText}"
+                    Text="{Binding .}"
+                    TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+            </Border>
+        </DataTemplate>
+    </controls:TrimixPage.Resources>
+
+    <Grid RowDefinitions="*,Auto" Padding="0,8,0,0">
+
+        <!-- No header / back button anywhere in onboarding (founder 2026-07-29): the panes are reached
+             by "Get started" / "Continue" and back-swipe on the carousel; there is nothing to go back to. -->
 
         <!-- ================= Swipe carousel: 2 panes ================= -->
         <CarouselView
@@ -51,37 +71,31 @@
 
                         <!-- ===== S1 · Welcome ===== -->
                         <Grid
-                            Padding="24,28,24,8"
+                            Padding="24,0,24,8"
                             RowDefinitions="Auto,*,Auto"
                             IsVisible="{Binding ., Converter={StaticResource IntEquals}, ConverterParameter=0}">
 
-                            <!-- Wordmark top-left + sonar rings bleeding off the top-right corner -->
+                            <!-- Wordmark top-left + ANIMATED sonar hero in the top-right, fully inside
+                                 the frame so the rings + FA emblem are never clipped (design: blePulse
+                                 rings, 164px, 3.2s stagger). The box is sized to the max pulse extent
+                                 (~190px) so the halo has room without spilling off-screen. -->
                             <Grid Grid.Row="0">
-                                <Label
-                                    Style="{StaticResource Wordmark}"
-                                    Text="TRIMIX"
-                                    HorizontalOptions="Start"
-                                    VerticalOptions="Start" />
-                                <Grid
-                                    WidthRequest="240"
-                                    HeightRequest="240"
-                                    Margin="0,-78,-78,0"
-                                    InputTransparent="True"
+                                <!-- FROSTAURA maker eyebrow (grey mono, like the "HOW IT WORKS" label)
+                                     sitting above the TRIMIX wordmark. -->
+                                <VerticalStackLayout HorizontalOptions="Start" VerticalOptions="Start" Spacing="4">
+                                    <Label Style="{StaticResource MonoLabel}" Text="FROSTAURA" />
+                                    <Label Style="{StaticResource Wordmark}" Text="TRIMIX" FontSize="30" CharacterSpacing="5" />
+                                </VerticalStackLayout>
+                                <!-- The Trimix mark IS the sonar (blip + arcs pulsing outward) — no
+                                     separate rings; the icon already carries the ping. -->
+                                <controls:TrimixMark
+                                    WidthRequest="96"
+                                    HeightRequest="96"
+                                    Margin="0,10,8,0"
                                     HorizontalOptions="End"
-                                    VerticalOptions="Start">
-                                    <Ellipse WidthRequest="240" HeightRequest="240" Fill="Transparent" StrokeThickness="1.5" Opacity="0.12"
-                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                                             HorizontalOptions="Center" VerticalOptions="Center" />
-                                    <Ellipse WidthRequest="180" HeightRequest="180" Fill="Transparent" StrokeThickness="1.5" Opacity="0.25"
-                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                                             HorizontalOptions="Center" VerticalOptions="Center" />
-                                    <Ellipse WidthRequest="124" HeightRequest="124" Fill="Transparent" StrokeThickness="1.5" Opacity="0.4"
-                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                                             HorizontalOptions="Center" VerticalOptions="Center" />
-                                    <Ellipse WidthRequest="72" HeightRequest="72" Fill="Transparent" StrokeThickness="1.5" Opacity="0.6"
-                                             Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                                             HorizontalOptions="Center" VerticalOptions="Center" />
-                                </Grid>
+                                    VerticalOptions="Start"
+                                    InputTransparent="True"
+                                    AutomationProperties.IsInAccessibleTree="False" />
                             </Grid>
 
                             <!-- Headline + promise + SYNCS WITH marquee, pinned toward the bottom -->
@@ -97,31 +111,32 @@
                                     TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
                                     HorizontalTextAlignment="Start" />
 
-                                <!-- SYNCS WITH brand marquee -->
+                                <!-- SYNCS WITH brand marquee: continuous 22s brandSlide auto-scroll
+                                     (code-behind); the track holds the brand row TWICE so a half-width
+                                     translate loops seamlessly. Static row under reduced motion. -->
                                 <VerticalStackLayout Spacing="10" Margin="0,4,0,0">
-                                    <Label Style="{StaticResource MonoLabel}" Text="SYNCS WITH" />
-                                    <ScrollView
-                                        Orientation="Horizontal"
-                                        HorizontalScrollBarVisibility="Never"
+                                    <Label Style="{StaticResource MonoLabel}" Text="SYNCS WITH" Margin="0" />
+                                    <Grid
+                                        HeightRequest="34"
+                                        Margin="-24,0"
+                                        IsClippedToBounds="True"
                                         SemanticProperties.Description="Syncs with Garmin Dive, Suunto, ScubaPro, Mares, Oceanic plus, PADI and SSI">
-                                        <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{StaticResource MarqueeBrands}">
-                                            <BindableLayout.ItemTemplate>
-                                                <DataTemplate x:DataType="x:String">
-                                                    <Border Style="{StaticResource Chip}" AutomationProperties.IsInAccessibleTree="False">
-                                                        <Label
-                                                            Style="{StaticResource BadgeText}"
-                                                            Text="{Binding .}"
-                                                            TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
-                                                    </Border>
-                                                </DataTemplate>
-                                            </BindableLayout.ItemTemplate>
+                                        <HorizontalStackLayout
+                                            Spacing="0"
+                                            HorizontalOptions="Start"
+                                            VerticalOptions="Center"
+                                            Loaded="OnMarqueeLoaded"
+                                            Unloaded="OnMarqueeUnloaded">
+                                            <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{StaticResource MarqueeBrands}" BindableLayout.ItemTemplate="{StaticResource MarqueeChip}" />
+                                            <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{StaticResource MarqueeBrands}" BindableLayout.ItemTemplate="{StaticResource MarqueeChip}" />
                                         </HorizontalStackLayout>
-                                    </ScrollView>
+                                    </Grid>
                                 </VerticalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
 
-                        <!-- ===== S2 · How it works ===== -->
+                        <!-- ===== S2 · How it works — the 3-step loop (GlassCards). No back button:
+                             onboarding is reached by "Get started"/"Continue" + back-swipe only. ===== -->
                         <VerticalStackLayout
                             Padding="24,0"
                             Spacing="{StaticResource CardSpacing}"
@@ -188,7 +203,7 @@
                 IndicatorSize="8"
                 SemanticProperties.Description="{Binding PageIndex, Converter={StaticResource PageCounter}}" />
 
-            <!-- Pane 1 (Welcome) actions -->
+            <!-- Pane 1 (Welcome) actions — a single path (no accounts, nothing to sign in to). -->
             <VerticalStackLayout
                 Spacing="{StaticResource TightSpacing}"
                 IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=0}">
@@ -198,16 +213,9 @@
                     Command="{Binding NextCommand}"
                     SemanticProperties.Description="Get started"
                     SemanticProperties.Hint="Shows how automatic sync works" />
-                <Button
-                    Style="{StaticResource GhostButton}"
-                    Text="I already have an account"
-                    HorizontalOptions="Center"
-                    Command="{Binding SkipCommand}"
-                    SemanticProperties.Description="I already have an account"
-                    SemanticProperties.Hint="Skips the introduction and opens your logbook" />
             </VerticalStackLayout>
 
-            <!-- Pane 2 (How it works) actions -->
+            <!-- Pane 2 (How it works) actions — back lives in the shared header now. -->
             <VerticalStackLayout
                 Spacing="{StaticResource TightSpacing}"
                 IsVisible="{Binding PageIndex, Converter={StaticResource IntEquals}, ConverterParameter=1}">
@@ -217,14 +225,7 @@
                     Command="{Binding NextCommand}"
                     SemanticProperties.Description="Continue"
                     SemanticProperties.Hint="Advances to the account step" />
-                <Button
-                    Style="{StaticResource GhostButton}"
-                    Text="← Back"
-                    HorizontalOptions="Center"
-                    Command="{Binding PreviousPaneCommand}"
-                    SemanticProperties.Description="Back"
-                    SemanticProperties.Hint="Returns to the welcome pane" />
             </VerticalStackLayout>
         </VerticalStackLayout>
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

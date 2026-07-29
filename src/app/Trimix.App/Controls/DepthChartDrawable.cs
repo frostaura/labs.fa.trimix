@@ -31,8 +31,11 @@ public sealed class DepthChartDrawable : IDrawable
     /// </summary>
     public ProfileOverlays Overlays { get; set; } = ProfileOverlays.Empty;
 
-    /// <summary>Draw-in progress ∈ [0,1] (400ms once per view; 1 when reduced motion).</summary>
+    /// <summary>Line draw-in progress ∈ [0,1] (design drawLine 1.8s ease .15s; 1 when reduced motion).</summary>
     public double Progress { get; set; } = 1.0;
+
+    /// <summary>Area-fill opacity ∈ [0,1] (design fillFade .8s ease 1.4s; 1 when reduced motion).</summary>
+    public double FillOpacity { get; set; } = 1.0;
 
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
@@ -87,11 +90,12 @@ public sealed class DepthChartDrawable : IDrawable
         }
 
         area.Close();
+        var fillAlpha = 0.45f * (float)Math.Clamp(FillOpacity, 0, 1);
         canvas.SetFillPaint(
             new LinearGradientPaint(
                 new PaintGradientStop[]
                 {
-                    new(0f, accent.WithAlpha(0.45f)),
+                    new(0f, accent.WithAlpha(fillAlpha)),
                     new(1f, accent.WithAlpha(0f)),
                 },
                 new Point(0, 0),

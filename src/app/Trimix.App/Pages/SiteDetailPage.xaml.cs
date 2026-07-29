@@ -1,10 +1,11 @@
+using Trimix.App.Controls;
 using Trimix.Core;
 using Trimix.Core.ViewModels;
 
 namespace Trimix.App.Pages;
 
 [QueryProperty(nameof(SiteId), Routes.Params.SiteId)]
-public partial class SiteDetailPage : ContentPage
+public partial class SiteDetailPage : TrimixPage
 {
     private readonly SiteDetailViewModel _viewModel;
 

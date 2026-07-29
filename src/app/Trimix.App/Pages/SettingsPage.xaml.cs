@@ -1,9 +1,12 @@
 using CommunityToolkit.Mvvm.Input;
+using Trimix.App.Controls;
 using Trimix.Core.ViewModels;
 
 namespace Trimix.App.Pages;
 
-public partial class SettingsPage : ContentPage
+/// <summary>Settings — the reference adoption of the shared UI foundation (TrimixPage screenIn
+/// entrance + PageHeader with back + AppIcon glyphs + DEBUG-only developer card).</summary>
+public partial class SettingsPage : TrimixPage
 {
     private readonly SettingsViewModel _viewModel;
 

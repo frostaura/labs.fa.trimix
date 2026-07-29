@@ -117,6 +117,13 @@ public partial class ProviderOAuthViewModel : ObservableObject
             // Guardrail order: the connector's own ToS-risk disclosure comes BEFORE consent, and
             // consent comes before any network I/O. With no consent recorded, AuthenticateAsync is a
             // zero-I/O local call that returns NeedsInteraction + the disclosure text.
+            // DEBUG demo connectors skip the disclosure ceremony — nothing real is exported, auth is
+            // instantly Granted — but consent is still recorded so the coordinator's gating is real.
+            if (!_consent.HasConsent(ConnectorId) && connector is Connectors.Demo.IDemoConnector)
+            {
+                await _consent.GrantAsync(ConnectorId);
+            }
+
             if (!_consent.HasConsent(ConnectorId))
             {
                 var disclosure = (await AuthenticateSafeAsync(connector)).Message
@@ -139,6 +146,8 @@ public partial class ProviderOAuthViewModel : ObservableObject
             {
                 result = connector switch
                 {
+                    // Demo connectors accept any credentials instantly — no exchange, no network.
+                    Connectors.Demo.IDemoConnector => new ConnectorAuthResult(ConnectorAuthStatus.Granted),
                     GatedCloudSourceConnector cloud => await SignInCloudAsync(cloud, Username, Password),
                     GatedPushConnectorBase push => await push.SignInAsync(Username, Password),
                     _ => new ConnectorAuthResult(ConnectorAuthStatus.Unavailable, "This provider does not support sign-in."),
@@ -160,8 +169,9 @@ public partial class ProviderOAuthViewModel : ObservableObject
 
             Username = "";
             _syncSession.RefreshLinkState();
+            // No toast (the design removed them): the state change is the provider row flipping to
+            // "Connected" plus the auto-started first sync's streaming sheet.
             await _navigator.GoBackAsync();
-            await _dialogs.ToastAsync($"{ProviderName} linked · read-only");
 
             if (wasFirstLink && _syncSession.HasLinkedSources)
             {

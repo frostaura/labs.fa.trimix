@@ -24,7 +24,6 @@ public class AddTrimixCoreTests
 
         Assert.NotNull(provider.GetRequiredService<AppStartupService>());
         Assert.NotNull(provider.GetRequiredService<IAnalytics>());
-        Assert.NotNull(provider.GetRequiredService<IAuthSession>());
         Assert.NotNull(provider.GetRequiredService<IEntitlementService>());
         Assert.NotNull(provider.GetRequiredService<IImportService>());
         Assert.NotNull(provider.GetRequiredService<ILocalStore>());
@@ -45,15 +44,37 @@ public class AddTrimixCoreTests
         // Serverless rebuild: the connectors ARE the product surface, so the deploy master switches default
         // ON and all 7 providers resolve (5 sources IN + 2 destinations OUT) for the Providers list.
         // Per-user consent behind each disclosure remains the only thing that permits network I/O.
+        // (Debug builds additionally register the demo_ family — asserted separately below.)
         using var provider = Build();
 
         var sourceIds = provider.GetServices<IDiveSourceConnector>()
-            .Select(c => c.Descriptor.ConnectorId).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+            .Select(c => c.Descriptor.ConnectorId).Where(id => !DemoModeState.IsDemoId(id))
+            .OrderBy(id => id, StringComparer.Ordinal).ToArray();
         var destinationIds = provider.GetServices<IDiveDestinationConnector>()
-            .Select(c => c.Descriptor.ConnectorId).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+            .Select(c => c.Descriptor.ConnectorId).Where(id => !DemoModeState.IsDemoId(id))
+            .OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
         Assert.Equal(["garmin_connect", "mares", "oceanic_cloud", "scubapro", "suunto_cloud"], sourceIds);
         Assert.Equal(["padi_push_personal", "ssi_push_personal"], destinationIds);
+    }
+
+    [Fact]
+    public void Debug_builds_register_the_demo_connector_family()
+    {
+        // The DEBUG-only demo family (DemoModeState): 3 seeded sources + 2 always-Pushed destinations,
+        // every id carrying the structural demo_ prefix the live filtering keys on.
+        using var provider = Build();
+
+        var demoSources = provider.GetServices<IDiveSourceConnector>()
+            .Select(c => c.Descriptor.ConnectorId).Where(DemoModeState.IsDemoId)
+            .OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        var demoDestinations = provider.GetServices<IDiveDestinationConnector>()
+            .Select(c => c.Descriptor.ConnectorId).Where(DemoModeState.IsDemoId)
+            .OrderBy(id => id, StringComparer.Ordinal).ToArray();
+
+        Assert.Equal(["demo_garmin", "demo_mares", "demo_suunto"], demoSources);
+        Assert.Equal(["demo_padi", "demo_ssi"], demoDestinations);
+        Assert.NotNull(provider.GetRequiredService<DemoModeState>());
     }
 
     [Fact]
@@ -86,7 +107,6 @@ public class AddTrimixCoreTests
         using var provider = Build();
 
         Assert.NotNull(provider.GetRequiredService<OnboardingViewModel>());
-        Assert.NotNull(provider.GetRequiredService<AuthViewModel>());
         Assert.NotNull(provider.GetRequiredService<LogbookViewModel>());
         Assert.NotNull(provider.GetRequiredService<DiveDetailViewModel>());
         Assert.NotNull(provider.GetRequiredService<StatsViewModel>());
@@ -112,9 +132,11 @@ public class AddTrimixCoreTests
         // it never surfaces in the providers UI, can never be consented, and sync can never pull it.
         using var provider = Build(o => o.EnableCloudConnectors = false);
 
-        Assert.Empty(provider.GetServices<IDiveSourceConnector>());
+        Assert.DoesNotContain(provider.GetServices<IDiveSourceConnector>(),
+            c => !DemoModeState.IsDemoId(c.Descriptor.ConnectorId));
         // The push family is independent and stays registered.
-        Assert.Equal(2, provider.GetServices<IDiveDestinationConnector>().Count());
+        Assert.Equal(2, provider.GetServices<IDiveDestinationConnector>()
+            .Count(c => !DemoModeState.IsDemoId(c.Descriptor.ConnectorId)));
     }
 
     [Fact]
@@ -122,8 +144,10 @@ public class AddTrimixCoreTests
     {
         using var provider = Build(o => o.EnablePushConnectors = false);
 
-        Assert.Empty(provider.GetServices<IDiveDestinationConnector>());
+        Assert.DoesNotContain(provider.GetServices<IDiveDestinationConnector>(),
+            c => !DemoModeState.IsDemoId(c.Descriptor.ConnectorId));
         // The cloud family is independent and stays registered (all five sources).
-        Assert.Equal(5, provider.GetServices<IDiveSourceConnector>().Count());
+        Assert.Equal(5, provider.GetServices<IDiveSourceConnector>()
+            .Count(c => !DemoModeState.IsDemoId(c.Descriptor.ConnectorId)));
     }
 }

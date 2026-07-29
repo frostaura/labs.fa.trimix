@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Dive detail (prototype C6): mint-on-Abyss. "← Logbook" back · site-name title + origin chip ·
-     "Dive #N · date · location" meta · FROM {VENDOR} → PADI ✓ SSI ✓ route strip · 2x2 metric tiles
-     (MAX DEPTH mint · BOTTOM TIME · MIN TEMP · GAS) · "DEPTH / TIME" chart with touch-to-scrub
-     crosshair + tooltip and the accessibility-mandated "view as table" alternative · the
-     "NEAR THIS SITE" auto-rotating atlas carousel · NOTES view/edit/save. -->
-<ContentPage
+<!-- Dive detail (prototype C6): mint-on-Abyss. Shared PageHeader (← back + site-name title +
+     origin chip) · "Dive #N · date · location" meta · FROM {VENDOR} › PADI ✓ SSI ✓ route strip ·
+     2x2 metric tiles (MAX DEPTH mint · BOTTOM TIME · MIN TEMP · GAS) · "DEPTH / TIME" chart with
+     the design's drawLine/fillFade draw-on (1.8s + .8s), touch-to-scrub crosshair + tooltip and
+     the accessibility-mandated "view as table" alternative · the "NEAR THIS SITE" auto-rotating
+     atlas carousel · NOTES view/edit/save (AppIcon pencil/plus, never text glyphs). -->
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.DiveDetailPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     x:DataType="vm:DiveDetailViewModel"
     Shell.PresentationMode="ModalAnimated"
@@ -15,50 +17,48 @@
 
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Header: ghost mint back to the logbook (CloseCommand preserved). -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-            <Button
-                Grid.Column="0"
-                Style="{StaticResource BackButton}"
-                Text="← Logbook"
-                Command="{Binding CloseCommand}"
-                Margin="10,8,0,0"
-                MinimumWidthRequest="44"
-                SemanticProperties.Description="Back to logbook"
-                SemanticProperties.Hint="Returns to the previous screen" />
-        </Grid>
+        <!-- Shared header: ← back (CloseCommand) + site-name title + origin chip as the right
+             action — converges the old "← Logbook" ghost onto the single PageHeader back. -->
+        <controls:PageHeader
+            Grid.Row="0"
+            Margin="24,8,24,0"
+            Title="{Binding SiteName}"
+            ShowBack="True"
+            BackCommand="{Binding CloseCommand}">
+            <controls:PageHeader.RightAction>
+                <!-- Origin chip: the dive's source vendor (GARMIN / SUUNTO / …). -->
+                <Border Style="{StaticResource BadgeMint}" VerticalOptions="Center"
+                        SemanticProperties.Description="{Binding OriginLabel, StringFormat='Imported from {0}'}">
+                    <Label Style="{StaticResource BadgeTextMint}" Text="{Binding OriginLabel}" />
+                </Border>
+            </controls:PageHeader.RightAction>
+        </controls:PageHeader>
 
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
 
-                <!-- Header: site-name title + origin chip · meta line · route strip. -->
+                <!-- Meta line · route strip (title + origin chip live in the shared header). -->
                 <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                        <Label
-                            Grid.Column="0"
-                            Style="{StaticResource Title24}"
-                            FontSize="21"
-                            Text="{Binding SiteName}"
-                            LineBreakMode="TailTruncation"
-                            VerticalOptions="Center"
-                            SemanticProperties.HeadingLevel="Level1" />
-                        <!-- Origin chip: the dive's source vendor (GARMIN / SUUNTO / …). -->
-                        <Border Grid.Column="1" Style="{StaticResource BadgeMint}" VerticalOptions="Center"
-                                SemanticProperties.Description="{Binding OriginLabel, StringFormat='Imported from {0}'}">
-                            <Label Style="{StaticResource BadgeTextMint}" Text="{Binding OriginLabel}" />
-                        </Border>
-                    </Grid>
-                    <Label Style="{StaticResource Caption13}" Text="{Binding MetaText}" />
+                    <Label Style="{StaticResource Caption13}" LineBreakMode="WordWrap" Text="{Binding MetaText}" />
 
-                    <!-- Route strip: FROM {VENDOR} → PADI ✓ SSI ✓ (linked push providers). -->
-                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Margin="0,4,0,0">
-                        <Border Style="{StaticResource BadgeMint}" Margin="0,0,6,4">
+                    <!-- Route strip: FROM {VENDOR} › PADI ✓ SSI ✓ (linked push providers). Short
+                         chips on one row. NOT a FlexLayout: MAUI's FlexLayout throws
+                         "something is deeply wrong" at arrange time when it hosts IsVisible=false
+                         children or an empty bindable child (framework bug) — HSLs collapse
+                         invisible children safely. -->
+                    <HorizontalStackLayout Spacing="0" Margin="0,4,0,0">
+                        <Border Style="{StaticResource BadgeMint}" Margin="0,0,6,4" VerticalOptions="Center">
                             <Label Style="{StaticResource BadgeTextMint}" Text="{Binding OriginLabel, StringFormat='FROM {0}'}" />
                         </Border>
-                        <Label Style="{StaticResource Caption13}" Text="→" Margin="0,0,6,4" VerticalOptions="Center"
-                               IsVisible="{Binding HasRouteDestinations}"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <FlexLayout Wrap="Wrap" AlignItems="Center" BindableLayout.ItemsSource="{Binding RouteDestinations}">
+                        <controls:AppIcon
+                            Icon="chevron"
+                            Size="12"
+                            Color="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}"
+                            Margin="0,0,6,4"
+                            VerticalOptions="Center"
+                            IsVisible="{Binding HasRouteDestinations}"
+                            AutomationProperties.IsInAccessibleTree="False" />
+                        <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{Binding RouteDestinations}" VerticalOptions="Center">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="x:String">
                                     <Border Style="{StaticResource Chip}" Margin="0,0,6,4">
@@ -66,14 +66,15 @@
                                     </Border>
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
-                        </FlexLayout>
-                    </FlexLayout>
+                        </HorizontalStackLayout>
+                    </HorizontalStackLayout>
 
                     <!-- Cross-source merge (§3 / §8.2): one physical dive, several sources → badged. -->
                     <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding IsMerged}">
                         <Label Style="{StaticResource MonoLabelDim}" Text="SOURCES" />
-                        <FlexLayout
-                            Wrap="Wrap" JustifyContent="Start" AlignItems="Center"
+                        <!-- HSL, not FlexLayout — see the route-strip note (framework arrange bug). -->
+                        <HorizontalStackLayout
+                            Spacing="0"
                             BindableLayout.ItemsSource="{Binding SourceBadges}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="x:String">
@@ -82,7 +83,7 @@
                                     </Border>
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
-                        </FlexLayout>
+                        </HorizontalStackLayout>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
 
@@ -168,8 +169,10 @@
                         </Grid>
 
                         <!-- Non-color legend (WCAG 1.4.1): channel identity by text + swatch, never hue alone.
-                             Each entry shows only when that overlay is actually drawn. -->
-                        <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" IsVisible="{Binding HasOverlayLegend}">
+                             Each entry shows only when that overlay is actually drawn. HSL, not
+                             FlexLayout — invisible children crash FlexLayout's arrange (see the
+                             route-strip note); an HSL collapses them safely. -->
+                        <HorizontalStackLayout Spacing="0" IsVisible="{Binding HasOverlayLegend}">
                             <HorizontalStackLayout Spacing="6" Margin="0,0,14,4">
                                 <BoxView WidthRequest="12" HeightRequest="3" CornerRadius="2" VerticalOptions="Center"
                                          Color="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
@@ -200,7 +203,7 @@
                                          AutomationProperties.IsInAccessibleTree="False" />
                                 <Label Style="{StaticResource Caption13}" Text="Events" />
                             </HorizontalStackLayout>
-                        </FlexLayout>
+                        </HorizontalStackLayout>
 
                         <Label
                             Style="{StaticResource Caption13}"
@@ -275,6 +278,8 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Grid.Column="0" Style="{StaticResource MonoLabelMint}"
                                Text="{Binding SiteCoordsText, StringFormat='NEAR THIS SITE · {0}'}"
+                               LineBreakMode="TailTruncation"
+                               VerticalOptions="Center"
                                SemanticProperties.HeadingLevel="Level2" />
                         <HorizontalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
                             <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
@@ -333,8 +338,15 @@
                             <TapGestureRecognizer Command="{Binding StartNotesEditCommand}" />
                         </VerticalStackLayout.GestureRecognizers>
                         <HorizontalStackLayout Spacing="7">
-                            <Label Style="{StaticResource MonoLabel}" Text="NOTES" SemanticProperties.HeadingLevel="Level2" />
-                            <Label Style="{StaticResource Caption13}" Text="✎" Opacity="0.55" AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource MonoLabel}" Text="NOTES" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                            <controls:AppIcon
+                                Icon="pencil"
+                                Size="11"
+                                StrokeThickness="1.7"
+                                Color="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                                Opacity="0.55"
+                                VerticalOptions="Center"
+                                AutomationProperties.IsInAccessibleTree="False" />
                         </HorizontalStackLayout>
                         <Label Style="{StaticResource Body15}" FontSize="12.5"
                                TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
@@ -346,9 +358,11 @@
                         <HorizontalStackLayout.GestureRecognizers>
                             <TapGestureRecognizer Command="{Binding StartNotesEditCommand}" />
                         </HorizontalStackLayout.GestureRecognizers>
-                        <Label Style="{StaticResource Heading18}" FontSize="14" Text="+"
-                               TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
-                               VerticalOptions="Center" AutomationProperties.IsInAccessibleTree="False" />
+                        <controls:AppIcon
+                            Icon="plus"
+                            Size="14"
+                            VerticalOptions="Center"
+                            AutomationProperties.IsInAccessibleTree="False" />
                         <Label Style="{StaticResource Caption13}" Text="Add notes" VerticalOptions="Center"
                                SemanticProperties.Description="Add notes"
                                SemanticProperties.Hint="Opens the notes editor" />
@@ -360,4 +374,4 @@
             </VerticalStackLayout>
         </ScrollView>
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

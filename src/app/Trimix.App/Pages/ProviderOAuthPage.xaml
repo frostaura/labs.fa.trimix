@@ -6,10 +6,11 @@
      deliberately LIGHT regardless of the app's forced dark theme (it plays the vendor's page).
      The VM owns the guardrail chain: disclosure → consent → one-shot credential exchange (token
      only, never the password) → first-link auto-sync. -->
-<ContentPage
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.ProviderOAuthPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     x:DataType="vm:ProviderOAuthViewModel"
     Shell.PresentationMode="ModalAnimated"
@@ -19,30 +20,47 @@
 
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Browser chrome: Done + lock + domain -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,8,12,8" ColumnSpacing="8">
-            <Button
+        <!-- Browser chrome: ← close + lock + domain + refresh glyph. The chrome keeps its in-app
+             browser look, but the dismiss converges on the shared ← back affordance (44pt target)
+             instead of the old "Done" text button. -->
+        <Grid Grid.Row="0" ColumnDefinitions="44,*,44" Margin="12,8,12,8" ColumnSpacing="8">
+            <Grid
                 Grid.Column="0"
-                Style="{StaticResource BackButton}"
-                Text="Done"
-                Command="{Binding CloseCommand}"
-                SemanticProperties.Description="Done"
-                SemanticProperties.Hint="Closes the provider sign-in without connecting" />
+                WidthRequest="44"
+                HeightRequest="44"
+                SemanticProperties.Description="Close sign-in"
+                SemanticProperties.Hint="Closes the provider sign-in without connecting">
+                <controls:AppIcon Icon="back" Size="22" HorizontalOptions="Center" VerticalOptions="Center" />
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding CloseCommand}" />
+                </Grid.GestureRecognizers>
+            </Grid>
+            <!-- Lock + domain: star column + truncation so a long vendor domain can never clip the chrome. -->
             <HorizontalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
-                <Label
-                    Text="🔒"
-                    FontSize="12"
-                    VerticalOptions="Center"
-                    AutomationProperties.IsInAccessibleTree="False" />
+                <controls:AppIcon
+                    Icon="lock"
+                    Size="12"
+                    StrokeThickness="1.8"
+                    Color="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondary}}"
+                    VerticalOptions="Center" />
                 <Label
                     Style="{StaticResource MonoLabel}"
                     Text="{Binding Domain}"
                     TextColor="{StaticResource TextPrimary}"
                     TextTransform="None"
+                    LineBreakMode="TailTruncation"
                     VerticalOptions="Center" />
             </HorizontalStackLayout>
-            <!-- Spacer balancing the Done button so the domain stays centered -->
-            <BoxView Grid.Column="2" WidthRequest="52" HeightRequest="1" Color="Transparent" />
+            <!-- Browser refresh glyph balancing the close button (decorative, per the design chrome). -->
+            <controls:AppIcon
+                Grid.Column="2"
+                Icon="sync"
+                Size="14"
+                StrokeThickness="1.8"
+                Color="{StaticResource TextSecondary}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                AutomationProperties.IsInAccessibleTree="False" />
         </Grid>
 
         <!-- The provider's "web page" (light, framed like an in-app browser viewport) -->
@@ -140,4 +158,4 @@
             </ScrollView>
         </Border>
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

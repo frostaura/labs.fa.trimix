@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Transparent modal that hosts the Logbook's bottom sheets (add menu + streaming sync) OVER the
+     whole window, so each card overlays the Shell tab bar with the menu dimmed underneath it and
+     reaches the true device bottom. The IsOpen flags stay TwoWay-bound to the LogbookViewModel (the
+     single source of truth for which sheet is up); the page pops itself once both sheets have closed
+     (code-behind). Pushed by LogbookPage when either flag rises. -->
+<controls:TransparentModalPage
+    x:Class="Trimix.App.Pages.SheetOverlayPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    x:DataType="vm:LogbookViewModel">
+
+    <Grid>
+
+        <!-- ================= Add sheet (Sync now · Manage providers ONLY) ================= -->
+        <controls:BottomSheet
+            x:Name="AddSheet"
+            IsOpen="{Binding IsAddSheetOpen}"
+            Title="ADD">
+            <controls:BottomSheet.SheetContent>
+                <VerticalStackLayout Spacing="0">
+
+                    <!-- Sync now -->
+                    <Grid
+                        ColumnDefinitions="Auto,*"
+                        ColumnSpacing="13"
+                        Padding="2,12"
+                        SemanticProperties.Description="Sync now"
+                        SemanticProperties.Hint="Pulls and pushes dives across linked providers">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding SyncNowCommand}" />
+                        </Grid.GestureRecognizers>
+                        <Border Grid.Column="0" StrokeShape="RoundRectangle 18.5" StrokeThickness="0" WidthRequest="37" HeightRequest="37" Background="#1A2FE3C4" VerticalOptions="Center">
+                            <controls:AppIcon Icon="sync" Size="17" HorizontalOptions="Center" VerticalOptions="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Style="{StaticResource Heading18}" FontSize="14.5" Text="Sync now" />
+                            <Label Style="{StaticResource Caption13}" FontSize="11.5" Text="Pull and push dives across linked providers" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" Color="#382FE3C4" AutomationProperties.IsInAccessibleTree="False" />
+
+                    <!-- Manage providers -->
+                    <Grid
+                        ColumnDefinitions="Auto,*"
+                        ColumnSpacing="13"
+                        Padding="2,12"
+                        SemanticProperties.Description="Manage providers"
+                        SemanticProperties.Hint="Link or unlink your platforms">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ManageProvidersCommand}" />
+                        </Grid.GestureRecognizers>
+                        <Border Grid.Column="0" StrokeShape="RoundRectangle 18.5" StrokeThickness="0" WidthRequest="37" HeightRequest="37" Background="#1A2FE3C4" VerticalOptions="Center">
+                            <controls:AppIcon Icon="you" Size="17" HorizontalOptions="Center" VerticalOptions="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Style="{StaticResource Heading18}" FontSize="14.5" Text="Manage providers" />
+                            <Label Style="{StaticResource Caption13}" FontSize="11.5" Text="Link or unlink your platforms" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </controls:BottomSheet.SheetContent>
+        </controls:BottomSheet>
+
+        <!-- ================= Streaming sync sheet (shared SyncSessionViewModel; CANCELLABLE —
+             dismissal cancels the run via Closed → CancelSyncCommand in code-behind) ================= -->
+        <controls:BottomSheet
+            x:Name="SyncSheet"
+            IsOpen="{Binding Sync.IsSyncing}"
+            Title="SYNC">
+            <controls:BottomSheet.SheetContent>
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="13" Padding="2,0">
+                        <Border Grid.Column="0" StrokeShape="RoundRectangle 18.5" StrokeThickness="0" WidthRequest="37" HeightRequest="37" Background="#1A2FE3C4" VerticalOptions="Center">
+                            <!-- spinCw 1.4s linear while syncing (code-behind; honors reduced motion). -->
+                            <controls:AppIcon x:Name="SyncSpinnerIcon" Icon="sync" Size="17" HorizontalOptions="Center" VerticalOptions="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Style="{StaticResource Heading18}" FontSize="14.5" Text="Syncing…" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Style="{StaticResource Caption13}" FontSize="11.5" Text="{Binding Sync.SyncLabel}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <ProgressBar
+                        Progress="{Binding Sync.Progress}"
+                        SemanticProperties.Description="{Binding Sync.SyncSub}" />
+                    <Label
+                        Style="{StaticResource Caption13}"
+                        FontSize="11.5"
+                        Text="{Binding Sync.SyncSub}"
+                        AutomationProperties.IsInAccessibleTree="False" />
+                </VerticalStackLayout>
+            </controls:BottomSheet.SheetContent>
+        </controls:BottomSheet>
+
+    </Grid>
+</controls:TransparentModalPage>

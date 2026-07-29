@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Reusable bottom sheet (design: add-menu + sync sheet). Host it inside a TransparentModalPage
+     (see Controls/TransparentModalPage) pushed over the whole window, so the card slides OVER the
+     Shell tab bar with the menu dimmed underneath it (never below or punched-through by it), and
+     reaches the true device bottom on both platforms. The scrim fills the window; the card fill is
+     kept high-alpha so the dark logbook behind it frosts away while the bright mint menu behind its
+     lower edge still faintly ghosts through. Swipe-down, scrim tap and the ✕ all dismiss. -->
+<ContentView
+    x:Class="Trimix.App.Controls.BottomSheet"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    IsVisible="False">
+
+    <Grid>
+        <!-- Frosted backdrop: a REAL blur of the content behind the sheet on iOS (UIVisualEffectView),
+             a no-op on Android where the scrim alone carries the frost. Sits behind the scrim; fades
+             in with it (code-behind). Input-transparent so the scrim above still takes the dismiss. -->
+        <controls:BlurView
+            x:Name="Backdrop"
+            Opacity="0"
+            InputTransparent="True" />
+
+        <!-- Tap-to-dismiss scrim over the blur: a light PURE-BLACK tint so the frost reads black
+             rather than the blur material's grey, while staying translucent enough to see the content
+             behind it softened. Also the full-area tap target. -->
+        <BoxView
+            x:Name="Scrim"
+            Color="#59000000"
+            Opacity="0"
+            HeightRequest="-1"
+            SemanticProperties.Description="Dismiss"
+            SemanticProperties.Hint="Closes the sheet">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnDismissRequested" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- The sheet: pinned to the bottom edge, rounded only on top, slides in/out. Because the
+             host modal spans the whole window (over the tab bar), VerticalOptions=End reaches the
+             true device bottom on both platforms — no black strip. Fill alpha EE frosts the dark
+             logbook away while letting the bright mint tab bar behind the card's lower edge ghost
+             through faintly (menu visible underneath). Bottom padding clears the home indicator /
+             gesture bar so the action rows never sit under it. -->
+        <Border
+            x:Name="Sheet"
+            VerticalOptions="End"
+            Background="#EE0E161A"
+            Stroke="Transparent"
+            StrokeThickness="0">
+            <!-- iOS: the page insets above the home indicator, so a negative bottom margin bleeds the
+                 OPAQUE card past that inset to the true edge (no scrim strip below it). Android: the
+                 modal consumes its insets (TransparentModalPage) and already fills to the true bottom,
+                 so no negative margin — it would only clip. Bottom padding then holds the action rows
+                 clear of the home indicator / gesture bar on each. -->
+            <Border.Margin>
+                <OnPlatform x:TypeArguments="Thickness">
+                    <On Platform="iOS" Value="0,0,0,-48" />
+                    <On Platform="Android" Value="0,0,0,0" />
+                </OnPlatform>
+            </Border.Margin>
+            <Border.Padding>
+                <OnPlatform x:TypeArguments="Thickness">
+                    <On Platform="iOS" Value="22,13,22,40" />
+                    <On Platform="Android" Value="22,13,22,40" />
+                </OnPlatform>
+            </Border.Padding>
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="24,24,0,0" />
+            </Border.StrokeShape>
+            <Border.GestureRecognizers>
+                <PanGestureRecognizer PanUpdated="OnPanUpdated" />
+            </Border.GestureRecognizers>
+
+            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="9">
+                <!-- Drag handle (swipe-down dismiss rides the sheet-wide pan). -->
+                <RoundRectangle
+                    Grid.Row="0"
+                    CornerRadius="2"
+                    Fill="#40E8F1F2"
+                    WidthRequest="38"
+                    HeightRequest="4"
+                    HorizontalOptions="Center" />
+
+                <!-- Title eyebrow + explicit close affordance. -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" MinimumHeightRequest="24">
+                    <Label
+                        x:Name="TitleLabel"
+                        Grid.Column="0"
+                        Style="{StaticResource MonoLabel}"
+                        VerticalOptions="Center" />
+                    <Grid
+                        Grid.Column="1"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        Margin="0,-10,-10,-10"
+                        SemanticProperties.Description="Close"
+                        SemanticProperties.Hint="Closes the sheet">
+                        <!-- ✕ = the plus glyph rotated 45°, same stroke language as the icon set. -->
+                        <controls:AppIcon
+                            Icon="plus"
+                            Size="16"
+                            Rotation="45"
+                            Color="{StaticResource TextSecondary}"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" />
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnDismissRequested" />
+                        </Grid.GestureRecognizers>
+                    </Grid>
+                </Grid>
+
+                <!-- Consumer content slot (SheetContent property). -->
+                <ContentView x:Name="SheetSlot" Grid.Row="2" />
+            </Grid>
+        </Border>
+    </Grid>
+</ContentView>

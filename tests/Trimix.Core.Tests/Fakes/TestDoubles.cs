@@ -78,48 +78,6 @@ public sealed class FakeDialogs : IUserDialogs
     }
 }
 
-public sealed class FakeAuthSession : IAuthSession
-{
-    private string? _lastAccountId;
-
-    public bool IsAuthenticated { get; set; }
-
-    public UserDto? CurrentUser { get; set; }
-
-    public event EventHandler<bool>? AuthStateChanged;
-
-    public event EventHandler? IdentityChanged;
-
-    public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-    public Task SignInAsync(AuthResponse auth, CancellationToken cancellationToken = default)
-    {
-        // Mirror AuthSession: raise IdentityChanged only on a genuine account→different-account switch, never
-        // on the guest→account upgrade (no prior established account).
-        var incomingAccountId = auth.User.Id.ToString();
-        var isIdentityChange = _lastAccountId is not null
-            && !string.Equals(_lastAccountId, incomingAccountId, StringComparison.Ordinal);
-        _lastAccountId = incomingAccountId;
-        IsAuthenticated = true;
-        CurrentUser = auth.User;
-        if (isIdentityChange)
-        {
-            IdentityChanged?.Invoke(this, EventArgs.Empty);
-        }
-
-        AuthStateChanged?.Invoke(this, true);
-        return Task.CompletedTask;
-    }
-
-    public Task SignOutAsync(CancellationToken cancellationToken = default)
-    {
-        IsAuthenticated = false;
-        CurrentUser = null;
-        AuthStateChanged?.Invoke(this, false);
-        return Task.CompletedTask;
-    }
-}
-
 /// <summary>Spy <see cref="IConnectorPurgeService"/>: counts PurgeAllAsync calls (optionally throws).</summary>
 public sealed class RecordingConnectorPurgeService : Trimix.Core.Privacy.IConnectorPurgeService
 {
@@ -182,6 +140,20 @@ public sealed class FakeEntitlementService : IEntitlementService
     public Task ReconcilePendingAsync(CancellationToken cancellationToken = default)
     {
         ReconcilePendingCalls++;
+        return Task.CompletedTask;
+    }
+
+    public int ClearLocalGrantCalls { get; private set; }
+
+    public Task ClearLocalGrantAsync(CancellationToken cancellationToken = default)
+    {
+        ClearLocalGrantCalls++;
+        if (CurrentTier != EntitlementTier.Free)
+        {
+            CurrentTier = EntitlementTier.Free;
+            TierChanged?.Invoke(this, EntitlementTier.Free);
+        }
+
         return Task.CompletedTask;
     }
 }
@@ -326,20 +298,6 @@ public sealed class FakeSyncCoordinator : ISyncCoordinator
         }
 
         return Task.FromResult(NextReport);
-    }
-}
-
-/// <summary>Records <see cref="IBiometricUnlock"/> prompts; scriptable outcome.</summary>
-public sealed class FakeBiometricUnlock : IBiometricUnlock
-{
-    public int Prompts { get; private set; }
-
-    public BiometricUnlockResult Result { get; set; } = new(true);
-
-    public Task<BiometricUnlockResult> AuthenticateAsync(string reason, CancellationToken cancellationToken = default)
-    {
-        Prompts++;
-        return Task.FromResult(Result);
     }
 }
 

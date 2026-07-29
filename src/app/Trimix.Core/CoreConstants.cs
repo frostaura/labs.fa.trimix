@@ -3,17 +3,7 @@ namespace Trimix.Core;
 /// <summary>Keys used in <see cref="Abstractions.ISecureStore"/>.</summary>
 public static class SecureStoreKeys
 {
-    public const string AuthToken = "trimix.auth.token";
-    public const string AuthUser = "trimix.auth.user";
     public const string EntitlementTier = "trimix.entitlement.tier";
-
-    /// <summary>
-    /// The user-id of the last REAL account established on this device (written on sign-in, NOT cleared on
-    /// sign-out). Used to detect a genuine identity change (account→different-account) so the previous
-    /// identity's device-global connector consent+tokens are purged on a shared-device handoff. Lives in the
-    /// secure enclave so it survives uninstall in lockstep with the connector tokens it guards (iOS Keychain).
-    /// </summary>
-    public const string LastAccountId = "trimix.auth.last_account_id";
 }
 
 /// <summary>Keys used in <see cref="Abstractions.IPreferences"/>.</summary>
@@ -34,6 +24,13 @@ public static class PreferenceKeys
 
     /// <summary>The You tab's certification line, e.g. "PADI Advanced OW" (local-only; C8).</summary>
     public const string CertLabel = "trimix.profile.cert";
+
+    /// <summary>
+    /// DEBUG-only demo mode ("1" when on): the Providers list and the sync coordinator swap the real
+    /// connector set for the seeded demo connectors (<see cref="Abstractions.DemoModeState"/>) so every
+    /// flow — connect → authorize → sync → cap → paywall — can be stepped through with zero vendor I/O.
+    /// </summary>
+    public const string DevDemoMode = "trimix.dev.demo_mode";
 }
 
 /// <summary>Client-side analytics defaults.</summary>
@@ -50,7 +47,6 @@ public static class AnalyticsDefaults
 public static class Routes
 {
     public const string Onboarding = "onboarding";
-    public const string Auth = "auth";
     public const string Logbook = "logbook";
     public const string Sites = "sites";
     public const string Settings = "settings";

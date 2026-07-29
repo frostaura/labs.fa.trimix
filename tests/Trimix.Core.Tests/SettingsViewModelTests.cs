@@ -1,5 +1,4 @@
-using Trimix.Contracts;
-using Trimix.Contracts.Dtos;
+using Trimix.Core;
 using Trimix.Core.Platform;
 using Trimix.Core.Storage;
 using Trimix.Core.Tests.Connectors.Push;
@@ -10,87 +9,122 @@ using Xunit;
 namespace Trimix.Core.Tests;
 
 /// <summary>
-/// Settings privacy actions, serverless: everything lives on-device, so "Delete my data" is a local
-/// wipe — dives, session, and every connector consent+token (awaited, never fire-and-forget).
+/// Settings actions, serverless with no accounts: "Delete my data" is a local wipe (dives + every
+/// connector consent+token, plus the cached paid tier), "Reset app" is the superset factory reset that
+/// also clears preferences and replays onboarding, and "Replay onboarding" is a pure re-show that
+/// touches no data.
 /// </summary>
 public sealed class SettingsViewModelTests
 {
-    private static (SettingsViewModel Vm, FakeAuthSession Session, InMemoryLocalStore Store, FakeDialogs Dialogs, RecordingConnectorPurgeService Purge)
-        NewSut(bool authenticated)
-    {
-        var session = new FakeAuthSession();
-        if (authenticated)
-        {
-            session.IsAuthenticated = true;
-            session.CurrentUser = new UserDto(Guid.NewGuid(), "diver@example.com", UserRoles.User, true, DateTime.UtcNow);
-        }
+    private sealed record Sut(
+        SettingsViewModel Vm,
+        InMemoryLocalStore Store,
+        InMemoryPreferences Preferences,
+        FakeDialogs Dialogs,
+        RecordingConnectorPurgeService Purge,
+        FakeEntitlementService Entitlements,
+        FakeNavigator Navigator);
 
+    private static Sut NewSut()
+    {
         var store = new InMemoryLocalStore();
+        var preferences = new InMemoryPreferences();
         var dialogs = new FakeDialogs { ConfirmResult = true };
         var purge = new RecordingConnectorPurgeService();
+        var entitlements = new FakeEntitlementService();
+        var navigator = new FakeNavigator();
         var vm = new SettingsViewModel(
-            session,
-            new FakeEntitlementService(),
-            new InMemoryPreferences(),
+            entitlements,
+            preferences,
             store,
             new FakeAppInfo(),
-            new FakeNavigator(),
+            navigator,
             dialogs,
             purge);
-        return (vm, session, store, dialogs, purge);
+        return new Sut(vm, store, preferences, dialogs, purge, entitlements, navigator);
     }
 
     [Fact]
-    public async Task DeleteMyData_wipes_local_data_signs_out_and_purges_connectors()
+    public async Task DeleteMyData_wipes_local_data_purges_connectors_and_clears_tier()
     {
-        var (vm, session, store, dialogs, purge) = NewSut(authenticated: true);
-        await store.UpsertDiveAsync(DiveFixture.Trimix());
+        var sut = NewSut();
+        await sut.Store.UpsertDiveAsync(DiveFixture.Trimix());
 
-        await vm.DeleteMyDataCommand.ExecuteAsync(null);
+        await sut.Vm.DeleteMyDataCommand.ExecuteAsync(null);
 
-        Assert.False(session.IsAuthenticated);            // local wipe then sign-out
-        Assert.Equal(1, purge.PurgeAllCalls);             // connector consent+tokens purged too (awaited)
-        Assert.Contains("Your data has been deleted.", dialogs.Toasts);
-        Assert.All(await store.GetDivesAsync(), d => Assert.True(d.Deleted)); // local dives wiped
-    }
-
-    [Fact]
-    public async Task DeleteMyData_guest_wipes_local_and_purges()
-    {
-        var (vm, session, store, dialogs, purge) = NewSut(authenticated: false);
-        await store.UpsertDiveAsync(DiveFixture.Trimix());
-
-        await vm.DeleteMyDataCommand.ExecuteAsync(null);
-
-        Assert.Equal(1, purge.PurgeAllCalls);             // a guest may have connected vendors — still purge
-        Assert.All(await store.GetDivesAsync(), d => Assert.True(d.Deleted));
-        Assert.Contains("Your data has been deleted.", dialogs.Toasts);
+        Assert.Equal(1, sut.Purge.PurgeAllCalls);              // connector consent+tokens purged (awaited)
+        Assert.Equal(1, sut.Entitlements.ClearLocalGrantCalls); // paid tier dropped to Free
+        Assert.All(await sut.Store.GetDivesAsync(), d => Assert.True(d.Deleted));
+        Assert.Contains("Your data has been deleted.", sut.Dialogs.Toasts);
     }
 
     [Fact]
     public async Task DeleteMyData_declined_does_nothing()
     {
-        var (vm, session, store, dialogs, purge) = NewSut(authenticated: true);
-        await store.UpsertDiveAsync(DiveFixture.Trimix());
-        dialogs.ConfirmResult = false;
+        var sut = NewSut();
+        await sut.Store.UpsertDiveAsync(DiveFixture.Trimix());
+        sut.Dialogs.ConfirmResult = false;
 
-        await vm.DeleteMyDataCommand.ExecuteAsync(null);
+        await sut.Vm.DeleteMyDataCommand.ExecuteAsync(null);
 
-        Assert.True(session.IsAuthenticated);
-        Assert.Equal(0, purge.PurgeAllCalls);             // declined => nothing erased or purged
-        Assert.All(await store.GetDivesAsync(), d => Assert.False(d.Deleted));
-        Assert.Empty(dialogs.Toasts);
+        Assert.Equal(0, sut.Purge.PurgeAllCalls);              // declined => nothing erased or purged
+        Assert.Equal(0, sut.Entitlements.ClearLocalGrantCalls);
+        Assert.All(await sut.Store.GetDivesAsync(), d => Assert.False(d.Deleted));
+        Assert.Empty(sut.Dialogs.Toasts);
     }
 
     [Fact]
-    public async Task SignOut_awaits_the_connector_purge()
+    public async Task ResetApp_factory_resets_clears_prefs_and_replays_onboarding()
     {
-        var (vm, session, _, dialogs, purge) = NewSut(authenticated: true);
+        var sut = NewSut();
+        await sut.Store.UpsertDiveAsync(DiveFixture.Trimix());
+        sut.Preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+        sut.Preferences.Set(PreferenceKeys.DepthUnit, "ft");
+        sut.Preferences.Set(PreferenceKeys.UserName, "Dean");
 
-        await vm.SignOutCommand.ExecuteAsync(null);
+        await sut.Vm.ResetAppCommand.ExecuteAsync(null);
 
-        Assert.False(session.IsAuthenticated);
-        Assert.Equal(1, purge.PurgeAllCalls);             // the flow AWAITS the purge (Finding 2a), not fire-and-forget
-        Assert.Contains("Signed out.", dialogs.Toasts);
+        Assert.Equal(1, sut.Purge.PurgeAllCalls);
+        Assert.Equal(1, sut.Entitlements.ClearLocalGrantCalls);
+        Assert.All(await sut.Store.GetDivesAsync(), d => Assert.True(d.Deleted));
+        // Every on-device setting is cleared — a fresh-install state.
+        Assert.Null(sut.Preferences.Get(PreferenceKeys.FirstRunTracked));
+        Assert.Null(sut.Preferences.Get(PreferenceKeys.DepthUnit));
+        Assert.Null(sut.Preferences.Get(PreferenceKeys.UserName));
+        // Onboarding replays.
+        Assert.Contains(sut.Navigator.Navigations, n => n.Route == Routes.Onboarding);
+    }
+
+    [Fact]
+    public async Task ResetApp_declined_does_nothing()
+    {
+        var sut = NewSut();
+        await sut.Store.UpsertDiveAsync(DiveFixture.Trimix());
+        sut.Preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+        sut.Dialogs.ConfirmResult = false;
+
+        await sut.Vm.ResetAppCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, sut.Purge.PurgeAllCalls);
+        Assert.Equal("1", sut.Preferences.Get(PreferenceKeys.FirstRunTracked)); // untouched
+        Assert.All(await sut.Store.GetDivesAsync(), d => Assert.False(d.Deleted));
+        Assert.Empty(sut.Navigator.Navigations);
+    }
+
+    [Fact]
+    public async Task ReplayOnboarding_re_shows_onboarding_without_touching_any_data()
+    {
+        var sut = NewSut();
+        await sut.Store.UpsertDiveAsync(DiveFixture.Trimix());
+        sut.Preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+
+        await sut.Vm.ReplayOnboardingCommand.ExecuteAsync(null);
+
+        Assert.Contains(sut.Navigator.Navigations, n => n.Route == Routes.Onboarding);
+        // A pure re-show: dives, links, tier and first-run state all untouched.
+        Assert.Equal(0, sut.Purge.PurgeAllCalls);
+        Assert.Equal(0, sut.Entitlements.ClearLocalGrantCalls);
+        Assert.Equal("1", sut.Preferences.Get(PreferenceKeys.FirstRunTracked));
+        Assert.All(await sut.Store.GetDivesAsync(), d => Assert.False(d.Deleted));
     }
 }

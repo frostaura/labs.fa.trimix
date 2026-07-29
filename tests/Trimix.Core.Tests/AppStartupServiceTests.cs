@@ -1,9 +1,6 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Trimix.Core.Abstractions;
-using Trimix.Core.Auth;
 using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Platform;
-using Trimix.Core.Privacy;
 using Trimix.Core.Storage;
 using Trimix.Core.Tests.Fakes;
 using Xunit;
@@ -11,99 +8,47 @@ using Xunit;
 namespace Trimix.Core.Tests;
 
 /// <summary>
-/// Launch-time connector-purge reconciliation (Finding 2b). An interrupted / failed sign-out purge can strand a
-/// vendor consent flag / exchanged token in the secure enclave (which survives uninstall on the iOS Keychain).
-/// AppStartupService re-runs the purge once on any UNAUTHENTICATED launch so a stranded link is cleared on the
-/// next open, and never runs it on the authenticated path. (Server dive-sync was removed — serverless.)
+/// Launch orchestration. Trimix has no accounts and no unlock step, so startup NEVER touches
+/// connector state — links survive every restart ("link once — dives flow in on their own").
+/// Connector erasure is explicit only, owned by the Settings "Delete my data" / "Reset app" flows
+/// (see ConnectorPurgeServiceTests). Startup's only reported signal is the first-run flag.
 /// </summary>
 public sealed class AppStartupServiceTests
 {
-    private static AppStartupService NewStartup(
-        IAuthSession session,
-        IConnectorPurgeService purge,
-        IPreferences? preferences = null) =>
+    private static AppStartupService NewStartup(IPreferences? preferences = null) =>
         new(
             new InMemoryLocalStore(),
-            session,
             new FakeEntitlementService(),
             new RecordingAnalytics(),
-            preferences ?? new InMemoryPreferences(),
-            purge);
+            preferences ?? new InMemoryPreferences());
 
     [Fact]
-    public async Task Unauthenticated_startup_reconciles_by_purging_connectors()
+    public async Task Startup_leaves_connector_links_untouched()
     {
-        var purge = new RecordingConnectorPurgeService();
-        var startup = NewStartup(new FakeAuthSession { IsAuthenticated = false }, purge);
-
-        await startup.RunAsync();
-
-        Assert.Equal(1, purge.PurgeAllCalls); // belt-and-suspenders reconciliation ran
-    }
-
-    [Fact]
-    public async Task Authenticated_startup_does_not_purge()
-    {
-        var purge = new RecordingConnectorPurgeService();
-        var startup = NewStartup(new FakeAuthSession { IsAuthenticated = true }, purge);
-
-        await startup.RunAsync();
-
-        Assert.Equal(0, purge.PurgeAllCalls); // the reconciliation never disrupts a signed-in launch
-    }
-
-    [Fact]
-    public async Task Interrupted_purge_is_retried_on_next_unauthenticated_startup()
-    {
-        // Shared in-memory secure enclave; the token store is flaky and throws on its FIRST RemoveAsync,
-        // modelling a purge interrupted mid-sweep.
-        var secureStore = new InMemorySecureStore();
+        // A linked provider on disk (consent flag + exchanged token), as after any normal restart.
         var preferences = new InMemoryPreferences();
-        var tokens = new FlakyTokenStore(new SecureStoreTokenStore(secureStore));
+        var tokens = new SecureStoreTokenStore(new InMemorySecureStore());
         var consent = new PreferencesConnectorConsentStore(preferences, tokens);
-
-        // A connected vendor: consent flag + an exchanged token.
         await consent.GrantAsync("garmin_connect");
         await tokens.SetAsync(ConnectorTokenKeys.CloudSourceToken("garmin_connect"), "cloud-token");
 
-        var session = new AuthSession(secureStore); // empty store => unauthenticated after InitializeAsync
-        var purge = new ConnectorPurgeService(
-            session,
-            [new FakeSourceConnector("garmin_connect")],
-            [],
-            consent,
-            NullLogger<ConnectorPurgeService>.Instance);
-        var startup = NewStartup(session, purge, preferences);
-
-        // First unauthenticated launch: the flaky store throws, the per-connector failure is swallowed inside
-        // PurgeAllAsync (RunAsync does not throw), and the token is stranded.
+        var startup = NewStartup(preferences);
         await startup.RunAsync();
+
+        // The link SURVIVES the launch — the whole point of "link once".
+        Assert.True(consent.HasConsent("garmin_connect"));
         Assert.NotNull(await tokens.GetAsync(ConnectorTokenKeys.CloudSourceToken("garmin_connect")));
-
-        // Next unauthenticated launch: the store no longer throws and the reconciliation clears the stranded token.
-        await startup.RunAsync();
-        Assert.Null(await tokens.GetAsync(ConnectorTokenKeys.CloudSourceToken("garmin_connect")));
-        Assert.False(consent.HasConsent("garmin_connect"));
     }
 
-    /// <summary>Delegating <see cref="ISecureTokenStore"/> that throws on its FIRST RemoveAsync, then behaves.</summary>
-    private sealed class FlakyTokenStore(ISecureTokenStore inner) : ISecureTokenStore
+    [Fact]
+    public async Task First_run_is_reported_until_the_first_run_flag_is_set()
     {
-        private bool _thrown;
+        var preferences = new InMemoryPreferences();
+        var startup = NewStartup(preferences);
 
-        public Task<string?> GetAsync(string key, CancellationToken ct = default) => inner.GetAsync(key, ct);
+        Assert.True(await startup.RunAsync());
 
-        public Task SetAsync(string key, string token, CancellationToken ct = default) => inner.SetAsync(key, token, ct);
-
-        public Task RemoveAsync(string key, CancellationToken ct = default)
-        {
-            if (!_thrown)
-            {
-                _thrown = true;
-                throw new InvalidOperationException("secure enclave unavailable (interrupted purge)");
-            }
-
-            return inner.RemoveAsync(key, ct);
-        }
+        preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+        Assert.False(await startup.RunAsync());
     }
 }

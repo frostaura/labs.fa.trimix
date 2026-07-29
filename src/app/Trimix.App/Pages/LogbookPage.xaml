@@ -1,38 +1,29 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Logbook home (mockup S4 empty / S10 populated): in-page "Logbook" title + mint-ringed avatar ·
-     running-stats strip as instrument numerals (mint DIVES + white MAX/BOTTOM) · dive cards · free-tier
-     cap meter near the cap (paywall_shown trigger=logbook_cap via the VM) · empty state with a mint
-     line-chart glyph and the dual Import (mint CTA-card) / Manual (ghost) CTAs. -->
-<ContentPage
+<!-- Logbook home (design "Logbook"): shared PageHeader ("Logbook" + the sonar sync button as the
+     right action) · running-stats strip as instrument numerals (mint DIVES + white MAX/BOTTOM) ·
+     dive rows with the rowIn stagger · free-tier cap meter near the cap (paywall_shown
+     trigger=logbook_cap via the VM) · empty state with the mint trend glyph · the `+` FAB. The two
+     bottom sheets (add menu + streaming sync) are BottomSheet controls, LAST children of the root
+     grid so the scrim covers the window and the sheet reaches the bottom edge; the Shell tab bar is
+     left in place (the sheet slides up over it — toggling it bounced the content). -->
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.LogbookPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
-    xmlns:dtos="clr-namespace:Trimix.Contracts.Dtos;assembly=Trimix.Contracts"
-    xmlns:stats="clr-namespace:Trimix.Core.Stats;assembly=Trimix.Core"
     xmlns:contracts="clr-namespace:Trimix.Contracts;assembly=Trimix.Contracts"
-    xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     x:DataType="vm:LogbookViewModel"
     Title="Logbook">
 
-    <!-- Outer grid overlays the `+` FAB, the add sheet and the streaming sync sheet on the page. -->
+    <!-- Outer grid overlays the `+` FAB and the two bottom sheets on the page. -->
     <Grid>
 
     <Grid RowDefinitions="Auto,Auto,Auto,*">
 
-        <!-- Header: big screen title + circular mint-ringed avatar. -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="24,16,24,8" VerticalOptions="Center">
-            <Label
-                Grid.Column="0"
-                Style="{StaticResource Title24}"
-                Text="Logbook"
-                VerticalOptions="Center"
-                SemanticProperties.HeadingLevel="Level1" />
-            <Grid Grid.Column="1" WidthRequest="44" HeightRequest="44" VerticalOptions="Center" AutomationProperties.IsInAccessibleTree="False">
-                <shapes:Ellipse Stroke="{StaticResource SonarBrush}" StrokeThickness="1.5" Fill="{StaticResource SurfaceRaisedBrush}" WidthRequest="44" HeightRequest="44" />
-                <shapes:Ellipse Fill="{StaticResource SonarBrush}" Opacity="0.9" WidthRequest="14" HeightRequest="14" HorizontalOptions="Center" VerticalOptions="Center" />
-            </Grid>
-        </Grid>
+        <!-- Shared header: title only. The sonar "Sync now" button was removed from every page's
+             top-right — the add sheet's "Sync now" row is the single entry point now. -->
+        <controls:PageHeader Grid.Row="0" Margin="24,8,24,0" Title="Logbook" />
 
         <!-- Stat strip (prototype C3): three tiles — DIVES (mint) · MAX (unit-aware) · BOTTOM (hours).
              Hidden while empty. Each tile announces once; numeral + caption children excluded from
@@ -61,19 +52,27 @@
         <!-- Free-tier cap meter (visible near/over the cap; icon + text + meter, never color alone). -->
         <Border Grid.Row="2" Style="{StaticResource GlassCard}" Margin="24,4" IsVisible="{Binding IsCapMeterVisible}">
             <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-                <Label Style="{StaticResource Caption13}">
-                    <Label.FormattedText>
-                        <FormattedString>
-                            <!-- The cap number is sourced from Trimix.Contracts.FreeTier (the constant
-                                 that enforces the cap), never a hardcoded "25", so copy and enforcement
-                                 can never drift. -->
-                            <Span Text="⚠ " TextColor="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}" />
-                            <Span Text="{Binding TotalDives}" />
-                            <Span Text=" dives logged — the free logbook shows the latest " />
-                            <Span Text="{Binding Source={x:Static contracts:FreeTier.FreeLogbookVisibleDives}, StringFormat='{}{0}.'}" />
-                        </FormattedString>
-                    </Label.FormattedText>
-                </Label>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <controls:AppIcon
+                        Grid.Column="0"
+                        Icon="warning"
+                        Size="16"
+                        Color="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
+                        VerticalOptions="Start"
+                        Margin="0,1,0,0" />
+                    <Label Grid.Column="1" Style="{StaticResource Caption13}" LineBreakMode="WordWrap">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <!-- The cap number is sourced from Trimix.Contracts.FreeTier (the constant
+                                     that enforces the cap), never a hardcoded "25", so copy and enforcement
+                                     can never drift. -->
+                                <Span Text="{Binding TotalDives}" />
+                                <Span Text=" dives logged — the free logbook shows the latest " />
+                                <Span Text="{Binding Source={x:Static contracts:FreeTier.FreeLogbookVisibleDives}, StringFormat='{}{0}.'}" />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
+                </Grid>
                 <ProgressBar
                     Style="{StaticResource CapMeterWarn}"
                     Progress="{Binding CapProgress}"
@@ -102,12 +101,13 @@
                 <!-- Prototype C3 dive row: sequence # (mint) · site · "location · date" · the
                      origin→destination route string (GARMIN → PADI · SSI) · right column depth /
                      NNmin / gas tag. Each row is a DiveRowItem over a MergedDive union; tapping
-                     opens the union's dive. -->
+                     opens the union's dive. Loaded → the design's rowIn stagger (code-behind). -->
                 <DataTemplate x:DataType="vm:DiveRowItem">
                     <Grid
                         ColumnDefinitions="Auto,*,Auto"
                         ColumnSpacing="13"
                         Padding="4,13"
+                        Loaded="OnRowLoaded"
                         SemanticProperties.Description="{Binding Site}"
                         SemanticProperties.Hint="Opens the dive's details">
                         <Grid.GestureRecognizers>
@@ -148,15 +148,19 @@
             </CollectionView.Footer>
         </CollectionView>
 
-        <!-- Empty state (S4): centered mint line-chart glyph + copy; dual CTA pinned near the bottom. -->
-        <Grid Grid.Row="3" IsVisible="{Binding IsEmpty}" RowDefinitions="*,Auto" Padding="{StaticResource PageContentPadding}" RowSpacing="{StaticResource SectionSpacing}">
+        <!-- Empty state (design "No dives yet"): centered mint trend glyph + copy. Linking a platform
+             is done from the `+` add sheet → "Manage providers", so no CTA button here. -->
+        <Grid Grid.Row="3" IsVisible="{Binding IsEmpty}" Padding="{StaticResource PageContentPadding}">
 
-            <VerticalStackLayout Grid.Row="0" VerticalOptions="Center" Spacing="16">
-                <!-- Mint line-chart glyph: faint baseline + rising mint zig. -->
-                <Grid WidthRequest="96" HeightRequest="56" HorizontalOptions="Center" AutomationProperties.IsInAccessibleTree="False">
-                    <shapes:Polyline Points="0,54 96,54" Stroke="{StaticResource GlassStrokeBrush}" StrokeThickness="1" />
-                    <shapes:Polyline Points="2,44 20,30 38,36 56,14 74,22 94,4" Stroke="{StaticResource SonarBrush}" StrokeThickness="2.5" StrokeLineJoin="Round" StrokeLineCap="Round" />
-                </Grid>
+            <VerticalStackLayout VerticalOptions="Center" Spacing="16">
+                <!-- The design's trend glyph (46px, stroke 1.5, opacity .6). -->
+                <controls:AppIcon
+                    Icon="trend"
+                    Size="46"
+                    StrokeThickness="1.5"
+                    Opacity="0.6"
+                    HorizontalOptions="Center"
+                    AutomationProperties.IsInAccessibleTree="False" />
                 <Label
                     Style="{StaticResource Heading18}"
                     Text="No dives yet"
@@ -167,113 +171,36 @@
                     Text="Connect a dive computer or training center and your dives will appear here on their own."
                     HorizontalTextAlignment="Center" />
             </VerticalStackLayout>
-
-            <!-- Empty-state CTA (prototype S4): route to Providers — no manual entry, no BLE. -->
-            <Button
-                Grid.Row="1"
-                Style="{StaticResource PrimaryButton}"
-                Text="Connect your computer or dive center"
-                Command="{Binding ManageProvidersCommand}"
-                SemanticProperties.Description="Connect your computer or dive center"
-                SemanticProperties.Hint="Opens the Providers list to link a platform" />
         </Grid>
     </Grid>
 
-    <!-- ================= `+` FAB (opens the add sheet) ================= -->
-    <Button
-        Text="+"
-        Command="{Binding OpenAddSheetCommand}"
+    <!-- ================= `+` FAB (opens the add sheet) — AppIcon plus, never a text glyph ================= -->
+    <Border
+        StrokeShape="RoundRectangle 28"
+        StrokeThickness="0"
+        WidthRequest="56"
+        HeightRequest="56"
         HorizontalOptions="End"
         VerticalOptions="End"
         Margin="0,0,20,24"
-        WidthRequest="56"
-        HeightRequest="56"
-        MinimumWidthRequest="56"
-        MinimumHeightRequest="56"
-        Padding="0"
-        CornerRadius="28"
-        FontSize="26"
-        FontFamily="SpaceGroteskBold"
-        BackgroundColor="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
-        TextColor="{StaticResource MintInk}"
+        Background="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}"
         SemanticProperties.Description="Add"
-        SemanticProperties.Hint="Opens sync and provider options" />
-
-    <!-- ================= Add sheet scrim + sheet (Sync now · Manage providers ONLY) ================= -->
-    <BoxView
-        Color="#7304080A"
-        IsVisible="{Binding IsAddSheetOpen}"
-        SemanticProperties.Description="Dismiss options">
-        <BoxView.GestureRecognizers>
-            <TapGestureRecognizer Command="{Binding CloseAddSheetCommand}" />
-        </BoxView.GestureRecognizers>
-    </BoxView>
-
-    <Border
-        IsVisible="{Binding IsAddSheetOpen}"
-        VerticalOptions="End"
-        StrokeThickness="0"
-        Background="{AppThemeBinding Light={StaticResource LightSurfaceBrush}, Dark={StaticResource SurfaceBrush}}"
-        StrokeShape="RoundRectangle 24,24,0,0"
-        Padding="22,14,22,30">
-        <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-            <BoxView WidthRequest="36" HeightRequest="4" CornerRadius="2" HorizontalOptions="Center"
-                     Color="{AppThemeBinding Light={StaticResource LightGlassStroke}, Dark={StaticResource GlassStroke}}"
-                     AutomationProperties.IsInAccessibleTree="False" />
-
-            <!-- Sync now -->
-            <Border Style="{StaticResource GlassCard}"
-                    SemanticProperties.Description="Sync now"
-                    SemanticProperties.Hint="Pulls and pushes dives across linked providers">
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding SyncNowCommand}" />
-                </Border.GestureRecognizers>
-                <VerticalStackLayout Spacing="2">
-                    <Label Style="{StaticResource Heading18}" Text="Sync now" />
-                    <Label Style="{StaticResource Caption13}" Text="Pull and push dives across linked providers" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Manage providers -->
-            <Border Style="{StaticResource GlassCard}"
-                    SemanticProperties.Description="Manage providers"
-                    SemanticProperties.Hint="Link or unlink your platforms">
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ManageProvidersCommand}" />
-                </Border.GestureRecognizers>
-                <VerticalStackLayout Spacing="2">
-                    <Label Style="{StaticResource Heading18}" Text="Manage providers" />
-                    <Label Style="{StaticResource Caption13}" Text="Link or unlink your platforms" />
-                </VerticalStackLayout>
-            </Border>
-        </VerticalStackLayout>
+        SemanticProperties.Hint="Opens sync and provider options">
+        <controls:AppIcon
+            Icon="plus"
+            Size="24"
+            StrokeThickness="2"
+            Color="{StaticResource MintInk}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding OpenAddSheetCommand}" />
+        </Border.GestureRecognizers>
     </Border>
 
-    <!-- ================= Streaming sync sheet (bound to the shared SyncSessionViewModel) ================= -->
-    <BoxView
-        Color="#5904080A"
-        IsVisible="{Binding Sync.IsSyncing}"
-        InputTransparent="True" />
-
-    <Border
-        IsVisible="{Binding Sync.IsSyncing}"
-        VerticalOptions="End"
-        StrokeThickness="0"
-        Background="{AppThemeBinding Light={StaticResource LightSurfaceBrush}, Dark={StaticResource SurfaceBrush}}"
-        StrokeShape="RoundRectangle 24,24,0,0"
-        Padding="22,16,22,28">
-        <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
-            <Label Style="{StaticResource Heading18}" Text="Syncing…" SemanticProperties.HeadingLevel="Level2" />
-            <Label Style="{StaticResource MonoLabelMint}" Text="{Binding Sync.SyncLabel}" TextTransform="None" />
-            <ProgressBar
-                Progress="{Binding Sync.Progress}"
-                SemanticProperties.Description="{Binding Sync.SyncSub}" />
-            <Label
-                Style="{StaticResource Caption13}"
-                Text="{Binding Sync.SyncSub}"
-                AutomationProperties.IsInAccessibleTree="False" />
-        </VerticalStackLayout>
-    </Border>
+    <!-- The add + streaming-sync bottom sheets live in SheetOverlayPage, a transparent modal pushed
+         over the whole window (above the Shell tab bar) by the code-behind when their VM flags rise —
+         so each card overlays the tab bar with the menu dimmed underneath it. -->
 
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

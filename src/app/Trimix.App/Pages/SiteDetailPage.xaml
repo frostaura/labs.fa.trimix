@@ -3,10 +3,11 @@
      never color alone), marine life, access notes, approved community notes, and "Suggest
      correction" with the public-after-review moderation disclosure. Fires site_viewed (Core VM);
      for free users the correction button is a paywall_shown trigger=site_contribute moment. -->
-<ContentPage
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.SiteDetailPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     xmlns:dtos="clr-namespace:Trimix.Contracts.Dtos;assembly=Trimix.Contracts"
     xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
@@ -16,22 +17,13 @@
 
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Ghost mint back affordance → CloseCommand (unchanged). -->
-        <Button
+        <!-- Shared header: ← back (CloseCommand) — converges the old bare "←" text button. No
+             title; the hero card immediately below carries the site name. -->
+        <controls:PageHeader
             Grid.Row="0"
-            Text="←"
-            Command="{Binding CloseCommand}"
-            HorizontalOptions="Start"
-            WidthRequest="52"
-            HeightRequest="52"
-            Padding="0"
-            Margin="10,8,0,0"
-            BackgroundColor="Transparent"
-            BorderWidth="0"
-            FontSize="24"
-            TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
-            SemanticProperties.Description="Back"
-            SemanticProperties.Hint="Returns to the previous screen" />
+            Margin="24,8,24,0"
+            ShowBack="True"
+            BackCommand="{Binding CloseCommand}" />
 
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
@@ -94,7 +86,16 @@
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="x:String">
                                 <Border Style="{StaticResource ChipWarn}" Margin="0,0,8,8" SemanticProperties.Description="{Binding ., StringFormat='Hazard: {0}'}">
-                                    <Label Style="{StaticResource ChipLabelWarn}" Text="{Binding ., StringFormat='⚠ {0}'}" />
+                                    <!-- Warning ICON + text (never a ⚠ glyph; never color alone). -->
+                                    <HorizontalStackLayout Spacing="5">
+                                        <controls:AppIcon
+                                            Icon="warning"
+                                            Size="11"
+                                            Color="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
+                                            VerticalOptions="Center"
+                                            AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Style="{StaticResource ChipLabelWarn}" Text="{Binding .}" VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
                                 </Border>
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
@@ -157,4 +158,4 @@
             </VerticalStackLayout>
         </ScrollView>
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

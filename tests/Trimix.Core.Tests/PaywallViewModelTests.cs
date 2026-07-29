@@ -62,7 +62,7 @@ public class PaywallViewModelTests
     }
 
     [Fact]
-    public async Task Not_now_dismisses_with_the_dives_on_hold_toast()
+    public async Task Not_now_dismisses_without_a_toast()
     {
         var vm = CreateViewModel();
         vm.PendingDives = 3;
@@ -70,7 +70,7 @@ public class PaywallViewModelTests
         await vm.NotNowCommand.ExecuteAsync(null);
 
         Assert.Equal(1, _navigator.BackCount);
-        Assert.Contains(_dialogs.Toasts, t => t.Contains("3 dives on hold — upgrade anytime", StringComparison.Ordinal));
+        Assert.Empty(_dialogs.Toasts); // the design has no toasts — the dismiss itself is the state change
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class PaywallViewModelTests
     }
 
     [Fact]
-    public async Task Restore_link_reconciles_and_leaves_the_paywall_on_success()
+    public async Task Restore_success_shows_the_unlocked_state_instead_of_a_toast()
     {
         _entitlements.RestoreResult = 1;
         var vm = CreateViewModel();
@@ -136,8 +136,11 @@ public class PaywallViewModelTests
         await vm.RestoreCommand.ExecuteAsync(null);
 
         Assert.Equal(1, _entitlements.RestoreCalls);
-        Assert.Equal(1, _navigator.BackCount);
-        Assert.Contains(_dialogs.Toasts, t => t.Contains("restored", StringComparison.OrdinalIgnoreCase));
+        // No toast, no dismissal: the page flips to the Unlocked (S9) state — the design indicates
+        // state by animation — and "Go to logbook" dismisses.
+        Assert.True(vm.PurchaseSucceeded);
+        Assert.Equal(0, _navigator.BackCount);
+        Assert.Empty(_dialogs.Toasts);
     }
 
     [Fact]
@@ -149,7 +152,10 @@ public class PaywallViewModelTests
         await vm.RestoreCommand.ExecuteAsync(null);
 
         Assert.Equal(0, _navigator.BackCount);
-        Assert.Contains(_dialogs.Toasts, t => t.Contains("No previous purchases", StringComparison.OrdinalIgnoreCase));
+        Assert.False(vm.PurchaseSucceeded);
+        // Nothing changed on screen, so the outcome arrives as a dialog (never a toast).
+        Assert.Contains(_dialogs.Alerts, a => a.Title.Contains("Nothing to restore", StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(_dialogs.Toasts);
     }
 
     [Fact]

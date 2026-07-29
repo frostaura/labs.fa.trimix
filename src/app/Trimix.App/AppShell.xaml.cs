@@ -20,7 +20,6 @@ public partial class AppShell : Shell
     private static void RegisterModalRoutes()
     {
         Routing.RegisterRoute(Routes.Onboarding, typeof(OnboardingPage));
-        Routing.RegisterRoute(Routes.Auth, typeof(AuthPage));
         // Settings moved off the tab bar (the "You" tab is now the StatsPage) and is reached as a
         // pushed route from the StatsPage gear.
         Routing.RegisterRoute(Routes.Settings, typeof(SettingsPage));

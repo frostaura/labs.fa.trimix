@@ -30,4 +30,11 @@ public interface IEntitlementService
 
     /// <summary>Serverless no-op (there is no pending server-validation queue). Kept for call-site compatibility.</summary>
     Task ReconcilePendingAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears the cached paid tier (drops to <see cref="EntitlementTier.Free"/>) and the one-shot
+    /// auto-restore flag. Used by the Settings "Reset app" / "Delete my data" flows; a store restore
+    /// re-grants at any time.
+    /// </summary>
+    Task ClearLocalGrantAsync(CancellationToken cancellationToken = default);
 }

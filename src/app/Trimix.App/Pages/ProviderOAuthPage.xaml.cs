@@ -1,3 +1,4 @@
+using Trimix.App.Controls;
 using Trimix.Core;
 using Trimix.Core.ViewModels;
 
@@ -8,7 +9,7 @@ namespace Trimix.App.Pages;
 /// connector the sheet authorizes; everything else binds to <see cref="ProviderOAuthViewModel"/>.
 /// </summary>
 [QueryProperty(nameof(ConnectorId), Routes.Params.ConnectorId)]
-public partial class ProviderOAuthPage : ContentPage
+public partial class ProviderOAuthPage : TrimixPage
 {
     private readonly ProviderOAuthViewModel _viewModel;
 

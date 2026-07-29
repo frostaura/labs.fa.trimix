@@ -34,6 +34,16 @@ public static class MauiProgram
                 fonts.AddFont("HankenGrotesk-Bold.ttf", "HankenGroteskBold");
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            })
+            .ConfigureMauiHandlers(handlers =>
+            {
+                // Native backdrop blur for the bottom sheet's frosted backdrop (real UIVisualEffectView
+                // on iOS; no-op on Android where the scrim carries the frost).
+#if IOS
+                handlers.AddHandler<Controls.BlurView, Platforms.iOS.BlurViewHandler>();
+#elif ANDROID
+                handlers.AddHandler<Controls.BlurView, Platforms.Android.BlurViewHandler>();
+#endif
             });
 
 #if ANDROID
@@ -57,17 +67,6 @@ public static class MauiProgram
         builder.Services.AddSingleton<Trimix.Core.Abstractions.IAppInfo, MauiAppInfoService>();
         builder.Services.AddSingleton<INavigator, ShellNavigator>();
         builder.Services.AddSingleton<IUserDialogs, MauiUserDialogs>();
-
-        // Biometric local unlock (C2): platform BiometricPrompt / LocalAuthentication. Registered
-        // BEFORE AddTrimixCore so Core's always-succeeding DevBiometricUnlock fallback never engages
-        // on a real platform build. Both implementations degrade to success when no biometric
-        // hardware/enrollment exists (emulators) — the app must never lock the diver out of their
-        // own on-device logbook.
-#if ANDROID
-        builder.Services.AddSingleton<IBiometricUnlock, Trimix.App.Auth.AndroidBiometricUnlock>();
-#elif IOS
-        builder.Services.AddSingleton<IBiometricUnlock, Trimix.App.Auth.IosBiometricUnlock>();
-#endif
 
         // ---- Billing (serverless: entitlements are granted ON-DEVICE from store receipts) -------
         // Debug: Core's SandboxBillingService (TryAdd inside AddTrimixCore). Release: the real store adapters.
@@ -146,7 +145,6 @@ public static class MauiProgram
 
         // ---- Pages (Shell resolves routed pages through DI; viewmodels constructor-inject) ----
         builder.Services.AddTransient<OnboardingPage>();
-        builder.Services.AddTransient<AuthPage>();
         builder.Services.AddTransient<LogbookPage>();
         builder.Services.AddTransient<SitesPage>();
         builder.Services.AddTransient<StatsPage>();
@@ -162,10 +160,6 @@ public static class MauiProgram
 #endif
 
         var app = builder.Build();
-
-        // Force the purge service to construct now so its sign-out + identity-change subscriptions
-        // are live for the whole app lifetime (an unresolved singleton never subscribes).
-        _ = app.Services.GetRequiredService<Trimix.Core.Privacy.ConnectorPurgeService>();
 
         return app;
     }

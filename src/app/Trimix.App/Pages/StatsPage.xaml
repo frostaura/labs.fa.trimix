@@ -1,23 +1,49 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- "You" tab (prototype C8): avatar initials + inline-editable name (pencil · Enter/blur saves) ·
-     "PADI Advanced OW · N dives" cert line · plan card (Free "Keeps your last N dives" → Upgrade /
-     Pro "Lifetime · unlimited import" · Active) · UNITS toggle Metric|Imperial (re-renders
-     depths/temps app-wide via the shared preference) · NITROX MOD PLANNER (pure display math —
-     MOD = (1.4/FO₂ − 1) × 10 — never a deco engine) · "Manage providers · N of 7 linked ›".
-     Settings stays reachable behind the header gear (C10). -->
-<ContentPage
+<!-- "You" tab (prototype C8): shared PageHeader ("You" + gear → Settings, standardized top-right) ·
+     avatar initials + inline-editable name (pencil · Enter/blur saves) · "PADI Advanced OW · N
+     dives" cert line · plan card (Free "Keeps your last N dives" → Upgrade / Pro "Lifetime ·
+     unlimited import" · Active) · UNITS toggle Metric|Imperial (re-renders depths/temps app-wide
+     via the shared preference) · NITROX MOD PLANNER (pure display math — MOD = (1.4/FO₂ − 1) × 10 —
+     never a deco engine; animated fill bar) · "Manage providers · N of 7 linked ›". The glass
+     cards/sliders stay (founder direction). -->
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.StatsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     x:DataType="vm:StatsViewModel"
     Title="You">
 
-    <ScrollView>
+    <!-- Header FIXED outside the scroll (matches every other page — the title/action must never
+         scroll away); content scrolls beneath it. -->
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Shared header: tab page (no back) + the gear as the standardized top-right action. -->
+        <controls:PageHeader Grid.Row="0" Margin="24,8,24,0" Title="You">
+            <controls:PageHeader.RightAction>
+                <Grid
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    SemanticProperties.Description="Settings"
+                    SemanticProperties.Hint="Opens units, purchases and about">
+                    <controls:AppIcon
+                        Icon="gear"
+                        Size="20"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding OpenSettingsCommand}" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </controls:PageHeader.RightAction>
+        </controls:PageHeader>
+
+    <ScrollView Grid.Row="1">
         <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
 
-            <!-- Header: avatar initials · inline-editable name · cert/dive-count sub-line · Settings. -->
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+            <!-- Profile: avatar initials · inline-editable name · cert/dive-count sub-line. -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
                 <Border Grid.Column="0"
                         StrokeShape="RoundRectangle 26"
                         Stroke="{StaticResource SonarBrush}"
@@ -41,7 +67,15 @@
                             <TapGestureRecognizer Command="{Binding StartNameEditCommand}" />
                         </HorizontalStackLayout.GestureRecognizers>
                         <Label Style="{StaticResource Heading18}" FontSize="19" Text="{Binding UserName}" VerticalOptions="Center" />
-                        <Label Style="{StaticResource Caption13}" Text="✎" Opacity="0.55" VerticalOptions="Center" AutomationProperties.IsInAccessibleTree="False" />
+                        <!-- Design's pencil glyph (12px, stroke #8ba0a4, opacity .55). -->
+                        <controls:AppIcon
+                            Icon="pencil"
+                            Size="12"
+                            StrokeThickness="1.8"
+                            Color="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                            Opacity="0.55"
+                            VerticalOptions="Center"
+                            AutomationProperties.IsInAccessibleTree="False" />
                     </HorizontalStackLayout>
                     <!-- Edit state: Enter or blur saves (code-behind wires blur + focus). -->
                     <Entry x:Name="NameEntry"
@@ -54,14 +88,6 @@
                            SemanticProperties.Description="Your name" />
                     <Label Style="{StaticResource Caption13}" Text="{Binding CertLine}" />
                 </VerticalStackLayout>
-                <Button Grid.Column="2"
-                        Style="{StaticResource GhostButton}"
-                        Text="⚙"
-                        FontSize="20"
-                        Command="{Binding OpenSettingsCommand}"
-                        VerticalOptions="Center"
-                        SemanticProperties.Description="Settings"
-                        SemanticProperties.Hint="Opens units, purchases and about" />
             </Grid>
 
             <!-- Plan card: Free (Keeps your last N dives · Upgrade) / Pro (Lifetime · Active). -->
@@ -145,9 +171,10 @@
                     <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" FontSize="26" Text="{Binding ModText}" AutomationProperties.IsInAccessibleTree="False" />
                     <Label Style="{StaticResource MonoLabelDim}" Text="MOD" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
                 </HorizontalStackLayout>
-                <!-- Animated MOD fill bar. -->
+                <!-- Animated MOD fill bar (design: width tween .35s on O2 change — code-behind
+                     drives ProgressTo from ModFillFraction; honors reduced motion). -->
                 <ProgressBar
-                    Progress="{Binding ModFillFraction}"
+                    x:Name="ModFillBar"
                     ProgressColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
                     AutomationProperties.IsInAccessibleTree="False" />
             </VerticalStackLayout>
@@ -161,19 +188,25 @@
                 </Grid.GestureRecognizers>
                 <Border Grid.Column="0" Style="{StaticResource BadgeMint}" WidthRequest="34" HeightRequest="34" VerticalOptions="Center"
                         AutomationProperties.IsInAccessibleTree="False">
-                    <Label Style="{StaticResource BadgeTextMint}" Text="⇄" FontSize="14" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <!-- Design's providers bubble: the sliders glyph, 16px. -->
+                    <controls:AppIcon Icon="you" Size="16" HorizontalOptions="Center" VerticalOptions="Center" />
                 </Border>
                 <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
                     <Label Style="{StaticResource Heading18}" FontSize="14" Text="Manage providers" />
                     <Label Style="{StaticResource Caption13}" FontSize="11" Text="{Binding LinkedProvidersLabel}" />
                 </VerticalStackLayout>
-                <Label Grid.Column="2" Style="{StaticResource Heading18}" Text="›" VerticalOptions="Center"
-                       TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
-                       AutomationProperties.IsInAccessibleTree="False" />
+                <controls:AppIcon
+                    Grid.Column="2"
+                    Icon="chevron"
+                    Size="16"
+                    Color="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
+                    VerticalOptions="Center"
+                    AutomationProperties.IsInAccessibleTree="False" />
             </Grid>
 
             <!-- Bottom spacer so the last row clears the floating tab bar. -->
             <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
         </VerticalStackLayout>
     </ScrollView>
-</ContentPage>
+    </Grid>
+</controls:TrimixPage>

@@ -38,7 +38,7 @@ public class ProviderOAuthViewModelTests
     }
 
     private SyncSessionViewModel NewSession() => new(
-        _coordinator, [], _consent, _navigator, _dialogs, new InMemoryPreferences(), new FakeClock())
+        _coordinator, [], _consent, _navigator, new InMemoryPreferences(), new FakeClock())
     {
         AutoSyncDelayMs = 0,
         DoneLingerMs = 0,
@@ -120,9 +120,10 @@ public class ProviderOAuthViewModelTests
         Assert.Equal("", vm.Password);
         // The password reached the wire exactly once (ProvideCredentials fed it into the connector).
         Assert.Single(_http.Requests, r => r.Body is not null && r.Body.Contains(Uri.EscapeDataString(Password)));
-        // Sheet dismissed + linked toast.
+        // Sheet dismissed; NO toast (the design removed them — the provider row's inline status
+        // and the auto-started sync sheet are the state change).
         Assert.Equal(1, _navigator.BackCount);
-        Assert.Contains(_dialogs.Toasts, t => t.Contains("Garmin Dive linked · read-only", StringComparison.Ordinal));
+        Assert.Empty(_dialogs.Toasts);
 
         // FIRST link → the session auto-starts a sync (prototype ~900ms; 0 in tests).
         Assert.NotNull(vm.AutoSyncTask);

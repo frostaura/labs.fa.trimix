@@ -9,10 +9,11 @@ namespace Trimix.Core.ViewModels;
 
 /// <summary>
 /// The paywall — the prototype's "Purchase moment" (S8) + "Unlocked" (S9), two states of one page:
-/// banner <c>⚠ FREE LIMIT REACHED · N / cap DIVES</c>, "Unlock unlimited import.", exactly two
-/// one-off SKUs (Pro / Lifetime <c>BEST VALUE</c> — never auto-renew), "Unlock — one-time",
-/// "One-time purchase · no subscription, ever", "Restore purchases" and "Not now" (dismiss with the
-/// "N dives on hold" toast). Serverless: the store confirms the purchase and the entitlement is
+/// banner <c>FREE LIMIT REACHED · N / cap DIVES</c> (warning icon rendered by the page), "Unlock
+/// unlimited import.", exactly two one-off SKUs (Pro / Lifetime <c>BEST VALUE</c> — never
+/// auto-renew), "Unlock — one-time", "One-time purchase · no subscription, ever", "Restore
+/// purchases" and "Not now" (the single dismiss — no toast; the design shows state by animation
+/// only). Serverless: the store confirms the purchase and the entitlement is
 /// granted ON-DEVICE (receipt → SKU → tier via <see cref="IEntitlementService.RestoreAsync"/>) —
 /// client-trust is the accepted tradeoff. Event contract per attempt: <c>purchase_started</c> →
 /// store result → <c>purchase_completed</c> or <c>purchase_cancelled</c> / <c>purchase_failed</c>;
@@ -52,9 +53,10 @@ public partial class PaywallViewModel(
     [NotifyPropertyChangedFor(nameof(UnlockedBody))]
     private int _diveCount;
 
-    /// <summary>Banner: "⚠ FREE LIMIT REACHED · N / cap DIVES".</summary>
+    /// <summary>Banner: "FREE LIMIT REACHED · N / cap DIVES" (the page renders the warning ICON —
+    /// an AppIcon, never a text glyph — beside this label).</summary>
     public string LimitLabel =>
-        $"⚠ FREE LIMIT REACHED · {Math.Min(DiveCount, FreeTier.FreeLogbookVisibleDives)} / {FreeTier.FreeLogbookVisibleDives} DIVES";
+        $"FREE LIMIT REACHED · {Math.Min(DiveCount, FreeTier.FreeLogbookVisibleDives)} / {FreeTier.FreeLogbookVisibleDives} DIVES";
 
     /// <summary>Sub-copy: "{N} more dives are waiting on your providers. Free keeps your last cap."</summary>
     public string PendingLabel =>
@@ -155,24 +157,25 @@ public partial class PaywallViewModel(
             return;
         }
 
-        await dialogs.ToastAsync(reconciled > 0
-            ? "Purchases restored."
-            : "No previous purchases found on this device.");
         if (reconciled > 0)
         {
-            await navigator.GoBackAsync();
+            // No toast (the design has none): flipping to the Unlocked (S9) state IS the animated
+            // confirmation that the restore succeeded.
+            PurchaseSucceeded = true;
+            return;
         }
+
+        // Nothing changed on screen, so a silent no-op would read as a broken button — a dialog
+        // (not a toast) carries the outcome.
+        await dialogs.AlertAsync(
+            "Nothing to restore",
+            "No previous purchases were found for this app store account.");
     }
 
-    /// <summary>"Not now": the single dismiss — free plan stays, held dives wait on the providers.</summary>
+    /// <summary>"Not now": the single dismiss — free plan stays, held dives wait on the providers.
+    /// No toast (the design has none); the paywall simply pops away.</summary>
     [RelayCommand]
-    private async Task NotNowAsync()
-    {
-        await navigator.GoBackAsync();
-        await dialogs.ToastAsync(PendingDives > 0
-            ? $"{PendingDives} dive{(PendingDives > 1 ? "s" : "")} on hold — upgrade anytime"
-            : "Free plan kept — upgrade anytime");
-    }
+    private Task NotNowAsync() => navigator.GoBackAsync();
 
     /// <summary>Unlocked state's "Go to logbook".</summary>
     [RelayCommand]

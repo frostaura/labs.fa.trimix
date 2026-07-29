@@ -116,24 +116,3 @@ public sealed class NoopUserDialogs : IUserDialogs
 
     public Task ToastAsync(string message) => Task.CompletedTask;
 }
-
-/// <summary>
-/// Always-succeeding <see cref="IBiometricUnlock"/> (the App's platform BiometricPrompt /
-/// LocalAuthentication implementations replace this). The short delay mimics the platform sheet so
-/// the "Authenticating…" state is visible on emulators and in dev runs.
-/// </summary>
-public sealed class DevBiometricUnlock : IBiometricUnlock
-{
-    /// <summary>Delay before the simulated success; tests set 0.</summary>
-    public int SimulatedDelayMs { get; init; } = 700;
-
-    public async Task<BiometricUnlockResult> AuthenticateAsync(string reason, CancellationToken cancellationToken = default)
-    {
-        if (SimulatedDelayMs > 0)
-        {
-            await Task.Delay(SimulatedDelayMs, cancellationToken).ConfigureAwait(false);
-        }
-
-        return new BiometricUnlockResult(true, "Dev fallback (no platform biometric hardware).");
-    }
-}

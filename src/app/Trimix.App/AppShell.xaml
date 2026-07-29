@@ -23,9 +23,10 @@
             Icon="tab_sites.png"
             ContentTemplate="{DataTemplate pages:SitesPage}"
             Route="sites" />
+        <!-- "You" uses the design's sliders glyph (tab_you.svg), not the old settings icon. -->
         <ShellContent
             Title="You"
-            Icon="tab_settings.png"
+            Icon="tab_you.png"
             ContentTemplate="{DataTemplate pages:StatsPage}"
             Route="stats" />
     </TabBar>

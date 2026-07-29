@@ -1,139 +1,108 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!-- Providers (prototype S5): one row per registered connector — Garmin Dive · Suunto · ScubaPro ·
-     Mares · Oceanic+ then PADI · SSI — states Not connected → Linked ✓ / Syncing…. Header hosts the
-     radar "Sync now" button (dimmed until a provider is linked) + the last-sync label. Connect
-     pushes the provider's own in-app sign-in sheet; arriving via an unlinked "Sync now" flashes the
-     Connect buttons red (nudge). Tapping a linked row offers unlink (revoke anytime). -->
-<ContentPage
+     Mares · Oceanic+ then PADI · SSI — states Not connected → Linked ✓ / Syncing…. Shared
+     foundation: TrimixPage (screenIn), PageHeader with the ← back this pushed page previously
+     lacked, and the animated SonarPulse radar (design blePulse, gated on any linked provider) as
+     the header's RightAction. Connect pushes the provider's own in-app sign-in sheet; arriving via
+     an unlinked "Sync now" pulses the Connect buttons red (connectNudge, animated in code-behind).
+     Rows stagger in per the design's rowIn. Tapping a linked row offers unlink (revoke anytime). -->
+<controls:TrimixPage
     x:Class="Trimix.App.Pages.ConnectedAccountsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     x:DataType="vm:ConnectedAccountsViewModel"
     Title="Providers">
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="24,8,24,0">
 
-        <!-- Header: title + radar Sync-now button -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="24,16,24,4" ColumnSpacing="12">
-            <VerticalStackLayout Grid.Column="0" Spacing="{StaticResource TightSpacing}">
-                <Label
-                    Style="{StaticResource Title24}"
-                    Text="Providers"
-                    SemanticProperties.HeadingLevel="Level1" />
-                <Label
-                    Style="{StaticResource Caption13}"
-                    Text="Your phone syncs each platform directly — links stay on-device." />
-            </VerticalStackLayout>
+        <!-- Shared header: pushed page ⇒ ← back only. The radar "Sync now" button was removed from
+             every page's top-right — the add sheet's "Sync now" row is the single entry point now. -->
+        <controls:PageHeader Grid.Row="0" Title="Providers" ShowBack="True" />
 
-            <!-- Radar "Sync now": concentric mint rings; dimmed when nothing is linked. An unlinked
-                 tap nudges the Connect buttons (the shared command routes here + nudges). -->
-            <Grid
-                Grid.Column="1"
-                WidthRequest="48"
-                HeightRequest="48"
-                VerticalOptions="Start"
-                Opacity="1"
-                SemanticProperties.Description="Sync now"
-                SemanticProperties.Hint="Pulls and pushes dives across your linked providers">
-                <Grid.Triggers>
-                    <DataTrigger TargetType="Grid" Binding="{Binding Sync.HasLinkedSources}" Value="False">
-                        <Setter Property="Opacity" Value="0.4" />
-                    </DataTrigger>
-                </Grid.Triggers>
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding Sync.SyncNowCommand}" />
-                </Grid.GestureRecognizers>
-                <Ellipse WidthRequest="46" HeightRequest="46" Fill="Transparent" StrokeThickness="1" Opacity="0.35"
-                         Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                         HorizontalOptions="Center" VerticalOptions="Center" />
-                <Ellipse WidthRequest="32" HeightRequest="32" Fill="Transparent" StrokeThickness="1" Opacity="0.6"
-                         Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                         HorizontalOptions="Center" VerticalOptions="Center" />
-                <Ellipse WidthRequest="18" HeightRequest="18" Fill="Transparent" StrokeThickness="1" Opacity="0.85"
-                         Stroke="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                         HorizontalOptions="Center" VerticalOptions="Center" />
-                <Ellipse WidthRequest="6" HeightRequest="6"
-                         Fill="{AppThemeBinding Light={StaticResource LightSonarBrush}, Dark={StaticResource SonarBrush}}"
-                         HorizontalOptions="Center" VerticalOptions="Center" />
-            </Grid>
-        </Grid>
-
-        <!-- Last-sync label -->
+        <!-- Caption: width-bounded + wrapping so it can never clip off-screen. -->
         <Label
             Grid.Row="1"
-            Style="{StaticResource MonoLabel}"
+            Style="{StaticResource Caption13}"
+            LineBreakMode="WordWrap"
+            Text="Your phone syncs each platform directly — links stay on-device." />
+
+        <!-- Last-sync label (design: right-aligned mono microcopy under the radar). -->
+        <Label
+            Grid.Row="2"
+            Style="{StaticResource MonoLabelDim}"
             Text="{Binding Sync.LastSyncLabel}"
-            Margin="24,4,24,4" />
+            HorizontalOptions="End"
+            Margin="0,6,2,4" />
 
-        <!-- Provider rows -->
-        <CollectionView Grid.Row="2" ItemsSource="{Binding Providers}" SelectionMode="None" Margin="24,8,24,0">
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="vm:ProviderRow">
-                    <Border Style="{StaticResource GlassCard}" Margin="0,6">
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+        <!-- Provider rows (BindableLayout so the rowIn stagger + connectNudge can address rows). -->
+        <ScrollView Grid.Row="3">
+            <VerticalStackLayout>
+                <VerticalStackLayout x:Name="RowsHost" Margin="0,4,0,0" BindableLayout.ItemsSource="{Binding Providers}">
+                    <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ProviderRow">
+                        <Border Style="{StaticResource GlassCard}" Margin="0,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
 
-                            <!-- Monogram "logo" box -->
-                            <Border
-                                Grid.Column="0"
-                                WidthRequest="40"
-                                HeightRequest="40"
-                                StrokeShape="RoundRectangle 10"
-                                Stroke="{AppThemeBinding Light={StaticResource LightGlassStroke}, Dark={StaticResource GlassStroke}}"
-                                Background="{AppThemeBinding Light={StaticResource LightSurfaceRaisedBrush}, Dark={StaticResource SurfaceRaisedBrush}}"
-                                VerticalOptions="Center"
-                                AutomationProperties.IsInAccessibleTree="False">
-                                <Label
-                                    Style="{StaticResource Heading18}"
-                                    Text="{Binding Monogram}"
-                                    HorizontalOptions="Center"
-                                    VerticalOptions="Center" />
-                            </Border>
+                                <!-- Monogram "logo" box -->
+                                <Border
+                                    Grid.Column="0"
+                                    WidthRequest="40"
+                                    HeightRequest="40"
+                                    StrokeShape="RoundRectangle 10"
+                                    Stroke="{AppThemeBinding Light={StaticResource LightGlassStroke}, Dark={StaticResource GlassStroke}}"
+                                    Background="{AppThemeBinding Light={StaticResource LightSurfaceRaisedBrush}, Dark={StaticResource SurfaceRaisedBrush}}"
+                                    VerticalOptions="Center"
+                                    AutomationProperties.IsInAccessibleTree="False">
+                                    <Label
+                                        Style="{StaticResource Heading18}"
+                                        Text="{Binding Monogram}"
+                                        HorizontalOptions="Center"
+                                        VerticalOptions="Center" />
+                                </Border>
 
-                            <!-- Name + status -->
-                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                                <Label Style="{StaticResource Heading18}" Text="{Binding PlatformName}" />
-                                <Label Style="{StaticResource Caption13}" Text="{Binding StatusText}" />
-                            </VerticalStackLayout>
+                                <!-- Name + status (star column ⇒ truncates instead of pushing the CTA off-screen) -->
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                    <Label Style="{StaticResource Heading18}" Text="{Binding PlatformName}" LineBreakMode="TailTruncation" />
+                                    <Label Style="{StaticResource Caption13}" Text="{Binding StatusText}" LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
 
-                            <!-- CTA: Connect (nudge-able) / Linked ✓ (tap to unlink) -->
-                            <Button
-                                Grid.Column="2"
-                                Style="{StaticResource SecondaryButton}"
-                                Text="{Binding CtaText}"
-                                VerticalOptions="Center"
-                                Command="{Binding ConnectCommand, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
-                                CommandParameter="{Binding .}"
-                                SemanticProperties.Description="{Binding PlatformName, StringFormat='Connect or unlink {0}'}"
-                                SemanticProperties.Hint="Opens the provider's own sign-in, or unlinks it">
-                                <Button.Triggers>
-                                    <!-- Linked: quiet mint pill -->
-                                    <DataTrigger TargetType="Button" Binding="{Binding IsLinked}" Value="True">
-                                        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
-                                        <Setter Property="BorderColor" Value="Transparent" />
-                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightSurfaceRaised}, Dark={StaticResource SurfaceRaised}}" />
-                                    </DataTrigger>
-                                    <!-- Unlinked: mint outline; flashes red while nudging -->
-                                    <DataTrigger TargetType="Button" Binding="{Binding IsLinked}" Value="False">
-                                        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
-                                        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
-                                    </DataTrigger>
-                                    <DataTrigger
-                                        TargetType="Button"
-                                        Binding="{Binding IsNudging, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
-                                        Value="True">
-                                        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightAlert}, Dark={StaticResource Alert}}" />
-                                        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightAlert}, Dark={StaticResource Alert}}" />
-                                    </DataTrigger>
-                                </Button.Triggers>
-                            </Button>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-            <CollectionView.Footer>
+                                <!-- CTA: Connect (nudge-able; ClassId lets the code-behind run the
+                                     connectNudge color pulse) / Linked ✓ (tap to unlink). -->
+                                <Button
+                                    Grid.Column="2"
+                                    ClassId="ConnectCta"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Text="{Binding CtaText}"
+                                    VerticalOptions="Center"
+                                    Command="{Binding ConnectCommand, Source={RelativeSource AncestorType={x:Type vm:ConnectedAccountsViewModel}}, x:DataType=vm:ConnectedAccountsViewModel}"
+                                    CommandParameter="{Binding .}"
+                                    SemanticProperties.Description="{Binding PlatformName, StringFormat='Connect or unlink {0}'}"
+                                    SemanticProperties.Hint="Opens the provider's own sign-in, or unlinks it">
+                                    <Button.Triggers>
+                                        <!-- Linked: quiet mint pill -->
+                                        <DataTrigger TargetType="Button" Binding="{Binding IsLinked}" Value="True">
+                                            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
+                                            <Setter Property="BorderColor" Value="Transparent" />
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightSurfaceRaised}, Dark={StaticResource SurfaceRaised}}" />
+                                        </DataTrigger>
+                                        <!-- Unlinked: mint outline (the nudge animation pulses it red) -->
+                                        <DataTrigger TargetType="Button" Binding="{Binding IsLinked}" Value="False">
+                                            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
+                                            <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightSonar}, Dark={StaticResource Sonar}}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+
+                <!-- Bottom spacer so the last row scrolls clear of the floating tab bar. -->
                 <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
-            </CollectionView.Footer>
-        </CollectionView>
+            </VerticalStackLayout>
+        </ScrollView>
     </Grid>
-</ContentPage>
+</controls:TrimixPage>

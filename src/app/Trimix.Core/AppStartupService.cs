@@ -1,41 +1,32 @@
 using Trimix.Core.Abstractions;
-using Trimix.Core.Privacy;
 
 namespace Trimix.Core;
 
 /// <summary>
 /// Launch orchestration, called once from the App's startup path:
-/// initialize the local store + session + entitlement cache, emit <c>install</c> exactly once per
-/// install, and flush analytics (to the local sink — serverless). Returns whether onboarding should
-/// be shown (first run, i.e. <c>first_run_completed</c> has not fired yet).
+/// initialize the local store + entitlement cache, emit <c>install</c> exactly once per install,
+/// and flush analytics (to the local sink — serverless). Returns whether onboarding should be shown
+/// (first run, i.e. <c>first_run_completed</c> has not fired yet).
+///
+/// <para><b>No auth, no account.</b> Trimix has no sign-in of any kind — the phone IS the account.
+/// There is nothing to initialize or unlock at launch; connector erasure runs only where the user
+/// asks for it (explicit "Delete my data" / "Reset app" in Settings, both awaited inside
+/// <c>ConnectorPurgeService</c>).</para>
 /// </summary>
 public sealed class AppStartupService(
     ILocalStore store,
-    IAuthSession session,
     IEntitlementService entitlements,
     IAnalytics analytics,
-    IPreferences preferences,
-    IConnectorPurgeService connectorPurge)
+    IPreferences preferences)
 {
     public async Task<bool> RunAsync(
         string installSource = AnalyticsDefaults.InstallSourceOrganic,
         CancellationToken cancellationToken = default)
     {
         await store.InitializeAsync(cancellationToken);
-        await session.InitializeAsync(cancellationToken);
         await entitlements.InitializeAsync(cancellationToken);
 
         await analytics.EnsureInstallTrackedAsync(installSource, cancellationToken);
-
-        if (!session.IsAuthenticated)
-        {
-            // Startup reconciliation (belt-and-suspenders for the sign-out purge): an interrupted or failed
-            // purge can strand a vendor consent flag / exchanged token in the secure enclave — which, on the
-            // iOS Keychain, survives app uninstall. Re-run it once on any UNAUTHENTICATED launch so a stranded
-            // link is cleared next time the app opens. Idempotent + a no-op when nothing is connected.
-            await connectorPurge.PurgeAllAsync(cancellationToken);
-        }
-
         await analytics.FlushAsync(cancellationToken);
 
         return preferences.Get(PreferenceKeys.FirstRunTracked) is null;

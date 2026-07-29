@@ -20,7 +20,10 @@ namespace Trimix.Core.ViewModels;
 /// <c>cloud_sync_cap</c> — the <c>paywall_shown</c> event itself is emitted by the import
 /// pipeline, not here) carrying the count of dives left waiting on providers.</item>
 /// <item>A <see cref="ConnectorAuthStatus.NeedsInteraction"/> source outcome is the relink
-/// surface: it is toasted so the diver knows which platform needs a fresh sign-in.</item>
+/// surface: it is published as <see cref="NeedsRelink"/> state (the design has NO toasts —
+/// state changes render inline/animated, e.g. a relink chip on the provider row).</item>
+/// <item>The run is CANCELLABLE: dismissing the sync sheet invokes <see cref="CancelSyncCommand"/>,
+/// which cancels the coordinator's token and hides the sheet.</item>
 /// </list>
 /// </summary>
 public partial class SyncSessionViewModel(
@@ -28,10 +31,12 @@ public partial class SyncSessionViewModel(
     IEnumerable<IDiveSourceConnector> sources,
     IConnectorConsentStore consent,
     INavigator navigator,
-    IUserDialogs dialogs,
     IPreferences preferences,
-    IClock clock) : ObservableObject
+    IClock clock,
+    DemoModeState? demoMode = null) : ObservableObject
 {
+    private CancellationTokenSource? _syncCts;
+
     private string _linkedNames = "providers";
 
     /// <summary>Delay between the first successful provider link and its auto-started sync (~900ms
@@ -58,6 +63,11 @@ public partial class SyncSessionViewModel(
 
     [ObservableProperty]
     private string _lastSyncLabel = "never synced";
+
+    /// <summary>Providers whose auth expired mid-run and need a fresh sign-in (display names).
+    /// Inline relink state — the design removed toasts; the Providers surface renders this per-row.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _needsRelink = [];
 
     /// <summary>Radar-button enablement — false dims it (and an unlinked tap routes to Providers).</summary>
     public bool HasLinkedSources => coordinator.HasLinkedSources;
@@ -130,14 +140,27 @@ public partial class SyncSessionViewModel(
         await RunAsync();
     }
 
+    /// <summary>
+    /// Cancels the running sync (the sync sheet's dismissal path — scrim tap, ✕, swipe-down) and
+    /// hides the sheet. Idempotent: a no-op when no run is active.
+    /// </summary>
+    [RelayCommand]
+    private void CancelSync()
+    {
+        _syncCts?.Cancel();
+        IsSyncing = false;
+    }
+
     private async Task RunAsync()
     {
-        var linked = sources
+        var linked = DemoModeState.SelectActive(demoMode, sources, s => s.Descriptor.ConnectorId)
             .Where(s => consent.HasConsent(s.Descriptor.ConnectorId))
             .Select(s => ProviderCatalog.NameFor(s.Descriptor.ConnectorId))
             .ToList();
         _linkedNames = linked.Count > 0 ? string.Join(", ", linked) : "providers";
 
+        _syncCts = new CancellationTokenSource();
+        NeedsRelink = [];
         IsSyncing = true;
         Progress = 0.05;
         SyncLabel = "Checking providers";
@@ -148,7 +171,7 @@ public partial class SyncSessionViewModel(
             // Not Progress<T>: this wrapper posts to the captured (UI) context when one exists but
             // reports INLINE when there is none, so tests observe ticks deterministically.
             var progress = new ContextAwareProgress(OnTick);
-            var report = await coordinator.SyncNowAsync(onCapReached: null, progress);
+            var report = await coordinator.SyncNowAsync(onCapReached: null, progress, _syncCts.Token);
 
             preferences.Set(
                 PreferenceKeys.LastSyncUtc,
@@ -156,14 +179,11 @@ public partial class SyncSessionViewModel(
             RefreshLastSyncLabel();
 
             // Relink surface: a consented source whose auth expired needs a fresh sign-in.
-            var needsRelink = report.Sources
+            // No toast (the design removed them) — inline state the provider rows render.
+            NeedsRelink = report.Sources
                 .Where(s => s.Auth == ConnectorAuthStatus.NeedsInteraction)
                 .Select(s => ProviderCatalog.NameFor(s.ConnectorId))
                 .ToList();
-            if (needsRelink.Count > 0)
-            {
-                await dialogs.ToastAsync($"Relink {string.Join(", ", needsRelink)} to keep syncing");
-            }
 
             Progress = 1;
             SyncLabel = "Finishing up";
@@ -183,14 +203,29 @@ public partial class SyncSessionViewModel(
                 });
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // Cancelled from the sheet (CancelSync) — the sheet is already closing; nothing to show.
+        }
+        catch (Exception)
         {
             // Every provider endpoint is fragile; a failed run must never strand the sheet open.
-            await dialogs.ToastAsync("Sync failed — check your connection and try again.");
-            _ = ex;
+            // No toast (design): the failure renders inline in the sheet, then the sheet closes.
+            SyncLabel = "Sync failed";
+            SyncSub = "Check your connection and try again.";
+            Progress = 0;
+            if (DoneLingerMs > 0)
+            {
+                await Task.Delay(DoneLingerMs);
+            }
         }
         finally
         {
+            // Null before dispose so a late CancelSync (the sheet's Closed fires after the exit
+            // animation) no-ops instead of touching a disposed source.
+            var cts = _syncCts;
+            _syncCts = null;
+            cts?.Dispose();
             IsSyncing = false;
         }
     }

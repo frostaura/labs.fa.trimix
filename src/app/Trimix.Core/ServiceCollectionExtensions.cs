@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Analytics;
-using Trimix.Core.Auth;
 using Trimix.Core.Billing;
 using Trimix.Core.Connectors.Cloud;
 using Trimix.Core.Connectors.Infra;
@@ -70,7 +69,7 @@ public sealed class TrimixCoreOptions
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers everything Trimix.Core provides (serverless): local analytics sink, local auth session,
+    /// Registers everything Trimix.Core provides (serverless, no accounts/auth): local analytics sink,
     /// on-device entitlements, sandbox billing (Debug default), the gated cloud/push connector families,
     /// the generic import pipeline, local store, and all viewmodels.
     ///
@@ -100,9 +99,6 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IAppInfo, DefaultAppInfo>();
         services.TryAddSingleton<INavigator, NoopNavigator>();
         services.TryAddSingleton<IUserDialogs, NoopUserDialogs>();
-        // Biometric local unlock (C2). The App registers iOS LocalAuthentication / Android
-        // BiometricPrompt first; this fallback succeeds so emulators and dev runs are never locked out.
-        services.TryAddSingleton<IBiometricUnlock, DevBiometricUnlock>();
 
         // Local store: SQLite when a path is configured, in-memory otherwise.
         if (options.LocalDatabasePath is { } databasePath)
@@ -118,10 +114,8 @@ public static class ServiceCollectionExtensions
         // Single source of truth for the analytics pseudo-id.
         services.TryAddSingleton<IUserPseudoIdProvider, UserPseudoIdProvider>();
 
-        // Rails: local analytics sink + local auth session + on-device entitlements + billing
-        // (sandbox is the dev live path).
+        // Rails: local analytics sink + on-device entitlements + billing (sandbox is the dev live path).
         services.TryAddSingleton<IAnalytics, AnalyticsService>();
-        services.TryAddSingleton<IAuthSession, AuthSession>();
         services.TryAddSingleton<IEntitlementService, EntitlementService>();
         if (options.UseSandboxBilling)
         {
@@ -176,6 +170,23 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDiveDestinationConnector, SsiPushDestinationConnector>();
         }
 
+        // ── DEBUG-only dev/demo mode ──────────────────────────────────────────────────────────────
+        // DemoModeState registers ALWAYS (SettingsViewModel and the enumeration points take it
+        // optionally), but the demo connectors register only in Debug builds — in Release the filter
+        // in DemoModeState.SelectActive is a structural no-op and real behavior is untouched. Demo
+        // connectors are instantly-Granted, zero-network seeded sources/destinations that still flow
+        // through the REAL ImportService/SyncCoordinator, so the funnel/cap/paywall spine stays
+        // authentic while every flow is steppable without vendor endpoints.
+        services.TryAddSingleton<DemoModeState>();
+        if (TrimixCoreOptions.IsDebugBuild)
+        {
+            services.AddSingleton<IDiveSourceConnector>(_ => new Connectors.Demo.DemoCloudSourceConnector(Connectors.Demo.DemoDiveCatalog.GarminId));
+            services.AddSingleton<IDiveSourceConnector>(_ => new Connectors.Demo.DemoCloudSourceConnector(Connectors.Demo.DemoDiveCatalog.SuuntoId));
+            services.AddSingleton<IDiveSourceConnector>(_ => new Connectors.Demo.DemoCloudSourceConnector(Connectors.Demo.DemoDiveCatalog.MaresId));
+            services.AddSingleton<IDiveDestinationConnector>(_ => new Connectors.Demo.DemoPushDestinationConnector(Connectors.Demo.DemoDiveCatalog.PadiId));
+            services.AddSingleton<IDiveDestinationConnector>(_ => new Connectors.Demo.DemoPushDestinationConnector(Connectors.Demo.DemoDiveCatalog.SsiId));
+        }
+
         // Bundled read-only site atlas (serverless site enrichment + import auto-match; C6/C7).
         services.TryAddSingleton<SiteAtlas>();
 
@@ -186,11 +197,9 @@ public static class ServiceCollectionExtensions
         // newly-imported dives to every consented destination. Phase-3 UI binds its SyncProgress stream.
         services.TryAddSingleton<ISyncCoordinator, SyncCoordinator>();
 
-        // Connector privacy purge (docs/design/aggregator-architecture.md §9.4). Its constructor subscribes to
-        // IAuthSession.AuthStateChanged + IdentityChanged, so it MUST be resolved once at startup or it never
-        // subscribes; the App forces that resolution after building the graph. The interface is what the
-        // sign-out/delete-my-data flow (SettingsViewModel) and the unauthenticated-startup reconciliation
-        // (AppStartupService) AWAIT — both map to the same singleton instance.
+        // Connector privacy purge (docs/design/aggregator-architecture.md §9.4). Trimix has no accounts, so
+        // there is no sign-out/identity edge to subscribe to: the "Delete my data" and "Reset app" flows in
+        // SettingsViewModel AWAIT its PurgeAllAsync explicitly. Interface + concrete map to the same singleton.
         services.TryAddSingleton<ConnectorPurgeService>();
         services.TryAddSingleton<IConnectorPurgeService>(sp => sp.GetRequiredService<ConnectorPurgeService>());
 
@@ -203,7 +212,6 @@ public static class ServiceCollectionExtensions
 
         // Viewmodels: transient — one per page instance.
         services.AddTransient<OnboardingViewModel>();
-        services.AddTransient<AuthViewModel>();
         services.AddTransient<LogbookViewModel>();
         services.AddTransient<DiveDetailViewModel>();
         services.AddTransient<StatsViewModel>();

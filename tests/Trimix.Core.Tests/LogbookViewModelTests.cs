@@ -27,7 +27,6 @@ public class LogbookViewModelTests
             [],
             new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
             _navigator,
-            new FakeDialogs(),
             new Trimix.Core.Platform.InMemoryPreferences(),
             new FakeClock()),
             new Trimix.Core.Formatting.UnitFormatter(new Trimix.Core.Platform.InMemoryPreferences()),

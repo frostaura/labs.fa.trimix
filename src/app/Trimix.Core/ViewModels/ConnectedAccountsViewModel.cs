@@ -32,6 +32,7 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     private readonly IConnectorConsentStore _consent;
     private readonly INavigator _navigator;
     private readonly IUserDialogs _dialogs;
+    private readonly DemoModeState? _demoMode;
 
     public ConnectedAccountsViewModel(
         IEnumerable<IDiveSourceConnector> sources,
@@ -39,12 +40,14 @@ public partial class ConnectedAccountsViewModel : ObservableObject
         IConnectorConsentStore consent,
         SyncSessionViewModel syncSession,
         INavigator navigator,
-        IUserDialogs dialogs)
+        IUserDialogs dialogs,
+        DemoModeState? demoMode = null)
     {
         _consent = consent;
         Sync = syncSession;
         _navigator = navigator;
         _dialogs = dialogs;
+        _demoMode = demoMode;
 
         foreach (var source in sources)
         {
@@ -70,12 +73,15 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isNudging;
 
-    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O).</summary>
+    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O).
+    /// The row set is filtered through <see cref="DemoModeState"/> on every load, so flipping the
+    /// Settings demo toggle swaps the list live on the next appearance.</summary>
     [RelayCommand]
     public async Task LoadAsync()
     {
         Providers.Clear();
-        foreach (var entry in _connectorsById.Values)
+        var active = DemoModeState.SelectActive(_demoMode, _connectorsById.Values, DescriptorIdOf);
+        foreach (var entry in active)
         {
             var descriptor = DescriptorOf(entry);
             var row = new ProviderRow(descriptor.ConnectorId, entry is IDiveSourceConnector);
@@ -122,11 +128,12 @@ public partial class ConnectedAccountsViewModel : ObservableObject
         }
 
         // Revoke also severs the exchanged token, so a reconnect re-authenticates from scratch.
+        // No toast (the design has none): the row itself animating back to "Not connected" /
+        // "Connect" IS the confirmation.
         await _consent.RevokeAsync(row.ConnectorId);
         row.IsLinked = false;
         row.RefreshStatus(Sync.IsSyncing);
         Sync.RefreshLinkState();
-        await _dialogs.ToastAsync($"{row.PlatformName} unlinked.");
     }
 
     /// <summary>Flashes the Connect buttons (arrival via an unlinked "Sync now" tap).</summary>
@@ -153,6 +160,8 @@ public partial class ConnectedAccountsViewModel : ObservableObject
             row.RefreshStatus(Sync.IsSyncing);
         }
     }
+
+    private static string DescriptorIdOf(object connector) => DescriptorOf(connector).ConnectorId;
 
     private static ConnectorDescriptor DescriptorOf(object connector) => connector switch
     {

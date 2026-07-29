@@ -30,7 +30,7 @@ public class ConnectedAccountsViewModelTests
             new Trimix.Core.Platform.InMemoryPreferences(), _tokens);
 
     private SyncSessionViewModel NewSession() => new(
-        _coordinator, [], _consent, _navigator, _dialogs,
+        _coordinator, [], _consent, _navigator,
         new Trimix.Core.Platform.InMemoryPreferences(), new FakeClock())
     {
         AutoSyncDelayMs = 0,

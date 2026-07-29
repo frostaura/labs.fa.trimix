@@ -10,20 +10,19 @@ namespace Trimix.Core.Tests;
 
 /// <summary>
 /// On-device entitlement authority (serverless): launch cache load, the restore-on-reinstall path
-/// (fresh install + sign-in → auto-restore → receipt → SKU → tier, locally), and the sign-out reset.
+/// (fresh install + sign-in → auto-restore → receipt → SKU → tier, locally), and the factory-reset
+/// clear (Settings "Delete my data" / "Reset app" drop the cached tier to Free).
 /// </summary>
 public class EntitlementServiceTests
 {
     private readonly InMemorySecureStore _secureStore = new();
     private readonly InMemoryPreferences _preferences = new();
-    private readonly FakeAuthSession _session = new();
     private readonly RecordingAnalytics _analytics = new();
 
     private EntitlementService CreateService(SandboxBillingService billing) => new(
         billing,
         _secureStore,
         _preferences,
-        _session,
         _analytics,
         NullLogger<EntitlementService>.Instance);
 
@@ -125,15 +124,18 @@ public class EntitlementServiceTests
     }
 
     [Fact]
-    public async Task Sign_out_clears_the_cached_paid_tier()
+    public async Task ClearLocalGrant_drops_the_cached_paid_tier_to_free()
     {
         var service = CreateService(BillingOwning(Skus.Lifetime));
         await service.OnSignedInAsync();
         Assert.Equal(EntitlementTier.Lifetime, service.CurrentTier);
+        var tierChanges = new List<EntitlementTier>();
+        service.TierChanged += (_, tier) => tierChanges.Add(tier);
 
-        await _session.SignOutAsync(); // raises AuthStateChanged(false)
+        await service.ClearLocalGrantAsync(); // Settings "Delete my data" / "Reset app"
 
         Assert.Equal(EntitlementTier.Free, service.CurrentTier);
+        Assert.Equal(new[] { EntitlementTier.Free }, tierChanges);
         Assert.Null(await _secureStore.GetAsync(SecureStoreKeys.EntitlementTier));
         Assert.Null(_preferences.Get(PreferenceKeys.AutoRestoreDone));
     }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Trimix.Core;
 using Trimix.Core.Abstractions;
 
@@ -8,13 +9,19 @@ public partial class App : Application
 {
     private readonly AppStartupService _startup;
     private readonly Trimix.Core.Abstractions.IPreferences _preferences;
+    private readonly IServiceProvider _services;
     private readonly ILogger<App> _logger;
     private bool _startupRan;
 
-    public App(AppStartupService startup, Trimix.Core.Abstractions.IPreferences preferences, ILogger<App> logger)
+    public App(
+        AppStartupService startup,
+        Trimix.Core.Abstractions.IPreferences preferences,
+        IServiceProvider services,
+        ILogger<App> logger)
     {
         _startup = startup;
         _preferences = preferences;
+        _services = services;
         _logger = logger;
         InitializeComponent();
 
@@ -23,22 +30,32 @@ public partial class App : Application
         UserAppTheme = AppTheme.Dark;
     }
 
+    /// <summary>
+    /// On first run, ONBOARDING is the window root — not the Shell. If we rooted on the Shell (whose
+    /// first tab is the Logbook), the Logbook paints for a frame before any navigation could cover it:
+    /// that is the "flash of the empty logbook". With onboarding as the root the Shell (and Logbook) are
+    /// never created until onboarding completes — <see cref="Services.ShellNavigator"/> swaps the root to
+    /// the Shell then. Subsequent launches boot straight into the Shell. Startup init (store/entitlement
+    /// cache, install tracking, analytics flush) runs on the root's Loaded, behind whatever is showing.
+    /// </summary>
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        var shell = new AppShell();
-        shell.Loaded += OnShellLoaded;
-        return new Window(shell);
+        var firstRun = _preferences.Get(PreferenceKeys.FirstRunTracked) is null;
+        Page root = firstRun
+            ? _services.GetRequiredService<Pages.OnboardingPage>()
+            : new AppShell();
+
+        root.Loaded += OnRootLoaded;
+        return new Window(root);
     }
 
-    /// <summary>
-    /// First-run wiring (PRD Flow A / Core AppStartupService): initialize stores + session +
-    /// entitlement cache, emit <c>install</c> exactly once per install, refresh the
-    /// server-authoritative tier, sync, flush — then present onboarding IF this is the first run
-    /// (<c>first_run_completed</c> has not fired yet). Onboarding itself fires
-    /// <c>first_run_completed</c>; auto-restore runs after sign-in (Core EntitlementService).
-    /// </summary>
-    private async void OnShellLoaded(object? sender, EventArgs e)
+    private async void OnRootLoaded(object? sender, EventArgs e)
     {
+        if (sender is VisualElement element)
+        {
+            element.Loaded -= OnRootLoaded;
+        }
+
         if (_startupRan)
         {
             return;
@@ -46,29 +63,13 @@ public partial class App : Application
 
         _startupRan = true;
 
-        bool firstRun;
         try
         {
-            firstRun = await _startup.RunAsync();
+            await _startup.RunAsync();
         }
         catch (Exception ex)
         {
-            // Startup must never block the app (offline, API down). Fall back to the same
-            // first-run signal AppStartupService reads.
             _logger.LogWarning(ex, "Startup pipeline failed; continuing offline.");
-            firstRun = _preferences.Get(PreferenceKeys.FirstRunTracked) is null;
-        }
-
-        if (firstRun)
-        {
-            try
-            {
-                await Shell.Current.GoToAsync(Routes.Onboarding);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Could not present onboarding.");
-            }
         }
     }
 }

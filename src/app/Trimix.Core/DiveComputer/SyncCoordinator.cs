@@ -31,16 +31,25 @@ public sealed class SyncCoordinator(
     IImportService importService,
     IConnectorConsentStore consent,
     ISecureTokenStore tokens,
-    ILogger<SyncCoordinator> logger) : ISyncCoordinator
+    ILogger<SyncCoordinator> logger,
+    DemoModeState? demoMode = null) : ISyncCoordinator
 {
-    public bool HasLinkedSources => sources.Any(s => consent.HasConsent(s.Descriptor.ConnectorId));
+    /// <summary>The connector set this run operates on — demo family when demo mode is on, real
+    /// otherwise (evaluated per access so the Settings toggle applies live, no restart).</summary>
+    private IReadOnlyList<IDiveSourceConnector> ActiveSources =>
+        DemoModeState.SelectActive(demoMode, sources, s => s.Descriptor.ConnectorId);
+
+    private IReadOnlyList<IDiveDestinationConnector> ActiveDestinations =>
+        DemoModeState.SelectActive(demoMode, destinations, d => d.Descriptor.ConnectorId);
+
+    public bool HasLinkedSources => ActiveSources.Any(s => consent.HasConsent(s.Descriptor.ConnectorId));
 
     public async Task<SyncReport> SyncNowAsync(
         Func<Task>? onCapReached = null,
         IProgress<SyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var linkedSources = sources.Where(s => consent.HasConsent(s.Descriptor.ConnectorId)).ToList();
+        var linkedSources = ActiveSources.Where(s => consent.HasConsent(s.Descriptor.ConnectorId)).ToList();
         var sourceOutcomes = new List<SourceSyncOutcome>(linkedSources.Count);
         var newDives = new Dictionary<Guid, DiveDto>(); // dedup by the deterministic dive id
         var capReached = false;
@@ -95,7 +104,7 @@ public sealed class SyncCoordinator(
         var dives = newDives.Values.OrderBy(d => d.StartUtc).ToList();
         var destinationOutcomes = new List<DestinationPushOutcome>();
         var pushedTotal = 0;
-        foreach (var destination in destinations.Where(d => consent.HasConsent(d.Descriptor.ConnectorId)))
+        foreach (var destination in ActiveDestinations.Where(d => consent.HasConsent(d.Descriptor.ConnectorId)))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var id = destination.Descriptor.ConnectorId;
