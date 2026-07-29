@@ -48,7 +48,7 @@ M3 and M4 are field and market work, not build tasks. Neither can be closed by w
 ## Build / test / run
 Toolchain is the **user-local `~/.dotnet`** (`DOTNET_ROOT=$HOME/.dotnet`, dotnet 10.0.301) — the system dotnet at `/usr/local/share/dotnet` is missing workload manifests and cannot build this repo. Android build also needs `JAVA_HOME=/opt/homebrew/opt/openjdk@17/...` and `ANDROID_HOME=$HOME/Library/Android/sdk` (**OpenJDK 17**, Android SDK API 36). **No Postgres, no docker-compose** — the app is serverless.
 - `dotnet build src/app/Trimix.Core/Trimix.Core.csproj` (plain `net10.0`).
-- `dotnet test tests/Trimix.Core.Tests/Trimix.Core.Tests.csproj` — 345 tests, all green.
+- `dotnet test tests/Trimix.Core.Tests/Trimix.Core.Tests.csproj` — 343 tests, all green.
 - `dotnet build src/app/Trimix.App/Trimix.App.csproj -f net10.0-android` (default) or `-f net10.0-ios -p:EnableIos=true` (keep compiling).
 
 Real StoreKit/Play Billing, biometrics, and the vendor cloud endpoints are all **runtime-gated** — they need a device, a real store account, and real (currently researched-guess, config-injectable) vendor endpoints. `docs/known-gaps.md` is the catalogue.
