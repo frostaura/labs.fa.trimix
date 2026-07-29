@@ -1,21 +1,23 @@
 using System.Globalization;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Formatting;
+using Trimix.Core.Privacy;
 using Trimix.Core.Stats;
 
 namespace Trimix.Core.ViewModels;
 
 /// <summary>
-/// The "You" tab (prototype C8): avatar initials + inline-editable name (local-only), cert line,
-/// the plan card (Free "Keeps your last N dives" → Upgrade / Pro "Lifetime · unlimited import" ·
-/// Active), the Metric|Imperial units toggle (re-renders depths/temps everywhere via the shared
-/// preference), the Nitrox MOD planner, and the "Manage providers · N of 7 linked" row — plus the
-/// career analytics computed by the pure, static <see cref="DiveStats"/> (completeness-captioned,
-/// unit-formatted; storage stays metric).
+/// The "You" tab (prototype C8): the plan card (Free "Keeps your last N dives" → Upgrade / Pro
+/// "Lifetime · unlimited import" · Active), the Metric|Imperial units toggle (re-renders depths/temps
+/// everywhere via the shared preference), the Nitrox MOD planner, and the "Manage providers · N of 7
+/// linked" row — plus the career analytics computed by the pure, static <see cref="DiveStats"/>
+/// (completeness-captioned, unit-formatted; storage stays metric). There is no name/avatar/identity
+/// card: Trimix is single-device-per-user with no accounts, so there is no user context to show.
 ///
 /// <para>Guardrail: the MOD planner is pure display math — MOD = (1.4/FO₂ − 1) × 10 — over a gas
 /// the diver drags to; nothing computes tissue loading or deco ("we log, we don't compute deco").
@@ -23,6 +25,10 @@ namespace Trimix.Core.ViewModels;
 /// frozen trigger vocabulary (ble_import_cap / cloud_sync_cap / logbook_cap / site_contribute) has
 /// no value for a voluntary plan-card entry, and the taxonomy is frozen — misattributing a cap
 /// trigger would corrupt the funnel.</para>
+///
+/// <para>The privacy actions (export / factory reset) and the about/onboarding-replay affordances
+/// live here too: the standalone Settings page was retired 2026-07-29 and folded into this "You"
+/// surface, which already carried the duplicate plan + units controls.</para>
 /// </summary>
 public partial class StatsViewModel(
     ILocalStore store,
@@ -30,59 +36,14 @@ public partial class StatsViewModel(
     INavigator navigator,
     IPreferences preferences,
     IEntitlementService entitlements,
+    IUserDialogs dialogs,
+    IConnectorPurgeService connectorPurge,
     IConnectorConsentStore consent,
     IEnumerable<IDiveSourceConnector> sources,
     IEnumerable<IDiveDestinationConnector> destinations) : ObservableObject
 {
-    private const string DefaultUserName = "Alex Reyes";
-    private const string DefaultCert = "PADI Advanced OW";
-
     /// <summary>MOD (m) of pure O₂ at ppO₂ 1.4 — the planner fill bar's full-scale value.</summary>
     private const double ModFullScaleM = 56.7;
-
-    // ── Profile: avatar initials + inline-editable name + cert line (local-only) ──
-
-    [ObservableProperty]
-    private string _userName = "";
-
-    [ObservableProperty]
-    private string _userInitials = "";
-
-    [ObservableProperty]
-    private bool _isNameEditing;
-
-    [ObservableProperty]
-    private string _nameDraft = "";
-
-    /// <summary>Sub-line: "PADI Advanced OW · N dives".</summary>
-    [ObservableProperty]
-    private string _certLine = "";
-
-    [RelayCommand]
-    private void StartNameEdit()
-    {
-        NameDraft = UserName;
-        IsNameEditing = true;
-    }
-
-    /// <summary>Enter/blur: persists the trimmed name locally (empty keeps the old name).</summary>
-    [RelayCommand]
-    private void SaveName()
-    {
-        var name = NameDraft.Trim();
-        if (name.Length > 0)
-        {
-            UserName = name;
-            preferences.Set(PreferenceKeys.UserName, name);
-            UserInitials = InitialsFor(name);
-        }
-
-        IsNameEditing = false;
-    }
-
-    /// <summary>Escape: discards the draft.</summary>
-    [RelayCommand]
-    private void CancelNameEdit() => IsNameEditing = false;
 
     // ── Plan card (Free → Upgrade · Pro → Active) ──
 
@@ -133,7 +94,7 @@ public partial class StatsViewModel(
     [ObservableProperty]
     private double _o2Percent = 32;
 
-    /// <summary>"EAN32" badge (EAN21 reads as air but keeps the prototype's badge shape).</summary>
+    /// <summary>Blend badge — "EAN32" etc., or "AIR" at 21% O₂ (21% IS air).</summary>
     [ObservableProperty]
     private string _eanLabel = "EAN32";
 
@@ -150,7 +111,8 @@ public partial class StatsViewModel(
     private void UpdateMod()
     {
         var o2 = Math.Clamp(Math.Round(O2Percent), 21, 40);
-        EanLabel = string.Create(CultureInfo.InvariantCulture, $"EAN{o2:0}");
+        // 21% O₂ IS air — label it "AIR" rather than the pedantic "EAN21".
+        EanLabel = (int)o2 == 21 ? "AIR" : string.Create(CultureInfo.InvariantCulture, $"EAN{o2:0}");
         var modM = (1.4 / (o2 / 100.0) - 1.0) * 10.0;
         ModText = units.DepthUnit == DepthUnits.Feet
             ? string.Create(CultureInfo.InvariantCulture, $"{Math.Round(modM * UnitFormatter.FeetPerMeter):0}ft")
@@ -167,14 +129,6 @@ public partial class StatsViewModel(
     [RelayCommand]
     private Task ManageProvidersAsync() => navigator.GoToAsync(Routes.Providers);
 
-    private static string InitialsFor(string name)
-    {
-        var initials = string.Concat(name
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Take(2)
-            .Select(w => char.ToUpperInvariant(w[0])));
-        return initials.Length > 0 ? initials : "?";
-    }
     [ObservableProperty]
     private bool _isEmpty = true;
 
@@ -308,13 +262,7 @@ public partial class StatsViewModel(
         PerYear = DiveStats.PerYear(dives);
         SacOverTime = DiveStats.SacOverTime(dives).Value;
 
-        // ── The prototype "You" surface (C8) ──
-        UserName = preferences.Get(PreferenceKeys.UserName) ?? DefaultUserName;
-        UserInitials = InitialsFor(UserName);
-        CertLine = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{preferences.Get(PreferenceKeys.CertLabel) ?? DefaultCert} · {TotalDives} dives");
-
+        // ── The prototype "You" surface (C8) — single device per user, so no name/identity card ──
         IsPro = entitlements.CurrentTier is EntitlementTier.Pro or EntitlementTier.Lifetime;
         PlanTitle = IsPro ? "Trimix Pro" : "Free plan";
         // The free-plan copy binds to the FreeTier constant — never a hardcoded 5.
@@ -336,9 +284,70 @@ public partial class StatsViewModel(
             $"{linked} of {connectorIds.Count} linked");
     }
 
-    /// <summary>Settings lives behind the "You" surface's gear (Settings is a pushed route).</summary>
+    // ── Privacy & about (serverless, on-device — folded in when the Settings page was retired) ──
+
+    /// <summary>GDPR/CCPA data export: serializes the local-first dive store (the App shares the file).</summary>
     [RelayCommand]
-    private Task OpenSettings() => navigator.GoToAsync(Routes.Settings);
+    private async Task<string> ExportDataAsync()
+    {
+        var dives = await store.GetDivesAsync();
+        var json = JsonSerializer.Serialize(
+            new { exportedAtUtc = DateTime.UtcNow, dives },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+        await dialogs.ToastAsync($"Export ready — {dives.Count} dives.");
+        return json;
+    }
+
+    /// <summary>
+    /// Factory reset (the single destructive action, serverless): everything lives on-device, so this
+    /// is a full local wipe — dives, every connector consent+token, the entitlement cache, and every
+    /// on-device setting — then onboarding re-runs from a fresh-install state. Confirmed first, with the
+    /// downstream-provider disclaimer (already-synced dives remain on PADI/SSI etc.).
+    /// </summary>
+    [RelayCommand]
+    private async Task ResetAppAsync()
+    {
+        var confirmed = await dialogs.ConfirmAsync(
+            "Reset Trimix?",
+            "This erases everything on this device — all your dives, provider links and settings — and "
+            + "starts you fresh. Dives already synced to PADI, SSI or other providers won't be removed "
+            + "from those services. This cannot be undone.",
+            accept: "Reset",
+            cancel: "Cancel");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        // Wipe local dives, sever every device-global vendor consent+token, and drop the paid tier to Free
+        // (a store restore can re-grant later). Serverless: there is no server copy to erase.
+        foreach (var dive in await store.GetDivesAsync())
+        {
+            await store.DeleteDiveAsync(dive.Id);
+        }
+
+        await connectorPurge.PurgeAllAsync();
+        await entitlements.ClearLocalGrantAsync();
+
+        // Clear every on-device preference so the app returns to a fresh-install state. FirstRunTracked
+        // is cleared too: onboarding will replay AND (this time) re-fire first_run_completed.
+        foreach (var key in (string[])[
+            PreferenceKeys.FirstRunTracked, PreferenceKeys.DepthUnit, PreferenceKeys.TempUnit,
+            PreferenceKeys.UserName, PreferenceKeys.CertLabel, PreferenceKeys.LastSyncUtc,
+            PreferenceKeys.AutoRestoreDone])
+        {
+            preferences.Remove(key);
+        }
+
+        await navigator.GoToAsync(Routes.Onboarding);
+    }
+
+    /// <summary>
+    /// Re-runs the onboarding intro on demand (to revisit it, or demo Trimix to a friend). Purely a
+    /// re-show: dives, provider links and settings are untouched, and first-run stays marked complete.
+    /// </summary>
+    [RelayCommand]
+    private Task ReplayOnboardingAsync() => navigator.GoToAsync(Routes.Onboarding);
 
     /// <summary>Renders a completeness signal verbatim, e.g. "SAC available for 42 of 120 dives".</summary>
     private static string Caption(string metric, Completeness completeness) =>

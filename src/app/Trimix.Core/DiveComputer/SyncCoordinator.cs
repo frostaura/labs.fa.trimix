@@ -31,16 +31,11 @@ public sealed class SyncCoordinator(
     IImportService importService,
     IConnectorConsentStore consent,
     ISecureTokenStore tokens,
-    ILogger<SyncCoordinator> logger,
-    DemoModeState? demoMode = null) : ISyncCoordinator
+    ILogger<SyncCoordinator> logger) : ISyncCoordinator
 {
-    /// <summary>The connector set this run operates on — demo family when demo mode is on, real
-    /// otherwise (evaluated per access so the Settings toggle applies live, no restart).</summary>
-    private IReadOnlyList<IDiveSourceConnector> ActiveSources =>
-        DemoModeState.SelectActive(demoMode, sources, s => s.Descriptor.ConnectorId);
+    private IReadOnlyList<IDiveSourceConnector> ActiveSources => sources as IReadOnlyList<IDiveSourceConnector> ?? [.. sources];
 
-    private IReadOnlyList<IDiveDestinationConnector> ActiveDestinations =>
-        DemoModeState.SelectActive(demoMode, destinations, d => d.Descriptor.ConnectorId);
+    private IReadOnlyList<IDiveDestinationConnector> ActiveDestinations => destinations as IReadOnlyList<IDiveDestinationConnector> ?? [.. destinations];
 
     public bool HasLinkedSources => ActiveSources.Any(s => consent.HasConsent(s.Descriptor.ConnectorId));
 

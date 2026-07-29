@@ -3,8 +3,9 @@
      S1 Welcome — TRIMIX wordmark, animated SonarPulse hero rings (design blePulse 164/3.2s),
      "Your logbook fills itself.", the auto-import promise, and the SYNCS WITH brand marquee
      auto-scrolling on the design's brandSlide 22s loop (code-behind; static under reduced motion).
-     S2 "How it works" — the 3-step loop (01 Dive / 02 Sync / 03 Log) + "Continue" (→ biometric
-     account step); its back affordance is the shared PageHeader ← (replaces the old ghost button).
+     S2 "How it works" — the 3-step loop (01 Dive / 02 Sync / 03 Log) + "Continue" (→ logbook;
+     there is no auth/account step — the phone is the account); its back affordance is the shared
+     PageHeader ← (replaces the old ghost button).
      No Bluetooth copy anywhere: the app is serverless and API-sync-only. Every completion path
      fires first_run_completed via the VM. -->
 <controls:TrimixPage
@@ -224,7 +225,7 @@
                     Text="Continue"
                     Command="{Binding NextCommand}"
                     SemanticProperties.Description="Continue"
-                    SemanticProperties.Hint="Advances to the account step" />
+                    SemanticProperties.Hint="Finishes the intro and opens your logbook" />
             </VerticalStackLayout>
         </VerticalStackLayout>
     </Grid>

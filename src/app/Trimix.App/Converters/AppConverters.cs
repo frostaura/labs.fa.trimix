@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Trimix.App.Controls;
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Formatting;
@@ -416,6 +417,35 @@ public sealed class TempUnitLabelConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value as string == TempUnits.Fahrenheit ? "Fahrenheit (°F)" : "Celsius (°C)";
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
+/// Colour for a segment of the Metric|Imperial toggle, driven DIRECTLY off <c>IsMetric</c>: mint
+/// (Sonar) when this segment is the active one, else the resting outline/text colour. Parameter is
+/// "&lt;segment&gt;:&lt;role&gt;" — e.g. "metric:border", "imperial:text". This replaces the old
+/// per-button DataTriggers, which fought the SecondaryButton Pressed VisualState and left both
+/// segments stuck mint after a switch-and-switch-back; a plain binding is deterministic and can't
+/// desync from the selection.
+/// </summary>
+public sealed class UnitSegmentColorConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var spec = (parameter as string ?? "").Split(':');
+        var segment = spec.Length > 0 ? spec[0] : "";
+        var role = spec.Length > 1 ? spec[1] : "border";
+        var isMetric = value is true;
+        var selected = (segment == "metric" && isMetric) || (segment == "imperial" && !isMetric);
+        if (selected)
+        {
+            return ThemeTokens.Get("Sonar");
+        }
+
+        return role == "text" ? ThemeTokens.Get("TextPrimary") : ThemeTokens.Get("GlassStroke");
+    }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();

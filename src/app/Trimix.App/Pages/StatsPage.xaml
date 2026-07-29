@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- "You" tab (prototype C8): shared PageHeader ("You" + gear → Settings, standardized top-right) ·
-     avatar initials + inline-editable name (pencil · Enter/blur saves) · "PADI Advanced OW · N
-     dives" cert line · plan card (Free "Keeps your last N dives" → Upgrade / Pro "Lifetime ·
-     unlimited import" · Active) · UNITS toggle Metric|Imperial (re-renders depths/temps app-wide
-     via the shared preference) · NITROX MOD PLANNER (pure display math — MOD = (1.4/FO₂ − 1) × 10 —
-     never a deco engine; animated fill bar) · "Manage providers · N of 7 linked ›". The glass
-     cards/sliders stay (founder direction). -->
+<!-- "You" tab (prototype C8): shared PageHeader ("You", no action — the retired Settings page's
+     privacy + about controls were folded in below). No profile/identity card — Trimix is
+     single-device-per-user with no accounts, so there is no name/avatar/cert context to show ·
+     plan card (Free "Keeps your last N dives" → Upgrade / Pro "Lifetime · unlimited import" ·
+     Active) · UNITS toggle Metric|Imperial (re-renders depths/temps app-wide via the shared
+     preference) · NITROX MOD PLANNER (pure display math — MOD = (1.4/FO₂ − 1) × 10 — never a deco
+     engine; animated fill bar) · "Manage providers · N of 7 linked ›" · PRIVACY (export + factory
+     reset) · ABOUT (disclaimer + replay onboarding). The glass cards/sliders stay (founder direction). -->
 <controls:TrimixPage
     x:Class="Trimix.App.Pages.StatsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -19,76 +20,11 @@
          scroll away); content scrolls beneath it. -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Shared header: tab page (no back) + the gear as the standardized top-right action. -->
-        <controls:PageHeader Grid.Row="0" Margin="24,8,24,0" Title="You">
-            <controls:PageHeader.RightAction>
-                <Grid
-                    WidthRequest="44"
-                    HeightRequest="44"
-                    SemanticProperties.Description="Settings"
-                    SemanticProperties.Hint="Opens units, purchases and about">
-                    <controls:AppIcon
-                        Icon="gear"
-                        Size="20"
-                        HorizontalOptions="Center"
-                        VerticalOptions="Center" />
-                    <Grid.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding OpenSettingsCommand}" />
-                    </Grid.GestureRecognizers>
-                </Grid>
-            </controls:PageHeader.RightAction>
-        </controls:PageHeader>
+        <!-- Shared header: tab page (no back, no action — Settings was retired into this surface). -->
+        <controls:PageHeader Grid.Row="0" Margin="24,8,24,0" Title="You" />
 
     <ScrollView Grid.Row="1">
         <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
-
-            <!-- Profile: avatar initials · inline-editable name · cert/dive-count sub-line. -->
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-                <Border Grid.Column="0"
-                        StrokeShape="RoundRectangle 26"
-                        Stroke="{StaticResource SonarBrush}"
-                        StrokeThickness="1"
-                        Background="{AppThemeBinding Light={StaticResource LightSurfaceBrush}, Dark={StaticResource SurfaceRaisedBrush}}"
-                        WidthRequest="52" HeightRequest="52"
-                        VerticalOptions="Center"
-                        AutomationProperties.IsInAccessibleTree="False">
-                    <Label Style="{StaticResource Heading18}"
-                           Text="{Binding UserInitials}"
-                           TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
-                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
-                           HorizontalOptions="Center" VerticalOptions="Center" />
-                </Border>
-                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                    <!-- View state: name + pencil, tap to edit. -->
-                    <HorizontalStackLayout Spacing="7" IsVisible="{Binding IsNameEditing, Converter={StaticResource InverseBool}}"
-                                           SemanticProperties.Description="{Binding UserName}"
-                                           SemanticProperties.Hint="Tap to edit your name">
-                        <HorizontalStackLayout.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding StartNameEditCommand}" />
-                        </HorizontalStackLayout.GestureRecognizers>
-                        <Label Style="{StaticResource Heading18}" FontSize="19" Text="{Binding UserName}" VerticalOptions="Center" />
-                        <!-- Design's pencil glyph (12px, stroke #8ba0a4, opacity .55). -->
-                        <controls:AppIcon
-                            Icon="pencil"
-                            Size="12"
-                            StrokeThickness="1.8"
-                            Color="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
-                            Opacity="0.55"
-                            VerticalOptions="Center"
-                            AutomationProperties.IsInAccessibleTree="False" />
-                    </HorizontalStackLayout>
-                    <!-- Edit state: Enter or blur saves (code-behind wires blur + focus). -->
-                    <Entry x:Name="NameEntry"
-                           Text="{Binding NameDraft}"
-                           IsVisible="{Binding IsNameEditing}"
-                           ReturnCommand="{Binding SaveNameCommand}"
-                           FontFamily="SpaceGroteskBold"
-                           FontSize="19"
-                           MaxLength="40"
-                           SemanticProperties.Description="Your name" />
-                    <Label Style="{StaticResource Caption13}" Text="{Binding CertLine}" />
-                </VerticalStackLayout>
-            </Grid>
 
             <!-- Plan card: Free (Keeps your last N dives · Upgrade) / Pro (Lifetime · Active). -->
             <Border Style="{StaticResource GlassCard}">
@@ -116,34 +52,27 @@
                 </Grid>
             </Border>
 
-            <!-- UNITS: Metric · m/°C | Imperial · ft/°F — re-renders depths and temps everywhere. -->
+            <!-- UNITS: Metric · m/°C | Imperial · ft/°F — re-renders depths and temps everywhere.
+                 Selection colour is a live binding off IsMetric (UnitSegmentColorConverter) on the
+                 UnitSegmentButton style — NOT a DataTrigger, which used to fight the Pressed
+                 VisualState and leave both segments stuck mint after a switch-and-switch-back. -->
             <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
                 <Label Style="{StaticResource MonoLabel}" Text="UNITS" SemanticProperties.HeadingLevel="Level2" />
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <Button Grid.Column="0"
-                            Style="{StaticResource SecondaryButton}"
+                            Style="{StaticResource UnitSegmentButton}"
                             Text="Metric · m / °C"
                             Command="{Binding SetMetricCommand}"
-                            SemanticProperties.Description="Metric units, metres and Celsius">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button" Binding="{Binding IsMetric}" Value="True">
-                                <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
-                                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
-                            </DataTrigger>
-                        </Button.Triggers>
-                    </Button>
+                            BorderColor="{Binding IsMetric, Converter={StaticResource UnitSegmentColor}, ConverterParameter=metric:border}"
+                            TextColor="{Binding IsMetric, Converter={StaticResource UnitSegmentColor}, ConverterParameter=metric:text}"
+                            SemanticProperties.Description="Metric units, metres and Celsius" />
                     <Button Grid.Column="1"
-                            Style="{StaticResource SecondaryButton}"
+                            Style="{StaticResource UnitSegmentButton}"
                             Text="Imperial · ft / °F"
                             Command="{Binding SetImperialCommand}"
-                            SemanticProperties.Description="Imperial units, feet and Fahrenheit">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button" Binding="{Binding IsMetric}" Value="False">
-                                <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
-                                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
-                            </DataTrigger>
-                        </Button.Triggers>
-                    </Button>
+                            BorderColor="{Binding IsMetric, Converter={StaticResource UnitSegmentColor}, ConverterParameter=imperial:border}"
+                            TextColor="{Binding IsMetric, Converter={StaticResource UnitSegmentColor}, ConverterParameter=imperial:text}"
+                            SemanticProperties.Description="Imperial units, feet and Fahrenheit" />
                 </Grid>
             </VerticalStackLayout>
 
@@ -151,7 +80,9 @@
             <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
                 <Grid ColumnDefinitions="*,Auto">
                     <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="NITROX MOD PLANNER" SemanticProperties.HeadingLevel="Level2" />
-                    <Border Grid.Column="1" Style="{StaticResource BadgeMint}">
+                    <!-- Badge pops (scales up) while the slider is being dragged so the eye follows the
+                         changing blend — code-behind animates on the Slider Drag started/completed. -->
+                    <Border x:Name="EanBadge" Grid.Column="1" Style="{StaticResource BadgeMint}">
                         <Label Style="{StaticResource BadgeTextMint}" Text="{Binding EanLabel}" />
                     </Border>
                 </Grid>
@@ -160,6 +91,8 @@
                     Minimum="21"
                     Maximum="40"
                     Value="{Binding O2Percent}"
+                    DragStarted="OnEanDragStarted"
+                    DragCompleted="OnEanDragCompleted"
                     MinimumTrackColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
                     SemanticProperties.Description="{Binding EanLabel, StringFormat='Oxygen fraction {0}'}"
                     SemanticProperties.Hint="Sets the nitrox blend between 21 and 40 percent oxygen" />
@@ -203,6 +136,47 @@
                     VerticalOptions="Center"
                     AutomationProperties.IsInAccessibleTree="False" />
             </Grid>
+
+            <!-- Privacy (serverless, on-device): local export + the single destructive factory reset.
+                 Folded in from the retired Settings page. -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <HorizontalStackLayout Spacing="6">
+                        <controls:AppIcon Icon="lock" Size="13" VerticalOptions="Center" />
+                        <Label Style="{StaticResource MonoLabel}" Text="PRIVACY" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                    </HorizontalStackLayout>
+                    <Label
+                        Style="{StaticResource Caption13}"
+                        LineBreakMode="WordWrap"
+                        Text="Everything lives on this device — there is no account and no server copy. Export gives you your dives as JSON; reset wipes this device entirely, including provider links." />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Export my data"
+                        Clicked="OnExportClicked"
+                        SemanticProperties.Description="Export my data"
+                        SemanticProperties.Hint="Creates a JSON export of your dives and opens the share sheet" />
+                    <Button
+                        Style="{StaticResource DestructiveButton}"
+                        Text="Reset app"
+                        Command="{Binding ResetAppCommand}"
+                        SemanticProperties.Description="Reset app"
+                        SemanticProperties.Hint="Factory reset — erases all dives, provider links and settings on this device and restarts onboarding; asks for confirmation first" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- About: liability disclaimer (permanent non-goal — we never compute deco) + onboarding replay. -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="ABOUT" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Style="{StaticResource Caption13}" LineBreakMode="WordWrap" Text="We log dives. We never compute decompression." />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="Replay onboarding"
+                        Command="{Binding ReplayOnboardingCommand}"
+                        SemanticProperties.Description="Replay onboarding"
+                        SemanticProperties.Hint="Runs the intro again — your dives and links stay put; handy for showing a friend" />
+                </VerticalStackLayout>
+            </Border>
 
             <!-- Bottom spacer so the last row clears the floating tab bar. -->
             <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />

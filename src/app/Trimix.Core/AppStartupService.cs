@@ -10,7 +10,7 @@ namespace Trimix.Core;
 ///
 /// <para><b>No auth, no account.</b> Trimix has no sign-in of any kind — the phone IS the account.
 /// There is nothing to initialize or unlock at launch; connector erasure runs only where the user
-/// asks for it (explicit "Delete my data" / "Reset app" in Settings, both awaited inside
+/// asks for it (the explicit "Reset app" factory reset on the "You" tab, awaited inside
 /// <c>ConnectorPurgeService</c>).</para>
 /// </summary>
 public sealed class AppStartupService(

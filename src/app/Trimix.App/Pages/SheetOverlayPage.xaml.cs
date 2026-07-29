@@ -68,7 +68,13 @@ public partial class SheetOverlayPage : TransparentModalPage
     /// add → sync hand-off (add closes while sync is opening) from popping the still-needed overlay.</summary>
     private async void OnSheetClosed(object? sender, EventArgs e)
     {
-        if (!AddSheet.IsOpen && !SyncSheet.IsOpen && Navigation.ModalStack.Contains(this))
+        // Pop only when BOTH sheets are closed AND this overlay is the TOP modal. The top-modal check
+        // is the safety net: if a navigation already pushed another page (or the navigator tore this
+        // overlay down first), a blind PopModalAsync would remove the wrong page. Popping only when we
+        // are on top means we never dismiss anything but ourselves.
+        if (!AddSheet.IsOpen && !SyncSheet.IsOpen
+            && Navigation.ModalStack.Count > 0
+            && ReferenceEquals(Navigation.ModalStack[^1], this))
         {
             await Navigation.PopModalAsync(false);
         }

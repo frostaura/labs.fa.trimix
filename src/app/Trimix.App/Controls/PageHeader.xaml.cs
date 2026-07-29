@@ -6,7 +6,7 @@ namespace Trimix.App.Controls;
 /// <summary>
 /// Code-behind for the shared page header. Bindables: <see cref="Title"/>, <see cref="ShowBack"/> +
 /// <see cref="BackCommand"/> (defaults to <see cref="INavigator.GoBackAsync"/> when unset), and the
-/// <see cref="RightAction"/> view slot. Reference adoption: Pages/SettingsPage.xaml.
+/// <see cref="RightAction"/> view slot. Reference adoption: Pages/StatsPage.xaml ("You").
 /// </summary>
 public partial class PageHeader : ContentView
 {

@@ -1,12 +1,13 @@
 using System.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Trimix.App.Controls;
 using Trimix.Core.ViewModels;
 
 namespace Trimix.App.Pages;
 
-/// <summary>"You" code-behind (Phase B): TrimixPage screenIn entrance, inline name-edit focus/blur
-/// wiring, and the animated Nitrox MOD fill bar (width tween on O2 change per the design; the VM's
-/// ModFillFraction drives ProgressTo so the bar glides instead of jumping).</summary>
+/// <summary>"You" code-behind (Phase B): TrimixPage screenIn entrance and the animated Nitrox MOD
+/// fill bar (width tween on O2 change per the design; the VM's ModFillFraction drives ProgressTo so
+/// the bar glides instead of jumping).</summary>
 public partial class StatsPage : TrimixPage
 {
     private readonly StatsViewModel _viewModel;
@@ -17,29 +18,40 @@ public partial class StatsPage : TrimixPage
         InitializeComponent();
         BindingContext = viewModel;
 
-        // Inline name edit (C8): blur saves (like the prototype); entering edit mode focuses the field.
-        NameEntry.Unfocused += (_, _) =>
-        {
-            if (_viewModel.IsNameEditing)
-            {
-                _viewModel.SaveNameCommand.Execute(null);
-            }
-        };
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(StatsViewModel.IsNameEditing) && _viewModel.IsNameEditing)
-        {
-            // Focus after the Entry becomes visible.
-            Dispatcher.Dispatch(() => NameEntry.Focus());
-        }
-
         if (e.PropertyName == nameof(StatsViewModel.ModFillFraction))
         {
             AnimateModFill();
         }
+    }
+
+    /// <summary>Drag start: the EAN badge pops up ~30% so the eye catches the changing blend while
+    /// the slider is being dragged (reduced motion snaps to the enlarged size, no tween).</summary>
+    private void OnEanDragStarted(object? sender, EventArgs e)
+    {
+        if (MotionSettings.IsReducedMotionEnabled)
+        {
+            EanBadge.Scale = 1.3;
+            return;
+        }
+
+        _ = EanBadge.ScaleTo(1.3, 120, Easing.CubicOut);
+    }
+
+    /// <summary>Drag end: the badge settles back to its resting size.</summary>
+    private void OnEanDragCompleted(object? sender, EventArgs e)
+    {
+        if (MotionSettings.IsReducedMotionEnabled)
+        {
+            EanBadge.Scale = 1.0;
+            return;
+        }
+
+        _ = EanBadge.ScaleTo(1.0, 150, Easing.CubicOut);
     }
 
     /// <summary>Design: the MOD fill bar's width tweens .35s on every O2 change (reduced motion
@@ -59,5 +71,25 @@ public partial class StatsPage : TrimixPage
     {
         base.OnAppearing(); // TrimixPage screenIn
         await _viewModel.LoadCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>
+    /// GDPR/CCPA export (folded in from the retired Settings page): the VM serializes the local-first
+    /// dive store; the App layer owns the platform half — write to app cache and open the share sheet.
+    /// </summary>
+    private async void OnExportClicked(object? sender, EventArgs e)
+    {
+        var command = (IAsyncRelayCommand)_viewModel.ExportDataCommand;
+        await command.ExecuteAsync(null);
+        if (command.ExecutionTask is Task<string> { IsCompletedSuccessfully: true } exportTask)
+        {
+            var path = Path.Combine(FileSystem.CacheDirectory, "trimix-export.json");
+            await File.WriteAllTextAsync(path, exportTask.Result);
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "Trimix data export",
+                File = new ShareFile(path, "application/json"),
+            });
+        }
     }
 }

@@ -6,9 +6,9 @@ namespace Trimix.App.Services;
 
 /// <summary>
 /// <see cref="INavigator"/> over Shell navigation. Tab roots (Logbook · Sites · Stats/"You")
-/// navigate absolutely ("//route", which also dismisses any modal stack — e.g. auth → logbook);
-/// the modal/pushed routes registered in <see cref="AppShell"/> — including Import and Settings,
-/// which are pushed flows rather than tabs — push relatively.
+/// navigate absolutely ("//route", which also dismisses any modal stack — e.g. onboarding → logbook);
+/// the modal/pushed routes registered in <see cref="AppShell"/> — Import, dive/site detail, paywall
+/// and the provider flows, which are pushed flows rather than tabs — push relatively.
 /// </summary>
 public sealed class ShellNavigator : INavigator
 {
@@ -40,6 +40,23 @@ public sealed class ShellNavigator : INavigator
             }
 
             var target = TabRoutes.Contains(route) ? $"//{route}" : route;
+
+            // A bottom-sheet overlay (the app's only PushModalAsync modal — the add/sync sheet host)
+            // must never survive a navigation. If one is up when we push a route (e.g. add-sheet
+            // "Sync now" / "Manage providers" with nothing linked → Providers), leaving it on the modal
+            // stack strands a transparent, input-blocking page over the destination, and its deferred
+            // self-pop (fired when the sheet's close animation ends) would tear down the WRONG page —
+            // exactly the "page closes itself, then the app freezes" symptom. Absolute tab routes
+            // ("//route") already flush the modal stack; clear it explicitly for pushed routes too.
+            if (!TabRoutes.Contains(route))
+            {
+                var navigation = Shell.Current.Navigation;
+                while (navigation.ModalStack.Count > 0)
+                {
+                    await navigation.PopModalAsync(false);
+                }
+            }
+
             if (parameters is null)
             {
                 await Shell.Current.GoToAsync(target);

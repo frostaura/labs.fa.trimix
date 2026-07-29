@@ -32,7 +32,6 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     private readonly IConnectorConsentStore _consent;
     private readonly INavigator _navigator;
     private readonly IUserDialogs _dialogs;
-    private readonly DemoModeState? _demoMode;
 
     public ConnectedAccountsViewModel(
         IEnumerable<IDiveSourceConnector> sources,
@@ -40,14 +39,12 @@ public partial class ConnectedAccountsViewModel : ObservableObject
         IConnectorConsentStore consent,
         SyncSessionViewModel syncSession,
         INavigator navigator,
-        IUserDialogs dialogs,
-        DemoModeState? demoMode = null)
+        IUserDialogs dialogs)
     {
         _consent = consent;
         Sync = syncSession;
         _navigator = navigator;
         _dialogs = dialogs;
-        _demoMode = demoMode;
 
         foreach (var source in sources)
         {
@@ -73,15 +70,12 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isNudging;
 
-    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O).
-    /// The row set is filtered through <see cref="DemoModeState"/> on every load, so flipping the
-    /// Settings demo toggle swaps the list live on the next appearance.</summary>
+    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O).</summary>
     [RelayCommand]
     public async Task LoadAsync()
     {
         Providers.Clear();
-        var active = DemoModeState.SelectActive(_demoMode, _connectorsById.Values, DescriptorIdOf);
-        foreach (var entry in active)
+        foreach (var entry in _connectorsById.Values)
         {
             var descriptor = DescriptorOf(entry);
             var row = new ProviderRow(descriptor.ConnectorId, entry is IDiveSourceConnector);
@@ -160,8 +154,6 @@ public partial class ConnectedAccountsViewModel : ObservableObject
             row.RefreshStatus(Sync.IsSyncing);
         }
     }
-
-    private static string DescriptorIdOf(object connector) => DescriptorOf(connector).ConnectorId;
 
     private static ConnectorDescriptor DescriptorOf(object connector) => connector switch
     {

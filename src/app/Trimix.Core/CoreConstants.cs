@@ -24,13 +24,6 @@ public static class PreferenceKeys
 
     /// <summary>The You tab's certification line, e.g. "PADI Advanced OW" (local-only; C8).</summary>
     public const string CertLabel = "trimix.profile.cert";
-
-    /// <summary>
-    /// DEBUG-only demo mode ("1" when on): the Providers list and the sync coordinator swap the real
-    /// connector set for the seeded demo connectors (<see cref="Abstractions.DemoModeState"/>) so every
-    /// flow — connect → authorize → sync → cap → paywall — can be stepped through with zero vendor I/O.
-    /// </summary>
-    public const string DevDemoMode = "trimix.dev.demo_mode";
 }
 
 /// <summary>Client-side analytics defaults.</summary>
@@ -49,7 +42,6 @@ public static class Routes
     public const string Onboarding = "onboarding";
     public const string Logbook = "logbook";
     public const string Sites = "sites";
-    public const string Settings = "settings";
 
     /// <summary>The career-analytics "You" tab (aggregator architecture §8.5).</summary>
     public const string Stats = "stats";

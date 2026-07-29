@@ -32,8 +32,7 @@ public partial class SyncSessionViewModel(
     IConnectorConsentStore consent,
     INavigator navigator,
     IPreferences preferences,
-    IClock clock,
-    DemoModeState? demoMode = null) : ObservableObject
+    IClock clock) : ObservableObject
 {
     private CancellationTokenSource? _syncCts;
 
@@ -153,7 +152,7 @@ public partial class SyncSessionViewModel(
 
     private async Task RunAsync()
     {
-        var linked = DemoModeState.SelectActive(demoMode, sources, s => s.Descriptor.ConnectorId)
+        var linked = sources
             .Where(s => consent.HasConsent(s.Descriptor.ConnectorId))
             .Select(s => ProviderCatalog.NameFor(s.Descriptor.ConnectorId))
             .ToList();

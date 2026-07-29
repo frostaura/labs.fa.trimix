@@ -79,8 +79,8 @@ public static class Motion
 /// <summary>
 /// Base page for every Trimix screen: runs the design's <c>screenIn</c> entrance on the page content
 /// each time the page appears (the design animates EVERY screen enter). Pages opt out by overriding
-/// <see cref="EnableScreenInMotion"/>. Phase B migrates all pages onto this base; SettingsPage is
-/// the reference adoption.
+/// <see cref="EnableScreenInMotion"/>. Phase B migrates all pages onto this base; the StatsPage
+/// ("You") is the reference adoption.
 /// </summary>
 public class TrimixPage : ContentPage
 {

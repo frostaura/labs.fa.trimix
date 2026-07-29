@@ -170,23 +170,6 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDiveDestinationConnector, SsiPushDestinationConnector>();
         }
 
-        // ── DEBUG-only dev/demo mode ──────────────────────────────────────────────────────────────
-        // DemoModeState registers ALWAYS (SettingsViewModel and the enumeration points take it
-        // optionally), but the demo connectors register only in Debug builds — in Release the filter
-        // in DemoModeState.SelectActive is a structural no-op and real behavior is untouched. Demo
-        // connectors are instantly-Granted, zero-network seeded sources/destinations that still flow
-        // through the REAL ImportService/SyncCoordinator, so the funnel/cap/paywall spine stays
-        // authentic while every flow is steppable without vendor endpoints.
-        services.TryAddSingleton<DemoModeState>();
-        if (TrimixCoreOptions.IsDebugBuild)
-        {
-            services.AddSingleton<IDiveSourceConnector>(_ => new Connectors.Demo.DemoCloudSourceConnector(Connectors.Demo.DemoDiveCatalog.GarminId));
-            services.AddSingleton<IDiveSourceConnector>(_ => new Connectors.Demo.DemoCloudSourceConnector(Connectors.Demo.DemoDiveCatalog.SuuntoId));
-            services.AddSingleton<IDiveSourceConnector>(_ => new Connectors.Demo.DemoCloudSourceConnector(Connectors.Demo.DemoDiveCatalog.MaresId));
-            services.AddSingleton<IDiveDestinationConnector>(_ => new Connectors.Demo.DemoPushDestinationConnector(Connectors.Demo.DemoDiveCatalog.PadiId));
-            services.AddSingleton<IDiveDestinationConnector>(_ => new Connectors.Demo.DemoPushDestinationConnector(Connectors.Demo.DemoDiveCatalog.SsiId));
-        }
-
         // Bundled read-only site atlas (serverless site enrichment + import auto-match; C6/C7).
         services.TryAddSingleton<SiteAtlas>();
 
@@ -198,8 +181,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ISyncCoordinator, SyncCoordinator>();
 
         // Connector privacy purge (docs/design/aggregator-architecture.md §9.4). Trimix has no accounts, so
-        // there is no sign-out/identity edge to subscribe to: the "Delete my data" and "Reset app" flows in
-        // SettingsViewModel AWAIT its PurgeAllAsync explicitly. Interface + concrete map to the same singleton.
+        // there is no sign-out/identity edge to subscribe to: the "Reset app" flow on the You tab
+        // (StatsViewModel) AWAITs its PurgeAllAsync explicitly. Interface + concrete map to the same singleton.
         services.TryAddSingleton<ConnectorPurgeService>();
         services.TryAddSingleton<IConnectorPurgeService>(sp => sp.GetRequiredService<ConnectorPurgeService>());
 
@@ -218,7 +201,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<PaywallViewModel>();
         services.AddTransient<SitesViewModel>();
         services.AddTransient<SiteDetailViewModel>();
-        services.AddTransient<SettingsViewModel>();
         // Singleton (not transient): it subscribes to the singleton SyncSessionViewModel's
         // PropertyChanged for the rows' "Syncing…" state — a transient VM would leak one dead
         // instance per page visit through that subscription. LoadAsync rebuilds rows per appearance.

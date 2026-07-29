@@ -36,6 +36,7 @@
             <conv:UnitSuffixPartConverter x:Key="UnitSuffixPart" />
             <conv:DepthUnitLabelConverter x:Key="DepthUnitLabel" />
             <conv:TempUnitLabelConverter x:Key="TempUnitLabel" />
+            <conv:UnitSegmentColorConverter x:Key="UnitSegmentColor" />
             <conv:PageCounterConverter x:Key="PageCounter" />
             <conv:DepthNumberConverter x:Key="DepthNumber" />
             <conv:DepthSuffixConverter x:Key="DepthSuffix" />

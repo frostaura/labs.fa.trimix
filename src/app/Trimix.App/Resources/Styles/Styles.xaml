@@ -292,6 +292,27 @@
         </Setter>
     </Style>
 
+    <!-- Segmented Metric|Imperial toggle button. Same outline as SecondaryButton, but its Pressed
+         state must NOT recolor text/border: the selected colour is a live binding off IsMetric (see
+         StatsPage.xaml + UnitSegmentColorConverter), and a Pressed VisualState that touched those
+         properties would capture/restore stale colours on release and leave both segments stuck
+         mint after a switch-and-switch-back. Pressed here is a no-op; selection is data-driven. -->
+    <Style x:Key="UnitSegmentButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Pressed" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
     <!-- Ghost text button (e.g. "I already have an account", "Continue as guest", back "<-"). -->
     <Style x:Key="GhostButton" TargetType="Button">
         <Setter Property="FontFamily" Value="SpaceGroteskMedium" />

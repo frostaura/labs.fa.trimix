@@ -10,20 +10,28 @@ namespace Trimix.Core.Tests;
 
 /// <summary>
 /// The "You" surface (StatsViewModel): renders <see cref="Trimix.Core.Stats.DiveStats"/> career
-/// metrics with verbatim data-completeness captions and emits no funnel events.
+/// metrics with verbatim data-completeness captions and emits no funnel events. Since the Settings
+/// page was retired (2026-07-29), this surface also owns the privacy factory reset and the
+/// onboarding replay.
 /// </summary>
 public class StatsViewModelTests
 {
     private readonly InMemoryLocalStore _store = new();
     private readonly UnitFormatter _units = new(new InMemoryPreferences());
     private readonly FakeNavigator _navigator = new();
+    private readonly InMemoryPreferences _preferences = new();
+    private readonly FakeDialogs _dialogs = new() { ConfirmResult = true };
+    private readonly RecordingConnectorPurgeService _purge = new();
+    private readonly FakeEntitlementService _entitlements = new();
 
     private StatsViewModel CreateViewModel() => new(
         _store,
         _units,
         _navigator,
-        new InMemoryPreferences(),
-        new FakeEntitlementService(),
+        _preferences,
+        _entitlements,
+        _dialogs,
+        _purge,
         new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
         [],
         []);
@@ -104,11 +112,56 @@ public class StatsViewModelTests
     }
 
     [Fact]
-    public async Task Open_settings_navigates_to_the_settings_route()
+    public async Task ResetApp_factory_resets_clears_prefs_and_replays_onboarding()
     {
+        await _store.UpsertDiveAsync(Dive(start: BaseUtc, durationSec: 3000, maxDepthM: 20));
+        _preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+        _preferences.Set(PreferenceKeys.DepthUnit, "ft");
+        _preferences.Set(PreferenceKeys.UserName, "Dean");
         var vm = CreateViewModel();
-        await vm.OpenSettingsCommand.ExecuteAsync(null);
 
-        Assert.Contains(_navigator.Navigations, n => n.Route == Routes.Settings);
+        await vm.ResetAppCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, _purge.PurgeAllCalls);
+        Assert.Equal(1, _entitlements.ClearLocalGrantCalls);
+        Assert.All(await _store.GetDivesAsync(), d => Assert.True(d.Deleted));
+        // Every on-device setting is cleared — a fresh-install state.
+        Assert.Null(_preferences.Get(PreferenceKeys.FirstRunTracked));
+        Assert.Null(_preferences.Get(PreferenceKeys.DepthUnit));
+        Assert.Null(_preferences.Get(PreferenceKeys.UserName));
+        Assert.Contains(_navigator.Navigations, n => n.Route == Routes.Onboarding);
+    }
+
+    [Fact]
+    public async Task ResetApp_declined_does_nothing()
+    {
+        await _store.UpsertDiveAsync(Dive(start: BaseUtc, durationSec: 3000, maxDepthM: 20));
+        _preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+        _dialogs.ConfirmResult = false;
+        var vm = CreateViewModel();
+
+        await vm.ResetAppCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, _purge.PurgeAllCalls);
+        Assert.Equal("1", _preferences.Get(PreferenceKeys.FirstRunTracked)); // untouched
+        Assert.All(await _store.GetDivesAsync(), d => Assert.False(d.Deleted));
+        Assert.Empty(_navigator.Navigations);
+    }
+
+    [Fact]
+    public async Task ReplayOnboarding_re_shows_onboarding_without_touching_any_data()
+    {
+        await _store.UpsertDiveAsync(Dive(start: BaseUtc, durationSec: 3000, maxDepthM: 20));
+        _preferences.Set(PreferenceKeys.FirstRunTracked, "1");
+        var vm = CreateViewModel();
+
+        await vm.ReplayOnboardingCommand.ExecuteAsync(null);
+
+        Assert.Contains(_navigator.Navigations, n => n.Route == Routes.Onboarding);
+        // A pure re-show: dives, tier and first-run state all untouched.
+        Assert.Equal(0, _purge.PurgeAllCalls);
+        Assert.Equal(0, _entitlements.ClearLocalGrantCalls);
+        Assert.Equal("1", _preferences.Get(PreferenceKeys.FirstRunTracked));
+        Assert.All(await _store.GetDivesAsync(), d => Assert.False(d.Deleted));
     }
 }

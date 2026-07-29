@@ -20,14 +20,11 @@ public partial class AppShell : Shell
     private static void RegisterModalRoutes()
     {
         Routing.RegisterRoute(Routes.Onboarding, typeof(OnboardingPage));
-        // Settings moved off the tab bar (the "You" tab is now the StatsPage) and is reached as a
-        // pushed route from the StatsPage gear.
-        Routing.RegisterRoute(Routes.Settings, typeof(SettingsPage));
         Routing.RegisterRoute(Routes.DiveDetail, typeof(DiveDetailPage));
         Routing.RegisterRoute(Routes.SiteDetail, typeof(SiteDetailPage));
         Routing.RegisterRoute(Routes.Paywall, typeof(PaywallPage));
-        // Providers (prototype S5) — the connector registry, pushed from the add sheet / You tab /
-        // Settings — and the per-provider in-app sign-in sheet (S6).
+        // Providers (prototype S5) — the connector registry, pushed from the add sheet / You tab —
+        // and the per-provider in-app sign-in sheet (S6).
         Routing.RegisterRoute(Routes.Providers, typeof(ConnectedAccountsPage));
         Routing.RegisterRoute(Routes.ProviderOAuth, typeof(ProviderOAuthPage));
     }
