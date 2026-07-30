@@ -33,14 +33,11 @@ public class SyncCoordinatorTests
         IEnumerable<IDiveDestinationConnector> destinations)
     {
         var importService = new ImportService(
-            new FakeLocation(),
             _entitlements,
             _store,
             _analytics,
             new FakeAppInfo(),
-            new FakeClock(),
-            new Trimix.Core.Sites.SiteAtlas(),
-            NullLogger<ImportService>.Instance);
+            new FakeClock());
         return new SyncCoordinator(
             sources, destinations, importService, _consent, _tokens, NullLogger<SyncCoordinator>.Instance);
     }

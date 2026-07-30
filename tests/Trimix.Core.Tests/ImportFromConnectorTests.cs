@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
@@ -12,12 +11,11 @@ namespace Trimix.Core.Tests;
 /// <summary>
 /// The generic, source-agnostic import path (architecture overview §2): any
 /// <see cref="IDiveSourceConnector"/> — not just BLE — flows through the same downstream
-/// (site auto-match → free-tier truncation → save → <c>dive_logged_import</c>).
+/// (free-tier truncation → save → <c>dive_logged_import</c>).
 /// </summary>
 public class ImportFromConnectorTests
 {
     private readonly InMemoryLocalStore _store = new();
-    private readonly FakeLocation _location = new(); // Fix stays null → no site match (serverless: always null anyway).
     private readonly FakeEntitlementService _entitlements = new();
     private readonly RecordingAnalytics _analytics = new();
 
@@ -25,14 +23,11 @@ public class ImportFromConnectorTests
     {
         _ = connector; // the pipeline takes the connector per-call now, not via DI
         return new(
-            _location,
             _entitlements,
             _store,
             _analytics,
             new FakeAppInfo(),
-            new FakeClock(),
-            new Trimix.Core.Sites.SiteAtlas(),
-            NullLogger<ImportService>.Instance);
+            new FakeClock());
     }
 
     [Fact]
@@ -201,23 +196,6 @@ public class ImportFromConnectorTests
         Assert.Equal(FreeTier.FreeImportDivesPerSession, result.ImportedDives.Count); // upserts, same ids
         Assert.Equal(FreeTier.FreeImportDivesPerSession, (await _store.GetDivesAsync()).Count);
         Assert.DoesNotContain(_analytics.Events, e => e.Name == FunnelEvents.PaywallShown);
-    }
-
-    [Fact]
-    public async Task Location_fix_near_an_atlas_site_auto_matches_the_site()
-    {
-        // Bundled-atlas auto-match (serverless replacement for the server geo-search): a fix within
-        // 2 km of Liberty Wreck (Tulamben) claims the imported dives for that site.
-        _entitlements.CurrentTier = EntitlementTier.Pro;
-        _location.Fix = new GeoLocation(-8.2750, 115.5940);
-        var connector = new FakeSourceConnector();
-        var service = CreateService(connector);
-
-        var result = await service.ImportFromConnectorAsync(connector, SyncCursor.None);
-
-        Assert.True(result.SiteMatched);
-        var expectedSiteId = new Trimix.Core.Sites.SiteAtlas().FindByName("Liberty Wreck")!.Id;
-        Assert.All(await _store.GetDivesAsync(), d => Assert.Equal(expectedSiteId, d.SiteId));
     }
 
     private static IReadOnlyList<ImportedDive> ManyDives(int count) =>

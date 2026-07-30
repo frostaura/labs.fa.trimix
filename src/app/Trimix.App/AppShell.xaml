@@ -6,23 +6,16 @@
     xmlns:pages="clr-namespace:Trimix.App.Pages"
     Title="Trimix">
 
-    <!-- Mockup tab bar: three tabs — Log · Sites · You. Import is NOT a tab; it's a flow pushed
-         from the Logbook ("Import from computer"), reached via the registered `import` route (see
-         AppShell.xaml.cs). "You" is the career-analytics StatsPage (aggregator architecture §8.5);
-         Settings surfaces behind its gear as a pushed `settings` route. Modal/pushed routes
-         (onboarding, auth, import, manual-entry, dive-detail, site-detail, contribute, paywall,
-         settings) register in AppShell.xaml.cs against Core's Routes constants. -->
+    <!-- Tab bar: two tabs — Log · You. Trimix is a logbook + sync tool; the Sites capability was
+         removed 2026-07-29. Import is NOT a tab; it's a flow pushed from the Logbook. "You" is the
+         career-analytics StatsPage (aggregator architecture §8.5). Pushed routes (onboarding,
+         dive-detail, paywall, providers, provider-oauth) register in AppShell.xaml.cs. -->
     <TabBar>
         <ShellContent
             Title="Log"
             Icon="tab_logbook.png"
             ContentTemplate="{DataTemplate pages:LogbookPage}"
             Route="logbook" />
-        <ShellContent
-            Title="Sites"
-            Icon="tab_sites.png"
-            ContentTemplate="{DataTemplate pages:SitesPage}"
-            Route="sites" />
         <!-- "You" uses the design's sliders glyph (tab_you.svg), not the old settings icon. -->
         <ShellContent
             Title="You"

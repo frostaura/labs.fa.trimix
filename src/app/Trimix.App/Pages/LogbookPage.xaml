@@ -98,17 +98,17 @@
             Margin="24,8,24,0"
             IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
             <CollectionView.ItemTemplate>
-                <!-- Prototype C3 dive row: sequence # (mint) · site · "location · date" · the
-                     origin→destination route string (GARMIN → PADI · SSI) · right column depth /
-                     NNmin / gas tag. Each row is a DiveRowItem over a MergedDive union; tapping
-                     opens the union's dive. Loaded → the design's rowIn stagger (code-behind). -->
+                <!-- Prototype C3 dive row: sequence # (mint) · dive date · the origin→destination
+                     route string (GARMIN → PADI · SSI) · right column depth / NNmin / gas tag. Each
+                     row is a DiveRowItem over a MergedDive union; tapping opens the union's dive.
+                     Loaded → the design's rowIn stagger (code-behind). -->
                 <DataTemplate x:DataType="vm:DiveRowItem">
                     <Grid
                         ColumnDefinitions="Auto,*,Auto"
                         ColumnSpacing="13"
                         Padding="4,13"
                         Loaded="OnRowLoaded"
-                        SemanticProperties.Description="{Binding Site}"
+                        SemanticProperties.Description="{Binding Title}"
                         SemanticProperties.Hint="Opens the dive's details">
                         <Grid.GestureRecognizers>
                             <TapGestureRecognizer
@@ -125,10 +125,9 @@
                             WidthRequest="24"
                             VerticalOptions="Center"
                             AutomationProperties.IsInAccessibleTree="False" />
-                        <!-- Site · location · date · route string. -->
+                        <!-- Dive date · route string. -->
                         <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                            <Label Style="{StaticResource Heading18}" FontSize="14" Text="{Binding Site}" />
-                            <Label Style="{StaticResource Caption13}" FontSize="11" Text="{Binding Meta}" />
+                            <Label Style="{StaticResource Heading18}" FontSize="14" Text="{Binding Title}" />
                             <Label Style="{StaticResource MonoLabelMint}" FontSize="8.5" Opacity="0.75" Text="{Binding Route}" TextTransform="None" />
                         </VerticalStackLayout>
                         <!-- Depth · minutes · gas tag. -->

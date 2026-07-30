@@ -15,7 +15,6 @@
 
     <!-- Tab bar -->
     <x:String x:Key="IconLogbook">M 4 19.5 V 6.5 A 2.5 2.5 0 0 1 6.5 4 H 19.5 V 17 H 6.5 A 2.5 2.5 0 0 0 4 19.5 A 2.5 2.5 0 0 0 6.5 22 H 19.5 V 17 M 8 8.5 h 7.5</x:String>
-    <x:String x:Key="IconSites">M 12 21.4 C 12 21.4 5.2 16.2 5.2 10.6 A 6.8 6.8 0 0 1 18.8 10.6 C 18.8 16.2 12 21.4 12 21.4 Z M 14.5 10.4 A 2.5 2.5 0 1 1 9.5 10.4 A 2.5 2.5 0 1 1 14.5 10.4 Z</x:String>
     <!-- "You" sliders — exact design path (S8 header + You rows) -->
     <x:String x:Key="IconYou">M 4 8 h 9 M 19 8 h 1 M 4 16 h 3 M 13 16 h 7 M 18.2 8 A 2.2 2.2 0 1 1 13.8 8 A 2.2 2.2 0 1 1 18.2 8 M 12.2 16 A 2.2 2.2 0 1 1 7.8 16 A 2.2 2.2 0 1 1 12.2 16</x:String>
 

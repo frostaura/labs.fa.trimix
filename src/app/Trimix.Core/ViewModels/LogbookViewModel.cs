@@ -8,21 +8,20 @@ using Trimix.Core.Connectors;
 using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Entitlements;
 using Trimix.Core.Formatting;
-using Trimix.Core.Sites;
 using Trimix.Core.Stats;
 
 namespace Trimix.Core.ViewModels;
 
 /// <summary>
-/// One rendered logbook row (prototype C3): sequence number · site · "location · date" ·
-/// origin→destination route string (<c>GARMIN → PADI · SSI</c>) · depth · minutes · gas tag.
-/// <see cref="Merged"/> keeps the underlying presentation union (badges, tap target).
+/// One rendered logbook row (prototype C3): sequence number · date · origin→destination route
+/// string (<c>GARMIN → PADI · SSI</c>) · depth · minutes · gas tag. (The dive-site line was removed
+/// with the Sites capability — Trimix is a logbook + sync tool.) <see cref="Merged"/> keeps the
+/// underlying presentation union (badges, tap target).
 /// </summary>
 public sealed record DiveRowItem(
     MergedDive Merged,
     string Number,
-    string Site,
-    string Meta,
+    string Title,
     string Route,
     string DepthText,
     string TimeText,
@@ -47,7 +46,6 @@ public partial class LogbookViewModel(
     INavigator navigator,
     SyncSessionViewModel sync,
     UnitFormatter units,
-    SiteAtlas atlas,
     IConnectorConsentStore consent,
     IEnumerable<IDiveDestinationConnector> destinations) : ObservableObject
 {
@@ -175,13 +173,11 @@ public partial class LogbookViewModel(
         {
             var m = merged[i];
             var d = m.Primary;
-            var site = d.SiteId is Guid siteId ? atlas.GetById(siteId) : null;
-            var date = d.StartUtc.ToString("d MMM", CultureInfo.InvariantCulture);
+            var date = d.StartUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
             rows.Add(new DiveRowItem(
                 m,
                 (merged.Count - i).ToString(CultureInfo.InvariantCulture),
-                site?.Name ?? "Open water",
-                site is null ? date : $"{site.Location} · {date}",
+                date,
                 ProviderCatalog.ShortLabelFor(d.SourceVendor) + destinationSuffix,
                 units.FormatDepth(d.MaxDepthM),
                 string.Create(CultureInfo.InvariantCulture, $"{Math.Round(d.DurationSec / 60.0):0}min"),

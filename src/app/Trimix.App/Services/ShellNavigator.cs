@@ -15,7 +15,6 @@ public sealed class ShellNavigator : INavigator
     private static readonly HashSet<string> TabRoutes = new(StringComparer.Ordinal)
     {
         Routes.Logbook,
-        Routes.Sites,
         Routes.Stats,
     };
 

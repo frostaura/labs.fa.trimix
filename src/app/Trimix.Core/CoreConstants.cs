@@ -41,12 +41,10 @@ public static class Routes
 {
     public const string Onboarding = "onboarding";
     public const string Logbook = "logbook";
-    public const string Sites = "sites";
 
     /// <summary>The career-analytics "You" tab (aggregator architecture §8.5).</summary>
     public const string Stats = "stats";
     public const string DiveDetail = "dive-detail";
-    public const string SiteDetail = "site-detail";
     public const string Paywall = "paywall";
 
     /// <summary>The Providers screen (prototype S5) — the connector registry, pushed from anywhere.</summary>
@@ -59,7 +57,6 @@ public static class Routes
     public static class Params
     {
         public const string DiveId = "diveId";
-        public const string SiteId = "siteId";
 
         /// <summary>Connector id for the provider sign-in sheet.</summary>
         public const string ConnectorId = "connectorId";

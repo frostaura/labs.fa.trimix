@@ -146,10 +146,8 @@ public static class MauiProgram
         // ---- Pages (Shell resolves routed pages through DI; viewmodels constructor-inject) ----
         builder.Services.AddTransient<OnboardingPage>();
         builder.Services.AddTransient<LogbookPage>();
-        builder.Services.AddTransient<SitesPage>();
         builder.Services.AddTransient<StatsPage>();
         builder.Services.AddTransient<DiveDetailPage>();
-        builder.Services.AddTransient<SiteDetailPage>();
         builder.Services.AddTransient<PaywallPage>();
         builder.Services.AddTransient<ConnectedAccountsPage>();
         builder.Services.AddTransient<ProviderOAuthPage>();

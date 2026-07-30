@@ -14,7 +14,6 @@ public partial class DiveDetailPage : TrimixPage
     private readonly DiveDetailViewModel _viewModel;
     private readonly DepthChartDrawable _drawable = new();
     private bool _chartAnimated;
-    private IDispatcherTimer? _factTimer;
 
     public DiveDetailPage(DiveDetailViewModel viewModel)
     {
@@ -45,12 +44,6 @@ public partial class DiveDetailPage : TrimixPage
             app.RequestedThemeChanged += OnRequestedThemeChanged;
         }
 
-        // "NEAR THIS SITE" carousel: auto-rotate ~4s (paused while the notes editor is open).
-        _factTimer ??= Dispatcher.CreateTimer();
-        _factTimer.Interval = TimeSpan.FromSeconds(4);
-        _factTimer.Tick += OnFactTimerTick;
-        _factTimer.Start();
-
         if (DiveId != Guid.Empty)
         {
             await _viewModel.LoadCommand.ExecuteAsync(DiveId);
@@ -63,20 +56,6 @@ public partial class DiveDetailPage : TrimixPage
         if (Application.Current is { } app)
         {
             app.RequestedThemeChanged -= OnRequestedThemeChanged;
-        }
-
-        if (_factTimer is { } timer)
-        {
-            timer.Stop();
-            timer.Tick -= OnFactTimerTick;
-        }
-    }
-
-    private void OnFactTimerTick(object? sender, EventArgs e)
-    {
-        if (_viewModel.HasSite && !_viewModel.IsNotesEditing)
-        {
-            _viewModel.NextFactCommand.Execute(null);
         }
     }
 

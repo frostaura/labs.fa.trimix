@@ -91,8 +91,6 @@ public class AddTrimixCoreTests
         Assert.NotNull(provider.GetRequiredService<DiveDetailViewModel>());
         Assert.NotNull(provider.GetRequiredService<StatsViewModel>());
         Assert.NotNull(provider.GetRequiredService<PaywallViewModel>());
-        Assert.NotNull(provider.GetRequiredService<SitesViewModel>());
-        Assert.NotNull(provider.GetRequiredService<SiteDetailViewModel>());
     }
 
     [Fact]

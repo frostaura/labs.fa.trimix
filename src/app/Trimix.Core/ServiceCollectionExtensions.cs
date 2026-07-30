@@ -13,7 +13,6 @@ using Trimix.Core.Entitlements;
 using Trimix.Core.Formatting;
 using Trimix.Core.Platform;
 using Trimix.Core.Privacy;
-using Trimix.Core.Sites;
 using Trimix.Core.Storage;
 using Trimix.Core.ViewModels;
 
@@ -170,8 +169,6 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDiveDestinationConnector, SsiPushDestinationConnector>();
         }
 
-        // Bundled read-only site atlas (serverless site enrichment + import auto-match; C6/C7).
-        services.TryAddSingleton<SiteAtlas>();
 
         services.TryAddSingleton<IImportService, ImportService>();
 
@@ -199,8 +196,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<DiveDetailViewModel>();
         services.AddTransient<StatsViewModel>();
         services.AddTransient<PaywallViewModel>();
-        services.AddTransient<SitesViewModel>();
-        services.AddTransient<SiteDetailViewModel>();
         // Singleton (not transient): it subscribes to the singleton SyncSessionViewModel's
         // PropertyChanged for the rows' "Syncing…" state — a transient VM would leak one dead
         // instance per page visit through that subscription. LoadAsync rebuilds rows per appearance.

@@ -30,7 +30,6 @@ public class LogbookViewModelTests
             new Trimix.Core.Platform.InMemoryPreferences(),
             new FakeClock()),
             new Trimix.Core.Formatting.UnitFormatter(new Trimix.Core.Platform.InMemoryPreferences()),
-            new Trimix.Core.Sites.SiteAtlas(),
             new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
             []);
 

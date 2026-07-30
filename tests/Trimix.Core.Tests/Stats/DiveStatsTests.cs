@@ -228,32 +228,6 @@ public class DiveStatsTests
         Assert.Equal(7, result.Completeness.Total);
     }
 
-    // ---- MostDivedSites ----
-
-    [Fact]
-    public void Most_dived_sites_ranks_by_count_and_respects_top_and_completeness()
-    {
-        var siteA = Guid.NewGuid();
-        var siteB = Guid.NewGuid();
-        var dives = new[]
-        {
-            Dive(siteId: siteA), Dive(siteId: siteA), Dive(siteId: siteA),
-            Dive(siteId: siteB),
-            Dive(siteId: null), Dive(siteId: null),
-        };
-
-        var all = DiveStats.MostDivedSites(dives);
-        Assert.Equal(2, all.Value.Count);
-        Assert.Equal(new SiteFrequency(siteA, 3), all.Value[0]);
-        Assert.Equal(new SiteFrequency(siteB, 1), all.Value[1]);
-        Assert.Equal(4, all.Completeness.Available);
-        Assert.Equal(6, all.Completeness.Total);
-
-        var capped = DiveStats.MostDivedSites(dives, top: 1);
-        Assert.Single(capped.Value);
-        Assert.Equal(siteA, capped.Value[0].SiteId);
-    }
-
     // ---- SAC ----
 
     [Fact]

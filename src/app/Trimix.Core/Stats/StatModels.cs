@@ -25,9 +25,6 @@ public sealed record TempRange(double MinC, double MaxC);
 /// <summary>Dive counts by gas classification. Any dive lands in exactly one bucket.</summary>
 public sealed record GasMixSummary(int Air, int Nitrox, int Trimix, int Unknown);
 
-/// <summary>How many dives are logged at a given site.</summary>
-public sealed record SiteFrequency(Guid SiteId, int Count);
-
 /// <summary>Per-dive SAC/RMV point for a trend chart. Components are null when not computable for that dive.</summary>
 public sealed record SacPoint(Guid DiveId, DateTime StartUtc, double? SacBarPerMin, double? RmvLPerMin);
 

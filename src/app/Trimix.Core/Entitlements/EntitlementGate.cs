@@ -3,9 +3,8 @@ using Trimix.Contracts;
 namespace Trimix.Core.Entitlements;
 
 /// <summary>
-/// Pure free-tier cap logic (architecture overview §9). Client-side gate over the
-/// server-authoritative tier: import-session cap, logbook visibility cap, and site-contribution
-/// gating. The server additionally enforces contribution gating authoritatively.
+/// Pure free-tier cap logic (architecture overview §9): the import-session cap and the logbook
+/// visibility cap. (Site-contribution gating was removed with the Sites capability.)
 /// </summary>
 public static class EntitlementGate
 {
@@ -42,7 +41,4 @@ public static class EntitlementGate
     /// <summary>How many dives the free logbook cap hides.</summary>
     public static int LogbookHiddenCount(EntitlementTier tier, int totalDives) =>
         Math.Max(0, totalDives) - LogbookVisibleCount(tier, totalDives);
-
-    /// <summary>Site contribution requires Pro/Lifetime (slice scope; "verified" path is post-slice).</summary>
-    public static bool CanContributeSites(EntitlementTier tier) => IsPaid(tier);
 }

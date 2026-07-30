@@ -188,67 +188,9 @@ public sealed class CsvToListConverter : IValueConverter
         throw new NotSupportedException();
 }
 
-/// <summary>Site search row subtitle: "Reef · 12–30 m · 2.3 km away".</summary>
-public sealed class SiteSubtitleConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is not SiteSummaryDto site)
-        {
-            return "";
-        }
-
-        var parts = new List<string>(3);
-        if (!string.IsNullOrWhiteSpace(site.Type))
-        {
-            parts.Add(site.Type);
-        }
-
-        if (DepthRange(site.DepthMinM, site.DepthMaxM) is { Length: > 0 } range)
-        {
-            parts.Add(range);
-        }
-
-        if (site.DistanceKm is { } km)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{km:0.#} km away"));
-        }
-
-        return string.Join(" · ", parts);
-    }
-
-    internal static string DepthRange(double? minM, double? maxM)
-    {
-        var units = Units.Formatter;
-        return (minM, maxM) switch
-        {
-            (null, null) => "",
-            ({ } min, null) => units?.FormatDepth(min) ?? "",
-            (null, { } max) => units?.FormatDepth(max) ?? "",
-            ({ } min, { } max) => units is null
-                ? ""
-                : $"{units.FormatDepth(min).Split(' ')[0]}–{units.FormatDepth(max)}",
-        };
-    }
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        throw new NotSupportedException();
-}
-
-/// <summary>Depth range line for site detail ("12–30 m"; site as value).</summary>
-public sealed class SiteDepthRangeConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is SiteDetailDto site ? SiteSubtitleConverter.DepthRange(site.DepthMinM, site.DepthMaxM) : "";
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        throw new NotSupportedException();
-}
-
 /// <summary>
 /// Dive-card title: the draft site name when the dive carries one (manual entry's
-/// <c>{"draft_site_name": …}</c> convention), else a source-based title. Site names for matched
-/// sites resolve on the detail page (the list stays offline-fast).
+/// <c>{"draft_site_name": …}</c> convention), else a source-based title.
 /// </summary>
 public sealed class DiveCardTitleConverter : IValueConverter
 {
@@ -274,11 +216,6 @@ public sealed class DiveCardTitleConverter : IValueConverter
             {
                 // Not the draft-site convention — fall through.
             }
-        }
-
-        if (dive.SiteId is not null)
-        {
-            return "Matched dive site";
         }
 
         return dive.Source == DiveSources.Import ? "Imported dive" : "Logged dive";

@@ -249,22 +249,6 @@ public static partial class DiveStats
             new Completeness(known, dives.Count));
     }
 
-    /// <summary>The most-dived sites (by dive count), highest first, capped at <paramref name="top"/>.</summary>
-    public static StatValue<IReadOnlyList<SiteFrequency>> MostDivedSites(IReadOnlyList<DiveDto> dives, int top = 10)
-    {
-        ArgumentNullException.ThrowIfNull(dives);
-        var withSite = dives.Where(d => d.SiteId is not null).ToList();
-        var frequencies = withSite
-            .GroupBy(d => d.SiteId!.Value)
-            .Select(g => new SiteFrequency(g.Key, g.Count()))
-            .OrderByDescending(s => s.Count).ThenBy(s => s.SiteId)
-            .Take(Math.Max(0, top))
-            .ToList();
-
-        return new StatValue<IReadOnlyList<SiteFrequency>>(
-            frequencies, new Completeness(withSite.Count, dives.Count));
-    }
-
     /// <summary>Per-dive SAC/RMV points (chronological), for the dives where SAC is computable.</summary>
     public static StatValue<IReadOnlyList<SacPoint>> SacOverTime(IReadOnlyList<DiveDto> dives)
     {

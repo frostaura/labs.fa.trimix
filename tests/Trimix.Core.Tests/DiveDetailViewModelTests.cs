@@ -24,7 +24,6 @@ public class DiveDetailViewModelTests
         _store,
         _units,
         _navigator,
-        new Trimix.Core.Sites.SiteAtlas(),
         new FakeClock(),
         new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
         []);

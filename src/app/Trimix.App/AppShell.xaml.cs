@@ -21,7 +21,6 @@ public partial class AppShell : Shell
     {
         Routing.RegisterRoute(Routes.Onboarding, typeof(OnboardingPage));
         Routing.RegisterRoute(Routes.DiveDetail, typeof(DiveDetailPage));
-        Routing.RegisterRoute(Routes.SiteDetail, typeof(SiteDetailPage));
         Routing.RegisterRoute(Routes.Paywall, typeof(PaywallPage));
         // Providers (prototype S5) — the connector registry, pushed from the add sheet / You tab —
         // and the per-provider in-app sign-in sheet (S6).

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Dive detail (prototype C6): mint-on-Abyss. Shared PageHeader (← back + site-name title +
-     origin chip) · "Dive #N · date · location" meta · FROM {VENDOR} › PADI ✓ SSI ✓ route strip ·
-     2x2 metric tiles (MAX DEPTH mint · BOTTOM TIME · MIN TEMP · GAS) · "DEPTH / TIME" chart with
-     the design's drawLine/fillFade draw-on (1.8s + .8s), touch-to-scrub crosshair + tooltip and
-     the accessibility-mandated "view as table" alternative · the "NEAR THIS SITE" auto-rotating
-     atlas carousel · NOTES view/edit/save (AppIcon pencil/plus, never text glyphs). -->
+<!-- Dive detail (prototype C6): mint-on-Abyss. Shared PageHeader (← back + "Dive #N" title +
+     origin chip) · "date" meta · FROM {VENDOR} › PADI ✓ SSI ✓ route strip · 2x2 metric tiles
+     (MAX DEPTH mint · BOTTOM TIME · MIN TEMP · GAS) · "DEPTH / TIME" chart with the design's
+     drawLine/fillFade draw-on (1.8s + .8s), touch-to-scrub crosshair + tooltip and the
+     accessibility-mandated "view as table" alternative · NOTES view/edit/save (AppIcon
+     pencil/plus, never text glyphs). (The "NEAR THIS SITE" atlas carousel went with Sites.) -->
 <controls:TrimixPage
     x:Class="Trimix.App.Pages.DiveDetailPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -22,7 +22,7 @@
         <controls:PageHeader
             Grid.Row="0"
             Margin="24,8,24,0"
-            Title="{Binding SiteName}"
+            Title="{Binding Title}"
             ShowBack="True"
             BackCommand="{Binding CloseCommand}">
             <controls:PageHeader.RightAction>
@@ -271,44 +271,6 @@
                         </VerticalStackLayout>
                     </VerticalStackLayout>
                 </Border>
-
-                <!-- NEAR THIS SITE — 3 auto-rotating community-atlas cards from the bundled seed
-                     atlas (fact · conditions · atlas line) with dot indicators. Tap → next card. -->
-                <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding HasSite}">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0" Style="{StaticResource MonoLabelMint}"
-                               Text="{Binding SiteCoordsText, StringFormat='NEAR THIS SITE · {0}'}"
-                               LineBreakMode="TailTruncation"
-                               VerticalOptions="Center"
-                               SemanticProperties.HeadingLevel="Level2" />
-                        <HorizontalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
-                            <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
-                                    Text="●" Command="{Binding GoToFactCommand}" CommandParameter="0"
-                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
-                                    Opacity="{Binding IsFact0Active, Converter={StaticResource BoolToDotOpacity}}"
-                                    SemanticProperties.Description="Site info 1" />
-                            <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
-                                    Text="●" Command="{Binding GoToFactCommand}" CommandParameter="1"
-                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
-                                    Opacity="{Binding IsFact1Active, Converter={StaticResource BoolToDotOpacity}}"
-                                    SemanticProperties.Description="Site info 2" />
-                            <Button Style="{StaticResource GhostButton}" WidthRequest="24" HeightRequest="24" Padding="0" CornerRadius="12" FontSize="10"
-                                    Text="●" Command="{Binding GoToFactCommand}" CommandParameter="2"
-                                    TextColor="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
-                                    Opacity="{Binding IsFact2Active, Converter={StaticResource BoolToDotOpacity}}"
-                                    SemanticProperties.Description="Site info 3" />
-                        </HorizontalStackLayout>
-                    </Grid>
-                    <Label Style="{StaticResource Body15}"
-                           FontSize="12.5"
-                           TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
-                           MinimumHeightRequest="38"
-                           Text="{Binding CurrentFactText}">
-                        <Label.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding NextFactCommand}" />
-                        </Label.GestureRecognizers>
-                    </Label>
-                </VerticalStackLayout>
 
                 <!-- NOTES — view / edit / save / empty, persisted locally on the dive. -->
                 <VerticalStackLayout Spacing="{StaticResource TightSpacing}">

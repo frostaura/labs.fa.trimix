@@ -7,7 +7,6 @@ using Trimix.Core.Charts;
 using Trimix.Core.Connectors;
 using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Formatting;
-using Trimix.Core.Sites;
 using Trimix.Core.Stats;
 
 namespace Trimix.Core.ViewModels;
@@ -33,7 +32,6 @@ public partial class DiveDetailViewModel(
     ILocalStore store,
     UnitFormatter units,
     INavigator navigator,
-    SiteAtlas atlas,
     IClock clock,
     IConnectorConsentStore consent,
     IEnumerable<IDiveDestinationConnector> destinations) : ObservableObject
@@ -101,8 +99,9 @@ public partial class DiveDetailViewModel(
     [ObservableProperty]
     private bool _hasRecordedReadouts;
 
+    /// <summary>Screen title — "Dive #N" (the Sites capability that titled this by dive-site is gone).</summary>
     [ObservableProperty]
-    private string _siteName = "";
+    private string _title = "";
 
     [ObservableProperty]
     private string _maxDepthText = "";
@@ -197,57 +196,6 @@ public partial class DiveDetailViewModel(
     /// <summary>Ends the scrub gesture (hides the crosshair + tooltip).</summary>
     public void EndScrub() => IsScrubbing = false;
 
-    // ── "NEAR THIS SITE" carousel (C6): 3 auto-rotating cards from the bundled atlas ──
-
-    /// <summary>True when the dive matched a bundled atlas site (shows the carousel).</summary>
-    [ObservableProperty]
-    private bool _hasSite;
-
-    /// <summary>Header: "NEAR THIS SITE · 8.274°S 115.593°E" coordinate part.</summary>
-    [ObservableProperty]
-    private string _siteCoordsText = "";
-
-    /// <summary>The card currently shown (site fact / conditions / community-atlas line).</summary>
-    [ObservableProperty]
-    private string _currentFactText = "";
-
-    [ObservableProperty]
-    private int _factIndex;
-
-    [ObservableProperty]
-    private bool _isFact0Active = true;
-
-    [ObservableProperty]
-    private bool _isFact1Active;
-
-    [ObservableProperty]
-    private bool _isFact2Active;
-
-    private IReadOnlyList<string> _facts = [];
-
-    /// <summary>Advances the carousel (auto-rotate tick ~4s, or a tap on the card).</summary>
-    [RelayCommand]
-    private void NextFact() => ShowFact(FactIndex + 1);
-
-    /// <summary>Jumps to a specific card (the dot buttons).</summary>
-    [RelayCommand]
-    private void GoToFact(string index) =>
-        ShowFact(int.TryParse(index, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : 0);
-
-    private void ShowFact(int index)
-    {
-        if (_facts.Count == 0)
-        {
-            return;
-        }
-
-        FactIndex = ((index % _facts.Count) + _facts.Count) % _facts.Count;
-        CurrentFactText = _facts[FactIndex];
-        IsFact0Active = FactIndex == 0;
-        IsFact1Active = FactIndex == 1;
-        IsFact2Active = FactIndex == 2;
-    }
-
     // ── Notes (C6): view / edit / save / empty — persisted locally on the dive ──
 
     [ObservableProperty]
@@ -332,16 +280,14 @@ public partial class DiveDetailViewModel(
         GridDepth1Text = units.FormatDepth(display.MaxDepthM * 0.35);
         GridDepth2Text = units.FormatDepth(display.MaxDepthM * 0.65);
 
-        // Header meta: "Dive #N · 14 Jun 2026 · Tulamben" — N is the chronological sequence number.
+        // Title "Dive #N" + date meta line — N is the chronological sequence number. (The dive-site
+        // parts of the title/meta went with the Sites capability.)
         var sequence = active
             .OrderBy(d => d.StartUtc)
             .ToList()
             .FindIndex(d => d.Id == display.Id) + 1;
-        var site = display.SiteId is Guid sid ? atlas.GetById(sid) : null;
-        var datePart = display.StartUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
-        MetaText = site is null
-            ? $"Dive #{Math.Max(1, sequence)} · {datePart}"
-            : $"Dive #{Math.Max(1, sequence)} · {datePart} · {site.Location}";
+        Title = string.Create(CultureInfo.InvariantCulture, $"Dive #{Math.Max(1, sequence)}");
+        MetaText = display.StartUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
 
         // Origin chip + FROM {VENDOR} → PADI ✓ SSI ✓ route strip (linked push providers).
         OriginLabel = ProviderCatalog.ShortLabelFor(display.SourceVendor);
@@ -350,21 +296,6 @@ public partial class DiveDetailViewModel(
             .Select(d => ProviderCatalog.ShortLabelFor(d.Descriptor.ConnectorId) + " ✓")
             .ToList();
         HasRouteDestinations = RouteDestinations.Count > 0;
-
-        // "NEAR THIS SITE" carousel — bundled atlas cards; hidden when no site matched.
-        HasSite = site is not null;
-        if (site is not null)
-        {
-            SiteCoordsText = SiteAtlas.CoordinatesLabel(site);
-            _facts = atlas.FactsFor(site);
-            ShowFact(0);
-        }
-        else
-        {
-            _facts = [];
-            SiteCoordsText = "";
-            CurrentFactText = "";
-        }
 
         // Notes state (view / edit / empty).
         NotesText = display.Notes?.Trim() ?? "";
@@ -392,22 +323,10 @@ public partial class DiveDetailViewModel(
         IsMerged = (cluster?.Sources.Count ?? 0) > 1;
         RecordedReadouts = BuildRecordedReadouts(display.ProfileSamples);
         HasRecordedReadouts = RecordedReadouts.Count > 0;
-
-        // Screen title is the site name (prototype); honest fallback when nothing matched.
-        SiteName = site?.Name ?? "Open water";
     }
 
     [RelayCommand]
     private void ToggleProfileTable() => IsProfileTableVisible = !IsProfileTableVisible;
-
-    [RelayCommand]
-    private async Task OpenSiteAsync()
-    {
-        if (Dive?.SiteId is Guid siteId)
-        {
-            await navigator.GoToAsync(Routes.SiteDetail, new Dictionary<string, object> { [Routes.Params.SiteId] = siteId });
-        }
-    }
 
     /// <summary>
     /// Re-formats the invariant numeric cells from <see cref="ChartGeometry.BuildProfileTable"/> for

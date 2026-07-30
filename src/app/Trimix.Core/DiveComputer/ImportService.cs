@@ -1,36 +1,29 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Logging;
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Entitlements;
-using Trimix.Core.Sites;
 
 namespace Trimix.Core.DiveComputer;
 
 /// <summary>
 /// The source-agnostic import pipeline (serverless): authenticate a source connector, list dives since
-/// the cursor, fetch each profile, then site auto-match → free-tier truncation → <c>ToDiveDto</c> →
-/// local upsert → <c>dive_logged_import</c> per saved dive → paywall trigger on truncation. The generic
-/// path emits <c>source_connected</c>, <c>dives_synced</c>, and (on cap) <c>paywall_shown</c> with
+/// the cursor, fetch each profile, then free-tier truncation → <c>ToDiveDto</c> → local upsert →
+/// <c>dive_logged_import</c> per saved dive → paywall trigger on truncation. The generic path emits
+/// <c>source_connected</c>, <c>dives_synced</c>, and (on cap) <c>paywall_shown</c> with
 /// <c>trigger=cloud_sync_cap</c>. The BLE path and its <c>ble_*</c> events are removed — the constants
-/// stay frozen in <see cref="FunnelEvents"/> but are no longer emitted.
+/// stay frozen in <see cref="FunnelEvents"/> but are no longer emitted. (Site auto-match was removed
+/// with the Sites capability; <c>ImportResult.SiteMatched</c> is now always false.)
 /// </summary>
 public sealed class ImportService(
-    ILocationService location,
     IEntitlementService entitlements,
     ILocalStore store,
     IAnalytics analytics,
     IAppInfo appInfo,
-    IClock clock,
-    SiteAtlas atlas,
-    ILogger<ImportService> logger) : IImportService
+    IClock clock) : IImportService
 {
-    /// <summary>Auto-match radius: nearest known site within 2 km of the device claims the dive.</summary>
-    public const double SiteAutoMatchRadiusKm = 2.0;
-
     public async Task<ImportResult> ImportFromConnectorAsync(
         IDiveSourceConnector connector,
         SyncCursor cursor,
@@ -94,9 +87,9 @@ public sealed class ImportService(
     }
 
     /// <summary>
-    /// The source-agnostic downstream (architecture overview §1): site auto-match → free-tier truncation
-    /// → <c>ToDiveDto</c> → <c>store.UpsertDiveAsync</c> → <c>dive_logged_import</c> per saved dive →
-    /// paywall trigger on truncation. Reused verbatim by every source connector.
+    /// The source-agnostic downstream (architecture overview §1): free-tier truncation → <c>ToDiveDto</c>
+    /// → <c>store.UpsertDiveAsync</c> → <c>dive_logged_import</c> per saved dive → paywall trigger on
+    /// truncation. Reused verbatim by every source connector.
     /// </summary>
     private async Task<ImportResult> PersistFetchedAsync(
         IReadOnlyList<(ImportedDive Dive, string Vendor)> fetched,
@@ -104,8 +97,6 @@ public sealed class ImportService(
         IProgress<ImportProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var matchedSiteId = await TryAutoMatchSiteAsync(cancellationToken).ConfigureAwait(false);
-
         // "Free keeps your last 5" (prototype monetization moment): the allowance for THIS batch is
         // the free ceiling minus the dives already on device, so the 6th dive is the paywall moment
         // whichever sync it arrives in. Re-imports of dives already stored (deterministic id match)
@@ -140,7 +131,7 @@ public sealed class ImportService(
         foreach (var (dive, vendor) in toImport)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var dto = ToDiveDto(dive, vendor, matchedSiteId);
+            var dto = ToDiveDto(dive, vendor);
             await store.UpsertDiveAsync(dto, cancellationToken).ConfigureAwait(false);
             analytics.Track(FunnelEvents.DiveLoggedImport, new Dictionary<string, string>
             {
@@ -158,34 +149,11 @@ public sealed class ImportService(
             await onCapReached().ConfigureAwait(false);
         }
 
-        return new ImportResult(imported, fetched.Count, capReached, matchedSiteId is not null);
+        // SiteMatched is always false since the Sites capability (atlas auto-match) was removed.
+        return new ImportResult(imported, fetched.Count, capReached, false);
     }
 
-    /// <summary>
-    /// Site auto-match against the bundled on-device atlas (the server geo-search's serverless
-    /// replacement): current fix → bounding-box prefilter → haversine → nearest site within
-    /// <see cref="SiteAutoMatchRadiusKm"/>. Null when permission is denied, no fix, or nothing near.
-    /// </summary>
-    private async Task<Guid?> TryAutoMatchSiteAsync(CancellationToken cancellationToken)
-    {
-        var fix = await location.GetCurrentLocationAsync(cancellationToken).ConfigureAwait(false);
-        if (fix is null)
-        {
-            return null;
-        }
-
-        var site = atlas.FindNearest(fix.Lat, fix.Lng, SiteAutoMatchRadiusKm);
-        if (site is null)
-        {
-            logger.LogDebug("Site auto-match: no atlas site within {RadiusKm} km of the fix.", SiteAutoMatchRadiusKm);
-            return null;
-        }
-
-        logger.LogDebug("Site auto-match: {Site} ({Location}).", site.Name, site.Location);
-        return site.Id;
-    }
-
-    private DiveDto ToDiveDto(ImportedDive dive, string vendor, Guid? siteId) => new(
+    private DiveDto ToDiveDto(ImportedDive dive, string vendor) => new(
         Id: DeterministicDiveId(vendor, dive.StartUtc, dive.DurationSec),
         StartUtc: dive.StartUtc,
         DurationSec: dive.DurationSec,
@@ -195,7 +163,7 @@ public sealed class ImportService(
         GasMix: dive.GasMix,
         Source: DiveSources.Import,
         SourceVendor: vendor,
-        SiteId: siteId,
+        SiteId: null,
         ConditionsJson: null,
         GearCsv: null,
         BuddiesCsv: null,

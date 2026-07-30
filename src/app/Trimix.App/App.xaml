@@ -28,8 +28,6 @@
             <conv:RatingToStarsConverter x:Key="RatingToStars" />
             <conv:RatingToWordsConverter x:Key="RatingToWords" />
             <conv:CsvToListConverter x:Key="CsvToList" />
-            <conv:SiteSubtitleConverter x:Key="SiteSubtitle" />
-            <conv:SiteDepthRangeConverter x:Key="SiteDepthRange" />
             <conv:DiveCardTitleConverter x:Key="DiveCardTitle" />
             <conv:ProgressFractionConverter x:Key="ProgressFraction" />
             <conv:UnitPrefixPartConverter x:Key="UnitPrefixPart" />

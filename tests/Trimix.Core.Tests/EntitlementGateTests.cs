@@ -57,11 +57,4 @@ public class EntitlementGateTests
         Assert.Equal(visible, EntitlementGate.LogbookVisibleCount(tier, total));
         Assert.Equal(hidden, EntitlementGate.LogbookHiddenCount(tier, total));
     }
-
-    [Theory]
-    [InlineData(EntitlementTier.Free, false)]
-    [InlineData(EntitlementTier.Pro, true)]
-    [InlineData(EntitlementTier.Lifetime, true)]
-    public void Site_contribution_requires_paid_tier(EntitlementTier tier, bool expected) =>
-        Assert.Equal(expected, EntitlementGate.CanContributeSites(tier));
 }
