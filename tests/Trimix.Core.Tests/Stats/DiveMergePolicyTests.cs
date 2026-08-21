@@ -10,53 +10,68 @@ public class DiveMergePolicyTests
     private static readonly DateTime T0 = new(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public void Constants_match_the_decided_tolerances()
+    public void Overlap_padding_constants_match_the_decided_values()
     {
-        Assert.Equal(90, DiveMergePolicy.StartToleranceSeconds);
-        Assert.Equal(90, DiveMergePolicy.DurationToleranceSeconds);
-        Assert.Equal(1.5, DiveMergePolicy.MaxDepthToleranceMeters);
+        Assert.Equal(0.30, DiveMergePolicy.OverlapPadFraction);
+        Assert.Equal(120, DiveMergePolicy.OverlapPadFloorSeconds);
+        Assert.Equal(600, DiveMergePolicy.OverlapPadCeilingSeconds);
     }
 
-    // ---- IsSamePhysicalDive: near-boundary behaviour on each axis ----
+    // ---- IsSamePhysicalDive: time-interval overlap with duration-scaled padding ----
 
-    [Theory]
-    [InlineData(89, true)]
-    [InlineData(90, true)]
-    [InlineData(91, false)]
-    public void Start_offset_is_bounded_at_ninety_seconds(int offsetSec, bool same)
+    [Fact]
+    public void Heavily_overlapping_windows_are_the_same_dive()
     {
+        // Two computers on one ~50 min dive, one started five minutes after the other — windows overlap hugely.
         var a = Dive(start: T0, durationSec: 3000, maxDepthM: 30);
-        var b = Dive(start: T0.AddSeconds(offsetSec), durationSec: 3000, maxDepthM: 30);
-        Assert.Equal(same, DiveMergePolicy.IsSamePhysicalDive(a, b));
+        var b = Dive(start: T0.AddMinutes(5), durationSec: 3000, maxDepthM: 18); // depth differs — irrelevant now
+        Assert.True(DiveMergePolicy.IsSamePhysicalDive(a, b));
     }
 
-    [Theory]
-    [InlineData(3089, true)]
-    [InlineData(3090, true)]
-    [InlineData(3091, false)]
-    public void Duration_delta_is_bounded_at_ninety_seconds(int otherDuration, bool same)
+    [Fact]
+    public void Non_overlapping_windows_beyond_the_pad_are_distinct()
     {
+        // Two 50 min dives (pad = clamp(0.30·3000, 120, 600) = 600 s). A ends at +3000; B starts 700 s later,
+        // beyond the pad, so the windows don't bridge — a separate (repetitive) dive.
         var a = Dive(start: T0, durationSec: 3000, maxDepthM: 30);
-        var b = Dive(start: T0, durationSec: otherDuration, maxDepthM: 30);
-        Assert.Equal(same, DiveMergePolicy.IsSamePhysicalDive(a, b));
+        var b = Dive(start: T0.AddSeconds(3000 + 700), durationSec: 3000, maxDepthM: 30);
+        Assert.False(DiveMergePolicy.IsSamePhysicalDive(a, b));
     }
 
-    [Theory]
-    [InlineData(31.4, true)]
-    [InlineData(31.5, true)]
-    [InlineData(31.6, false)]
-    public void Max_depth_delta_is_bounded_at_one_and_a_half_metres(double otherDepth, bool same)
+    [Fact]
+    public void A_surface_interval_inside_the_pad_still_bridges()
     {
+        // Same 50 min dives, but B starts only 500 s after A ends — inside the 600 s pad, so they merge.
         var a = Dive(start: T0, durationSec: 3000, maxDepthM: 30);
-        var b = Dive(start: T0, durationSec: 3000, maxDepthM: otherDepth);
-        Assert.Equal(same, DiveMergePolicy.IsSamePhysicalDive(a, b));
+        var b = Dive(start: T0.AddSeconds(3000 + 500), durationSec: 3000, maxDepthM: 30);
+        Assert.True(DiveMergePolicy.IsSamePhysicalDive(a, b));
+    }
+
+    [Fact]
+    public void Pad_scales_down_for_short_dives_via_the_geometric_mean()
+    {
+        // Two 100 s bounce dives → pad = clamp(0.30·√(100·100)=30, floor 120, …) = 120 s (the floor).
+        var a = Dive(start: T0, durationSec: 100, maxDepthM: 6);
+        var bridged = Dive(start: T0.AddSeconds(100 + 100), durationSec: 100, maxDepthM: 6); // gap 100 < 120
+        var separate = Dive(start: T0.AddSeconds(100 + 150), durationSec: 100, maxDepthM: 6); // gap 150 > 120
+        Assert.True(DiveMergePolicy.IsSamePhysicalDive(a, bridged));
+        Assert.False(DiveMergePolicy.IsSamePhysicalDive(a, separate));
+    }
+
+    [Fact]
+    public void Pad_is_capped_so_very_long_dives_do_not_bridge_a_long_surface_interval()
+    {
+        // Very long dives would scale past the ceiling; pad is clamped to 600 s, so a 700 s gap stays distinct.
+        var a = Dive(start: T0, durationSec: 10000, maxDepthM: 40);
+        var b = Dive(start: T0.AddSeconds(10000 + 700), durationSec: 10000, maxDepthM: 40);
+        Assert.False(DiveMergePolicy.IsSamePhysicalDive(a, b));
     }
 
     [Fact]
     public void Match_is_symmetric()
     {
         var a = Dive(start: T0, durationSec: 3000, maxDepthM: 30);
-        var b = Dive(start: T0.AddSeconds(85), durationSec: 3040, maxDepthM: 31);
+        var b = Dive(start: T0.AddSeconds(3000 + 500), durationSec: 3200, maxDepthM: 31);
         Assert.Equal(DiveMergePolicy.IsSamePhysicalDive(a, b), DiveMergePolicy.IsSamePhysicalDive(b, a));
     }
 
@@ -136,11 +151,12 @@ public class DiveMergePolicyTests
     [Fact]
     public void Anchor_matching_does_not_transitively_chain()
     {
-        // A–B within tolerance, B–C within tolerance, but A–C is 160 s apart (> 90 s).
-        // Matching against the fixed anchor A keeps C out of A's cluster.
-        var a = Dive(start: T0, durationSec: 3000, maxDepthM: 30, sourceVendor: "shearwater");
-        var b = Dive(start: T0.AddSeconds(80), durationSec: 3000, maxDepthM: 30, sourceVendor: "apple_health");
-        var c = Dive(start: T0.AddSeconds(160), durationSec: 3000, maxDepthM: 30, sourceVendor: "garmin_fit");
+        // Short 100 s dives → pad = 120 s (the floor). A=[0,100], B=[150,250], C=[230,330]:
+        // A–B overlap (padded), B–C overlap (padded), but A–C do NOT (C starts 230 s after A's start, and
+        // 230 > endA(100)+120). Matching against the fixed anchor A keeps C out of A's cluster.
+        var a = Dive(start: T0, durationSec: 100, maxDepthM: 30, sourceVendor: "shearwater");
+        var b = Dive(start: T0.AddSeconds(150), durationSec: 100, maxDepthM: 30, sourceVendor: "apple_health");
+        var c = Dive(start: T0.AddSeconds(230), durationSec: 100, maxDepthM: 30, sourceVendor: "garmin_fit");
 
         var merged = DiveMergePolicy.Merge(new[] { a, b, c });
 

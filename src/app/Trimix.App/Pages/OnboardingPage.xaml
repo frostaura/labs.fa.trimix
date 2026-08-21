@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!-- Onboarding (prototype S1 + S2): 2-pane swipe carousel over full-bleed Abyss.
      S1 Welcome — TRIMIX wordmark, animated SonarPulse hero rings (design blePulse 164/3.2s),
-     "Your logbook fills itself.", the auto-import promise, and the SYNCS WITH brand marquee
-     auto-scrolling on the design's brandSlide 22s loop (code-behind; static under reduced motion).
+     "Your logbook fills itself.", the auto-import promise, and provider status shown as two static
+     wrap rows: SYNCS WITH (supported today) and COMING SOON (registered but not yet live) — kept in
+     sync with ProviderCatalog.LiveConnectorIds and matching the Providers screen's split.
      S2 "How it works" — the 3-step loop (01 Dive / 02 Sync / 03 Log) + "Continue" (→ logbook;
      there is no auth/account step — the phone is the account); its back affordance is the shared
      PageHeader ← (replaces the old ghost button).
@@ -26,28 +27,39 @@
             <x:Int32>1</x:Int32>
         </x:Array>
 
-        <!-- SYNCS WITH marquee entries (prototype order). -->
-        <x:Array x:Key="MarqueeBrands" Type="{x:Type x:String}">
+        <!-- Provider brands split by real status: SYNCS WITH = supported today; COMING SOON = registered but
+             not yet live (renders disabled on the Providers screen too). Keep these in sync with
+             ProviderCatalog.LiveConnectorIds. -->
+        <x:Array x:Key="SupportedBrands" Type="{x:Type x:String}">
             <x:String>GARMIN DIVE</x:String>
             <x:String>SUUNTO</x:String>
             <x:String>SCUBAPRO</x:String>
+        </x:Array>
+        <x:Array x:Key="ComingSoonBrands" Type="{x:Type x:String}">
+            <x:String>SHEARWATER</x:String>
             <x:String>MARES</x:String>
             <x:String>OCEANIC+</x:String>
             <x:String>PADI</x:String>
             <x:String>SSI</x:String>
         </x:Array>
 
-        <!-- One marquee chip. The strip renders the brand list TWICE and translates by exactly half the
-             total width to loop seamlessly. For that half to land copy B pixel-on where copy A was, the
-             doubled row must be perfectly periodic — so the gap lives as a uniform TRAILING margin on
-             every chip (incl. the last), and every Spacing is 0. Do not reintroduce StackLayout Spacing
-             here: it would add a gap only *between* items, breaking the half-width periodicity. -->
-        <DataTemplate x:Key="MarqueeChip" x:DataType="x:String">
-            <Border Style="{StaticResource Chip}" Margin="0,0,8,0" AutomationProperties.IsInAccessibleTree="False">
+        <!-- Supported brand chip (secondary ink). -->
+        <DataTemplate x:Key="SupportedChip" x:DataType="x:String">
+            <Border Style="{StaticResource Chip}" Margin="0,0,8,8" AutomationProperties.IsInAccessibleTree="False">
                 <Label
                     Style="{StaticResource BadgeText}"
                     Text="{Binding .}"
                     TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}" />
+            </Border>
+        </DataTemplate>
+
+        <!-- Coming-soon brand chip (dimmed, disabled ink) — matches the Providers screen's "Coming soon" tone. -->
+        <DataTemplate x:Key="ComingSoonChip" x:DataType="x:String">
+            <Border Style="{StaticResource Chip}" Margin="0,0,8,8" Opacity="0.45" AutomationProperties.IsInAccessibleTree="False">
+                <Label
+                    Style="{StaticResource BadgeText}"
+                    Text="{Binding .}"
+                    TextColor="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}" />
             </Border>
         </DataTemplate>
     </controls:TrimixPage.Resources>
@@ -62,6 +74,7 @@
             Grid.Row="0"
             ItemsSource="{StaticResource PaneIndices}"
             Position="{Binding PageIndex, Mode=TwoWay}"
+            PositionChanged="OnCarouselPositionChanged"
             IndicatorView="{x:Reference pageIndicator}"
             Loop="False"
             HorizontalScrollBarVisibility="Never"
@@ -108,30 +121,32 @@
                                     SemanticProperties.HeadingLevel="Level1" />
                                 <Label
                                     Style="{StaticResource Body15}"
-                                    Text="Auto-import from every dive computer you own — and keep PADI, SSI and your other dive apps in sync, automatically."
+                                    Text="Auto-import from the dive computers you already use — your logbook fills itself after every dive, with more platforms on the way."
                                     TextColor="{AppThemeBinding Light={StaticResource LightTextSecondary}, Dark={StaticResource TextSecondary}}"
                                     HorizontalTextAlignment="Start" />
 
-                                <!-- SYNCS WITH brand marquee: continuous 22s brandSlide auto-scroll
-                                     (code-behind); the track holds the brand row TWICE so a half-width
-                                     translate loops seamlessly. Static row under reduced motion. -->
-                                <VerticalStackLayout Spacing="10" Margin="0,4,0,0">
-                                    <Label Style="{StaticResource MonoLabel}" Text="SYNCS WITH" Margin="0" />
-                                    <Grid
-                                        HeightRequest="34"
-                                        Margin="-24,0"
-                                        IsClippedToBounds="True"
-                                        SemanticProperties.Description="Syncs with Garmin Dive, Suunto, ScubaPro, Mares, Oceanic plus, PADI and SSI">
-                                        <HorizontalStackLayout
-                                            Spacing="0"
-                                            HorizontalOptions="Start"
-                                            VerticalOptions="Center"
-                                            Loaded="OnMarqueeLoaded"
-                                            Unloaded="OnMarqueeUnloaded">
-                                            <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{StaticResource MarqueeBrands}" BindableLayout.ItemTemplate="{StaticResource MarqueeChip}" />
-                                            <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{StaticResource MarqueeBrands}" BindableLayout.ItemTemplate="{StaticResource MarqueeChip}" />
-                                        </HorizontalStackLayout>
-                                    </Grid>
+                                <!-- Provider status, split honestly: what syncs today vs what's coming. Static
+                                     wrap rows (no marquee) so the two states read clearly and match the
+                                     Providers screen's supported / "Coming soon" split. -->
+                                <VerticalStackLayout Spacing="12" Margin="0,4,0,0">
+                                    <VerticalStackLayout Spacing="8">
+                                        <Label Style="{StaticResource MonoLabel}" Text="SYNCS WITH" Margin="0" />
+                                        <FlexLayout
+                                            Wrap="Wrap"
+                                            Direction="Row"
+                                            BindableLayout.ItemsSource="{StaticResource SupportedBrands}"
+                                            BindableLayout.ItemTemplate="{StaticResource SupportedChip}"
+                                            SemanticProperties.Description="Syncs with Garmin Dive, Suunto and ScubaPro" />
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Spacing="8">
+                                        <Label Style="{StaticResource MonoLabelDim}" Text="COMING SOON" Margin="0" />
+                                        <FlexLayout
+                                            Wrap="Wrap"
+                                            Direction="Row"
+                                            BindableLayout.ItemsSource="{StaticResource ComingSoonBrands}"
+                                            BindableLayout.ItemTemplate="{StaticResource ComingSoonChip}"
+                                            SemanticProperties.Description="Coming soon: Shearwater, Mares, Oceanic plus, PADI and SSI" />
+                                    </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </VerticalStackLayout>
                         </Grid>

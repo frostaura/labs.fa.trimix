@@ -61,10 +61,25 @@ public sealed class ImportService(
             [FunnelEvents.Props.Count] = refs.Count.ToString(CultureInfo.InvariantCulture),
         });
 
+        // Skip the profile fetch for dives already on device. A dive's identity is deterministic in
+        // (vendor, start, duration) — all of which a DiveRef already carries — so this is decidable BEFORE
+        // paying for the download. That matters: a full profile is ~750 KB for Garmin (1 Hz samples), so
+        // re-fetching an unchanged 100-dive logbook on every sync would move ~75 MB to learn nothing.
+        // Consequence accepted: an already-stored dive is not refreshed if the provider later edits it.
+        var storedIds = (await store.GetDivesAsync(cancellationToken).ConfigureAwait(false))
+            .Where(d => !d.Deleted)
+            .Select(d => d.Id)
+            .ToHashSet();
+
         var fetched = new List<(ImportedDive Dive, string Vendor)>(refs.Count);
         foreach (var diveRef in refs)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (storedIds.Contains(DeterministicDiveId(source, diveRef.StartUtc, diveRef.DurationSec)))
+            {
+                continue;
+            }
+
             var dive = await connector.FetchProfileAsync(diveRef, cancellationToken).ConfigureAwait(false);
             fetched.Add((dive, source));
         }
@@ -174,7 +189,21 @@ public sealed class ImportService(
         ProfileSamples: dive.Samples,
         // Carry through any cylinders the source reported; typed-condition population is left to the
         // stats branch.
-        Cylinders: dive.Cylinders);
+        Cylinders: dive.Cylinders,
+        WaterType: dive.WaterType,
+        // Rich provider channels pass through verbatim — this mapping deliberately adds no defaults and
+        // invents nothing, so a null here means the provider genuinely did not report it.
+        DiveNumber: dive.DiveNumber,
+        BottomTimeSec: dive.BottomTimeSec,
+        SurfaceIntervalSec: dive.SurfaceIntervalSec,
+        IsDeco: dive.IsDeco,
+        DiveTypeLabel: dive.DiveTypeLabel,
+        TimezoneId: dive.TimezoneId,
+        Environment: dive.Environment,
+        Exposure: dive.Exposure,
+        Computer: dive.Computer,
+        Alerts: dive.Alerts,
+        Tags: dive.Tags);
 
     /// <summary>
     /// Deterministic dive identity: a stable GUID derived from (vendor, dive start, duration). Re-importing

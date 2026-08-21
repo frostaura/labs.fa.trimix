@@ -13,8 +13,22 @@ namespace Trimix.Core.Connectors.Infra;
 /// </summary>
 public sealed class HttpClientTransport(HttpClient? httpClient = null) : IHttpTransport, IDisposable
 {
-    private readonly HttpClient _http = httpClient ?? new HttpClient();
+    private readonly HttpClient _http = httpClient ?? CreateDefaultClient();
     private readonly bool _ownsClient = httpClient is null;
+
+    /// <summary>
+    /// The default client vendor connectors need. Two settings are load-bearing rather than cosmetic:
+    /// <b>automatic decompression</b>, because vendors gzip almost everything and a compressed body decoded as
+    /// UTF-8 becomes mojibake; and a <b>cookie container</b>, because credential sign-in legs (Garmin's SSO,
+    /// MySSI) carry session and bot-protection cookies across consecutive calls.
+    /// </summary>
+    private static HttpClient CreateDefaultClient() =>
+        new(new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.All,
+            CookieContainer = new System.Net.CookieContainer(),
+            UseCookies = true,
+        });
 
     public async Task<HttpExchangeResponse> SendAsync(HttpExchangeRequest req, CancellationToken ct = default)
     {
@@ -54,7 +68,11 @@ public sealed class HttpClientTransport(HttpClient? httpClient = null) : IHttpTr
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in response.Headers)
         {
-            headers[header.Key] = string.Join(",", header.Value);
+            // Set-Cookie is the one repeated header a comma cannot join: cookie Expires values contain
+            // commas themselves, so comma-joining several cookies is unparseable. Cookies are handled by the
+            // handler's CookieContainer anyway; newline-join keeps the surfaced value at least separable.
+            var separator = header.Key.Equals("Set-Cookie", StringComparison.OrdinalIgnoreCase) ? "\n" : ",";
+            headers[header.Key] = string.Join(separator, header.Value);
         }
 
         foreach (var header in response.Content.Headers)

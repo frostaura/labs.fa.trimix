@@ -17,6 +17,14 @@ public interface ILocalStore
     Task DeleteDiveAsync(Guid diveId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Hard-removes every dive whose <see cref="DiveDto.SourceVendor"/> equals <paramref name="sourceVendor"/>
+    /// (NOT a tombstone). Used when a provider is unlinked so that provider's imported dives leave the
+    /// logbook, while every other provider's dives — including another provider's own row for the same
+    /// physical dive — remain. Returns the number of dives removed.
+    /// </summary>
+    Task<int> DeleteDivesByVendorAsync(string sourceVendor, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Hard-removes every dive from the local store (NOT a tombstone). Used on sign-out / account
     /// switch so one account's dives never leak into the next account signed in on the device.
     /// </summary>

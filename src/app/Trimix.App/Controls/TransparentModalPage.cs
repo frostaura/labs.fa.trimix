@@ -1,5 +1,6 @@
 using Microsoft.Maui.Controls.PlatformConfiguration;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using Trimix.App.Services;
 
 namespace Trimix.App.Controls;
 
@@ -21,10 +22,20 @@ public class TransparentModalPage : ContentPage
 {
     public TransparentModalPage()
     {
+        // Same contract as TrimixPage: tap targets on a hosted sheet tick on touch, wired once here.
+        Feedback.AttachTapFeedback(this);
+
         BackgroundColor = Colors.Transparent;
         Shell.SetNavBarIsVisible(this, false);
         On<iOS>().SetModalPresentationStyle(UIModalPresentationStyle.OverFullScreen);
         On<iOS>().SetUseSafeArea(false);
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        // Warm the Taptic Engine — a sheet is usually tapped within a moment of appearing.
+        Feedback.Warm();
     }
 
     protected override void OnHandlerChanged()

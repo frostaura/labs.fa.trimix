@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Trimix.App.Services;
 
 namespace Trimix.App.Controls;
 
@@ -114,26 +115,53 @@ public partial class BottomSheet : ContentView
         }
     }
 
-    private void OnDismissRequested(object? sender, TappedEventArgs e) => IsOpen = false;
+    private void OnDismissRequested(object? sender, TappedEventArgs e)
+    {
+        // First statement — this starts the sheet's exit animation, so a hook subscribed later would tick
+        // after the sheet is already moving. The generic tap hook fires a moment later and is coalesced.
+        Feedback.Tap();
+        IsOpen = false;
+    }
 
     /// <summary>Drag-to-dismiss: follow the finger downward; release past the threshold closes,
     /// otherwise the sheet springs back.</summary>
+    /// <summary>Drag distance past which releasing dismisses. Shared by the drag tick and the release test
+    /// so the haptic can never promise a dismiss the release then does not perform.</summary>
+    private double DismissThreshold => Math.Max(80, Sheet.Height * 0.25);
+
+    private bool _dismissArmed;
+
     private async void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
     {
         switch (e.StatusType)
         {
             case GestureStatus.Started:
                 _panStartY = Sheet.TranslationY;
+                _dismissArmed = false;
                 break;
 
             case GestureStatus.Running:
                 Sheet.TranslationY = Math.Max(0, _panStartY + e.TotalY);
+
+                // Tick as the drag CROSSES the dismiss threshold rather than on release, so the sheet feels
+                // like it lets go under the finger and the diver knows it will close before committing.
+                // Re-arms on the way back up, so dragging in and out of the threshold stays informative.
+                var crossed = Sheet.TranslationY > DismissThreshold;
+                if (crossed != _dismissArmed)
+                {
+                    _dismissArmed = crossed;
+                    if (crossed)
+                    {
+                        Feedback.Tap();
+                    }
+                }
+
                 break;
 
             case GestureStatus.Completed:
             case GestureStatus.Canceled:
-                var threshold = Math.Max(80, Sheet.Height * 0.25);
-                if (Sheet.TranslationY > threshold)
+                _dismissArmed = false;
+                if (Sheet.TranslationY > DismissThreshold)
                 {
                     IsOpen = false; // exit animation continues from the dragged position
                 }

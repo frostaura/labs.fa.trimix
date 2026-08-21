@@ -12,6 +12,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
     xmlns:contracts="clr-namespace:Trimix.Contracts;assembly=Trimix.Contracts"
+    xmlns:stats="clr-namespace:Trimix.Core.Stats;assembly=Trimix.Core"
     xmlns:controls="clr-namespace:Trimix.App.Controls"
     x:DataType="vm:LogbookViewModel"
     Title="Logbook">
@@ -25,10 +26,57 @@
              top-right — the add sheet's "Sync now" row is the single entry point now. -->
         <controls:PageHeader Grid.Row="0" Margin="24,8,24,0" Title="Logbook" />
 
+
+        <!-- Loading skeleton: mirrors the stat strip + four dive rows so the page keeps its shape while the
+             store is read. Replaces the old behaviour of rendering "No dives yet" and swapping in real dives. -->
+        <controls:SkeletonPanel Grid.Row="1" Grid.RowSpan="3" Margin="24,4" IsVisible="{Binding IsLoadingSkeletonVisible}">
+            <VerticalStackLayout Spacing="{StaticResource SectionSpacing}" VerticalOptions="Start">
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="7">
+                    <Border Grid.Column="0" Style="{StaticResource GlassCard}" HeightRequest="72" />
+                    <Border Grid.Column="1" Style="{StaticResource GlassCard}" HeightRequest="72" />
+                    <Border Grid.Column="2" Style="{StaticResource GlassCard}" HeightRequest="72" />
+                </Grid>
+                <VerticalStackLayout Spacing="26">
+                    <Grid ColumnDefinitions="24,*,64" ColumnSpacing="13">
+                        <BoxView Grid.Column="0" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <BoxView HeightRequest="13" WidthRequest="120" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                            <BoxView HeightRequest="9" WidthRequest="80" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                        </VerticalStackLayout>
+                        <BoxView Grid.Column="2" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                    </Grid>
+                    <Grid ColumnDefinitions="24,*,64" ColumnSpacing="13">
+                        <BoxView Grid.Column="0" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <BoxView HeightRequest="13" WidthRequest="140" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                            <BoxView HeightRequest="9" WidthRequest="70" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                        </VerticalStackLayout>
+                        <BoxView Grid.Column="2" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                    </Grid>
+                    <Grid ColumnDefinitions="24,*,64" ColumnSpacing="13">
+                        <BoxView Grid.Column="0" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <BoxView HeightRequest="13" WidthRequest="110" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                            <BoxView HeightRequest="9" WidthRequest="90" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                        </VerticalStackLayout>
+                        <BoxView Grid.Column="2" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                    </Grid>
+                    <Grid ColumnDefinitions="24,*,64" ColumnSpacing="13">
+                        <BoxView Grid.Column="0" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <BoxView HeightRequest="13" WidthRequest="130" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                            <BoxView HeightRequest="9" WidthRequest="75" CornerRadius="3" Color="{StaticResource SurfaceRaised}" HorizontalOptions="Start" />
+                        </VerticalStackLayout>
+                        <BoxView Grid.Column="2" HeightRequest="12" CornerRadius="3" Color="{StaticResource SurfaceRaised}" VerticalOptions="Center" />
+                    </Grid>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </controls:SkeletonPanel>
+
         <!-- Stat strip (prototype C3): three tiles — DIVES (mint) · MAX (unit-aware) · BOTTOM (hours).
              Hidden while empty. Each tile announces once; numeral + caption children excluded from
              the a11y tree so TalkBack does not announce the value twice. -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="7" Margin="24,4" IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="7" Margin="24,4" IsVisible="{Binding ShowDives}">
             <Border Grid.Column="0" Style="{StaticResource GlassCard}" SemanticProperties.Description="{Binding TotalDives, StringFormat='{0} dives logged'}">
                 <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
                     <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding TotalDives}" HorizontalTextAlignment="Center" AutomationProperties.IsInAccessibleTree="False" />
@@ -96,7 +144,7 @@
             ItemsSource="{Binding VisibleDives}"
             SelectionMode="None"
             Margin="24,8,24,0"
-            IsVisible="{Binding IsEmpty, Converter={StaticResource InverseBool}}">
+            IsVisible="{Binding ShowDives}">
             <CollectionView.ItemTemplate>
                 <!-- Prototype C3 dive row: sequence # (mint) · dive date · the origin→destination
                      route string (GARMIN → PADI · SSI) · right column depth / NNmin / gas tag. Each
@@ -127,8 +175,33 @@
                             AutomationProperties.IsInAccessibleTree="False" />
                         <!-- Dive date · route string. -->
                         <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                            <Label Style="{StaticResource Heading18}" FontSize="14" Text="{Binding Title}" />
-                            <Label Style="{StaticResource MonoLabelMint}" FontSize="8.5" Opacity="0.75" Text="{Binding Route}" TextTransform="None" />
+                            <!-- Title + DECO badge. The badge only appears when the provider reported the
+                                 dive as decompression — absent data must never read as "no deco". -->
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Style="{StaticResource Heading18}" FontSize="14" Text="{Binding Title}" VerticalOptions="Center" />
+                                <Border Style="{StaticResource BadgeMint}" IsVisible="{Binding HasDeco}" VerticalOptions="Center">
+                                    <Label Style="{StaticResource BadgeTextMint}" Text="DECO" FontSize="7.5" />
+                                </Border>
+                            </HorizontalStackLayout>
+                            <!-- One badge per provider that recorded this physical dive, in priority order
+                                 (primary first), then the push-destination suffix ("→ PADI · SSI"). -->
+                            <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                                <HorizontalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Badges}" VerticalOptions="Center">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="stats:DiveSourceBadge">
+                                            <Border Style="{StaticResource BadgeMint}" VerticalOptions="Center">
+                                                <Label Style="{StaticResource BadgeTextMint}" Text="{Binding Label}" FontSize="7.5" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </HorizontalStackLayout>
+                                <Label Style="{StaticResource MonoLabelMint}" FontSize="8.5" Opacity="0.75"
+                                       Text="{Binding Destinations}" TextTransform="None"
+                                       IsVisible="{Binding HasDestinations}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <!-- Provider-reported meta (temp · type · tag); hidden when nothing was reported. -->
+                            <Label Style="{StaticResource Caption13}" FontSize="10" Opacity="0.7"
+                                   Text="{Binding MetaText}" IsVisible="{Binding HasMeta}" />
                         </VerticalStackLayout>
                         <!-- Depth · minutes · gas tag. -->
                         <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="End" VerticalOptions="Center">
@@ -149,7 +222,7 @@
 
         <!-- Empty state (design "No dives yet"): centered mint trend glyph + copy. Linking a platform
              is done from the `+` add sheet → "Manage providers", so no CTA button here. -->
-        <Grid Grid.Row="3" IsVisible="{Binding IsEmpty}" Padding="{StaticResource PageContentPadding}">
+        <Grid Grid.Row="3" IsVisible="{Binding ShowEmptyState}" Padding="{StaticResource PageContentPadding}">
 
             <VerticalStackLayout VerticalOptions="Center" Spacing="16">
                 <!-- The design's trend glyph (46px, stroke 1.5, opacity .6). -->

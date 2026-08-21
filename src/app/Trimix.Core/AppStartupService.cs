@@ -17,7 +17,9 @@ public sealed class AppStartupService(
     ILocalStore store,
     IEntitlementService entitlements,
     IAnalytics analytics,
-    IPreferences preferences)
+    IPreferences preferences,
+    IEnumerable<IDiveSourceConnector> sources,
+    IConnectorConsentStore consent)
 {
     public async Task<bool> RunAsync(
         string installSource = AnalyticsDefaults.InstallSourceOrganic,
@@ -26,9 +28,30 @@ public sealed class AppStartupService(
         await store.InitializeAsync(cancellationToken);
         await entitlements.InitializeAsync(cancellationToken);
 
+        await PurgeOrphanDivesAsync(cancellationToken);
+
         await analytics.EnsureInstallTrackedAsync(installSource, cancellationToken);
         await analytics.FlushAsync(cancellationToken);
 
         return preferences.Get(PreferenceKeys.FirstRunTracked) is null;
+    }
+
+    /// <summary>
+    /// Startup orphan sweep: remove every dive whose vendor is a KNOWN source connector that is NOT
+    /// currently connected. Unlinking a provider deletes its dives, but dives orphaned by an unlink that
+    /// happened before that cleanup existed (or by any other path) would otherwise linger forever — the
+    /// logbook must only ever show dives from linked providers. Dives with no vendor, or a vendor that is
+    /// not one of our source connectors, are left untouched.
+    /// </summary>
+    private async Task PurgeOrphanDivesAsync(CancellationToken cancellationToken)
+    {
+        foreach (var source in sources)
+        {
+            var connectorId = source.Descriptor.ConnectorId;
+            if (!consent.HasConsent(connectorId))
+            {
+                await store.DeleteDivesByVendorAsync(connectorId, cancellationToken);
+            }
+        }
     }
 }

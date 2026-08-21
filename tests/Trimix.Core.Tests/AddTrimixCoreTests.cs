@@ -39,11 +39,12 @@ public class AddTrimixCoreTests
     }
 
     [Fact]
-    public void All_seven_provider_connectors_register_by_default()
+    public void All_provider_connectors_register_by_default()
     {
         // Serverless rebuild: the connectors ARE the product surface, so the deploy master switches default
-        // ON and all 7 providers resolve (5 sources IN + 2 destinations OUT) for the Providers list.
-        // Per-user consent behind each disclosure remains the only thing that permits network I/O.
+        // ON and all providers resolve (6 sources IN — incl. the dark "Coming soon" Shearwater row — + 2
+        // destinations OUT) for the Providers list. Per-user consent behind each disclosure remains the only
+        // thing that permits network I/O.
         using var provider = Build();
 
         var sourceIds = provider.GetServices<IDiveSourceConnector>()
@@ -53,7 +54,7 @@ public class AddTrimixCoreTests
             .Select(c => c.Descriptor.ConnectorId)
             .OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
-        Assert.Equal(["garmin_connect", "mares", "oceanic_cloud", "scubapro", "suunto_cloud"], sourceIds);
+        Assert.Equal(["garmin_connect", "mares", "oceanic_cloud", "scubapro", "shearwater", "suunto_cloud"], sourceIds);
         Assert.Equal(["padi_push_personal", "ssi_push_personal"], destinationIds);
     }
 
@@ -120,7 +121,7 @@ public class AddTrimixCoreTests
         using var provider = Build(o => o.EnablePushConnectors = false);
 
         Assert.Empty(provider.GetServices<IDiveDestinationConnector>());
-        // The cloud family is independent and stays registered (all five sources).
-        Assert.Equal(5, provider.GetServices<IDiveSourceConnector>().Count());
+        // The cloud family is independent and stays registered (all six sources, incl. dark Shearwater).
+        Assert.Equal(6, provider.GetServices<IDiveSourceConnector>().Count());
     }
 }

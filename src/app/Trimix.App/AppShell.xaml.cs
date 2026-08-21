@@ -1,4 +1,5 @@
 ﻿using Trimix.App.Pages;
+using Trimix.App.Services;
 using Trimix.Core;
 using Trimix.Core.ViewModels;
 
@@ -10,6 +11,13 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
         RegisterModalRoutes();
+
+        // Tab-bar taps are native platform views, not TapGestureRecognizers, so the page-level tap hook
+        // never sees them — this is what gives tab switching a haptic. Firing on Navigating (the intent)
+        // rather than Navigated (arrival) is the whole point: the tick lands under the finger while the
+        // destination is still measuring, which is what makes the switch feel instant.
+        // Feedback coalesces, so a button press that navigates still produces exactly one tick.
+        Navigating += (_, _) => Feedback.Navigate();
     }
 
     /// <summary>

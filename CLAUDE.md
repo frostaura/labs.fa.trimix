@@ -60,7 +60,7 @@ Toolchain is the **user-local `~/.dotnet`** (`DOTNET_ROOT=$HOME/.dotnet`, dotnet
 Real StoreKit/Play Billing and the vendor cloud endpoints are **runtime-gated** — they need a device, a real store account, and config-injectable vendor endpoints. `docs/known-gaps.md` is the catalogue.
 
 ## Blocking gates that are not code
-**Name clearance** transitively gates the store listing and any public domain, and it has not been run. **Vendor endpoints** — a connector whose corridor has no document under `docs/reverse-engineering/` is running on a researched *guess* validated only against a fixture it invented; treat it as unimplemented until a capture says otherwise, and check `MEMORY.md` for which ones those currently are.
+**Name clearance** transitively gates the store listing and any public domain, and it has not been run. **Vendor endpoints** — a connector whose corridor has no document under `docs/reverse-engineering/` is running on a researched *guess* validated only against a fixture it invented; treat it as unimplemented until a capture says otherwise, and check `MEMORY.md` for which ones those are.
 
 ## Never do this here
 - Never rename or delete a funnel event constant (frozen taxonomy).
@@ -72,4 +72,4 @@ Real StoreKit/Play Billing and the vendor cloud endpoints are **runtime-gated** 
 - Never claim a gate passed on the strength of a local build — there is no CI here to catch you.
 
 ## Upkeep
-This `CLAUDE.md`, [`MEMORY.md`](MEMORY.md), the `memory/` topic store and any local `.claude/skills/` here are kept current **as changes land**, not in a later cleanup pass. `MEMORY.md` is required at this level exactly as `CLAUDE.md` is, and cascades downward in the same way — a `CLAUDE.md` with no `MEMORY.md` beside it is a defect. `MEMORY.md` is updated at the end of any session that shipped, decided, discovered or abandoned something, and the program's row in [`../MEMORY.md`](../MEMORY.md) is updated in the same pass. A skill that no longer matches how work is actually done is fixed or deleted, not left to rot. The standard: [`/docs/operating/context-cascade.md`](../../../docs/operating/context-cascade.md).
+This `CLAUDE.md`, [`MEMORY.md`](MEMORY.md) and the `memory/` topic store are kept current **as changes land**, not in a later cleanup pass. `MEMORY.md` is required at this level exactly as `CLAUDE.md` is, and cascades downward in the same way — a `CLAUDE.md` with no `MEMORY.md` beside it is a defect. `MEMORY.md` is updated at the end of any session that shipped, decided, discovered or abandoned something, and the program's row in [`../MEMORY.md`](../MEMORY.md) is updated in the same pass. Procedure itself comes from the installed Gaia plugins rather than a copy kept here; a stale procedure is fixed upstream and reinstalled, never forked into this tree. The standard: [`/docs/operating/context-cascade.md`](../../../docs/operating/context-cascade.md).

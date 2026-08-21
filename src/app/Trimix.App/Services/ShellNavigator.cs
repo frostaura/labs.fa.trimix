@@ -18,8 +18,17 @@ public sealed class ShellNavigator : INavigator
         Routes.Stats,
     };
 
+    /// <summary>
+    /// Runs <paramref name="work"/> on the UI thread, WITHOUT a dispatcher hop when already there.
+    /// <c>MainThread.InvokeOnMainThreadAsync</c> always posts, so an unconditional wrap costs a frame on
+    /// every navigation — and navigation is always reached from a tap, i.e. always already on the UI
+    /// thread. That frame sits directly between the finger lifting and the screen moving.
+    /// </summary>
+    private static Task OnMainThreadAsync(Func<Task> work) =>
+        MainThread.IsMainThread ? work() : MainThread.InvokeOnMainThreadAsync(work);
+
     public Task GoToAsync(string route, IReadOnlyDictionary<string, object>? parameters = null) =>
-        MainThread.InvokeOnMainThreadAsync(async () =>
+        OnMainThreadAsync(async () =>
         {
             // First-run: onboarding was the window ROOT (no Shell yet — that is what keeps the Logbook
             // from flashing before onboarding). Completing onboarding lands here; swap the root to the
@@ -67,7 +76,7 @@ public sealed class ShellNavigator : INavigator
         });
 
     public Task GoBackAsync() =>
-        MainThread.InvokeOnMainThreadAsync(async () =>
+        OnMainThreadAsync(async () =>
         {
             var navigation = Shell.Current.Navigation;
             if (navigation.ModalStack.Count > 0 || navigation.NavigationStack.Count > 1)

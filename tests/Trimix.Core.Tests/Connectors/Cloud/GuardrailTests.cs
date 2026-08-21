@@ -32,10 +32,10 @@ public class GuardrailTests
         IConnectorConsentStore consent) => id switch
         {
             OceanicCloudSourceConnector.Id => new OceanicCloudSourceConnector(http, tokens, consent),
-            GarminCloudSourceConnector.Id => new GarminCloudSourceConnector(http, tokens, consent, new FakeFitActivityParser()),
+            GarminCloudSourceConnector.Id => new GarminCloudSourceConnector(http, tokens, consent),
             SuuntoCloudSourceConnector.Id => new SuuntoCloudSourceConnector(http, tokens, consent, new FakeFitActivityParser()),
             MaresCloudSourceConnector.Id => new MaresCloudSourceConnector(http, tokens, consent, new MySsiCloudClient(http)),
-            ScubaProCloudSourceConnector.Id => new ScubaProCloudSourceConnector(http, tokens, consent, new MySsiCloudClient(http)),
+            ScubaProCloudSourceConnector.Id => new ScubaProCloudSourceConnector(http, tokens, consent),
             _ => throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown cloud connector."),
         };
 
@@ -46,20 +46,27 @@ public class GuardrailTests
         switch (id)
         {
             case GarminCloudSourceConnector.Id:
-                http.EnqueueText("<input type=\"hidden\" name=\"_csrf\" value=\"CSRF-TOKEN-123\" />")
-                    .EnqueueText("<script>var response_url = \"https://connect.garmin.com/modern?ticket=ST-0-abcDEF123\";</script>")
-                    .EnqueueText("{\"access_token\":\"garmin-access-xyz\",\"token_type\":\"Bearer\"}");
+                // Observed Garmin Dive flow: JSON login returning a service ticket, then the ticket
+                // exchange. See docs/reverse-engineering/garmin-dive-api.md.
+                http.EnqueueText("{\"serviceTicketId\":\"ST-0383050-abc-sso\",\"responseStatus\":{\"type\":\"SUCCESSFUL\"},\"customerMfaInfo\":null}")
+                    .EnqueueText("{\"access_token\":\"garmin-access-xyz\",\"token_type\":\"bearer\",\"refresh_token\":\"garmin-refresh-xyz\",\"expires_in\":86399}");
                 break;
             case SuuntoCloudSourceConnector.Id:
-                http.EnqueueText("{\"access_token\":\"suunto-jwt-abc\"}");
+                // Sports Tracker login2 returns { sessionkey, … }; see docs/reverse-engineering/suunto-sports-tracker-api.md.
+                http.EnqueueText("{\"sessionkey\":\"stt-session-abc\",\"userKey\":\"stt-session-abc\"}");
                 break;
             case OceanicCloudSourceConnector.Id:
                 http.EnqueueText("{\"token\":\"oceanic-tok-xyz\"}");
                 break;
             case MaresCloudSourceConnector.Id:
-            case ScubaProCloudSourceConnector.Id:
-                // Both route through the shared MySSI corridor (one login shape for the pair).
+                // Mares routes through the shared MySSI corridor.
                 http.EnqueueText("{\"token\":\"myssi-tok-xyz\"}");
+                break;
+            case ScubaProCloudSourceConnector.Id:
+                // ScubaPro signs in against LogTRAK's Firebase Auth (verifyPassword shape); see
+                // docs/reverse-engineering/scubapro-logtrak-api.md.
+                http.EnqueueText(
+                    "{\"localId\":\"uid-sp\",\"idToken\":\"logtrak-id-xyz\",\"refreshToken\":\"logtrak-refresh-xyz\",\"expiresIn\":\"3600\"}");
                 break;
         }
     }

@@ -2,6 +2,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Core.Abstractions;
+using Trimix.Core.Platform;
 using Trimix.Core.Connectors;
 
 namespace Trimix.Core.ViewModels;
@@ -32,14 +33,19 @@ public partial class SyncSessionViewModel(
     IConnectorConsentStore consent,
     INavigator navigator,
     IPreferences preferences,
-    IClock clock) : ObservableObject
+    IClock clock,
+    // Optional so the existing test call sites keep compiling; the App always supplies the real one and
+    // Core's DI registers a no-op default, so a null here only ever means "headless host".
+    IHaptics? haptics = null) : ObservableObject
 {
+    private readonly IHaptics _haptics = haptics ?? new NullHaptics();
+
     private CancellationTokenSource? _syncCts;
 
     private string _linkedNames = "providers";
 
-    /// <summary>Delay between the first successful provider link and its auto-started sync (~900ms
-    /// per the prototype). Tests set 0.</summary>
+    /// <summary>Delay between a successful provider link and its auto-started sync (~900ms per the
+    /// prototype, so the sign-in sheet finishes dismissing first). Tests set 0.</summary>
     public int AutoSyncDelayMs { get; set; } = 900;
 
     /// <summary>How long the completed sheet lingers on "finishing up" before closing. Tests set 0.</summary>
@@ -120,10 +126,11 @@ public partial class SyncSessionViewModel(
     }
 
     /// <summary>
-    /// First-link auto-sync (prototype: the first successful provider link starts a sync ~900ms
-    /// later). Fire-and-forget from the sign-in sheet; owned here so it survives that VM's disposal.
+    /// Post-link auto-sync: a successful provider link starts a sync ~900ms later. Fire-and-forget from
+    /// the sign-in sheet; owned here so it survives that VM's disposal. Runs the coordinator over ALL
+    /// linked sources (idempotent upsert), so it also serves as the newly-linked provider's first pull.
     /// </summary>
-    public async Task AutoSyncAfterFirstLinkAsync()
+    public async Task AutoSyncAfterLinkAsync()
     {
         if (AutoSyncDelayMs > 0)
         {
@@ -191,6 +198,11 @@ public partial class SyncSessionViewModel(
                 await Task.Delay(DoneLingerMs);
             }
 
+            // The run finished: Warning when it finished by hitting the free-tier cap (a refusal the
+            // diver is about to be shown), Success otherwise. Terminal cues are never coalesced, so this
+            // is heard even though the cap path navigates immediately afterwards.
+            _haptics.Perform(report.CapReached ? HapticCue.Warning : HapticCue.Success);
+
             if (report.CapReached)
             {
                 // The paywall_shown(trigger=cloud_sync_cap) event was already emitted by ImportService
@@ -213,6 +225,9 @@ public partial class SyncSessionViewModel(
             SyncLabel = "Sync failed";
             SyncSub = "Check your connection and try again.";
             Progress = 0;
+            // The design removed toasts, so the failure is reported inline and then the sheet closes —
+            // which is easy to miss. The haptic is the part the diver cannot look away from.
+            _haptics.Perform(HapticCue.Error);
             if (DoneLingerMs > 0)
             {
                 await Task.Delay(DoneLingerMs);

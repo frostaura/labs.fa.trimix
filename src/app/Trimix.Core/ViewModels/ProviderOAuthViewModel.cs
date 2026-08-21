@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Core.Abstractions;
+using Trimix.Core.Platform;
 using Trimix.Core.Connectors;
 using Trimix.Core.Connectors.Cloud;
 using Trimix.Core.Connectors.Push;
@@ -20,8 +21,8 @@ namespace Trimix.Core.ViewModels;
 /// <item>credentials feed once into <see cref="GatedCloudSourceConnector.ProvideCredentials"/> /
 /// <see cref="GatedPushConnectorBase.SignInAsync"/>; the password is cleared from this VM in a
 /// <c>finally</c> and only the exchanged token is ever persisted (inside the connector);</item>
-/// <item>on the FIRST successful link a sync auto-starts (~900ms) via the shared
-/// <see cref="SyncSessionViewModel"/>.</item>
+/// <item>on EVERY successful link a sync auto-starts (~900ms) via the shared
+/// <see cref="SyncSessionViewModel"/>, so a newly-linked provider's dives arrive without a manual sync.</item>
 /// </list>
 /// Kept in Core (MAUI-free) so the whole authorize flow is unit-tested; the page only binds.
 /// </summary>
@@ -32,6 +33,7 @@ public partial class ProviderOAuthViewModel : ObservableObject
     private readonly SyncSessionViewModel _syncSession;
     private readonly INavigator _navigator;
     private readonly IUserDialogs _dialogs;
+    private readonly IHaptics _haptics;
 
     public ProviderOAuthViewModel(
         IEnumerable<IDiveSourceConnector> sources,
@@ -39,8 +41,10 @@ public partial class ProviderOAuthViewModel : ObservableObject
         IConnectorConsentStore consent,
         SyncSessionViewModel syncSession,
         INavigator navigator,
-        IUserDialogs dialogs)
+        IUserDialogs dialogs,
+        IHaptics? haptics = null)
     {
+        _haptics = haptics ?? new NullHaptics();
         _consent = consent;
         _syncSession = syncSession;
         _navigator = navigator;
@@ -61,20 +65,43 @@ public partial class ProviderOAuthViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ProviderName))]
     [NotifyPropertyChangedFor(nameof(Domain))]
     [NotifyPropertyChangedFor(nameof(Monogram))]
+    [NotifyPropertyChangedFor(nameof(SheetTitle))]
     [NotifyPropertyChangedFor(nameof(SignInHeading))]
-    [NotifyPropertyChangedFor(nameof(OwnPageCaption))]
+    [NotifyPropertyChangedFor(nameof(SignInCaption))]
     private string _connectorId = "";
 
     public string ProviderName => ProviderCatalog.NameFor(ConnectorId);
 
+    /// <summary>
+    /// The provider's public domain. Retained because other surfaces may legitimately name it, but it must NOT
+    /// be presented as browser chrome on this page — see <see cref="SignInCaption"/>.
+    /// </summary>
     public string Domain => ProviderCatalog.DomainFor(ConnectorId);
 
     public string Monogram => ProviderCatalog.MonogramFor(ConnectorId);
 
+    /// <summary>
+    /// The sheet's chrome title. Names <b>Trimix</b> first, deliberately: this screen used to show a padlock
+    /// beside the vendor's domain, which asserts an authenticated connection to that origin and is untrue of a
+    /// native form in our own process.
+    /// </summary>
+    public string SheetTitle => $"TRIMIX · {ProviderName} SIGN-IN";
+
     public string SignInHeading => $"Sign in to {ProviderName}";
 
-    public string OwnPageCaption =>
-        $"This is {ProviderName}'s own sign-in page. Trimix only asks to read your dive log.";
+    /// <summary>
+    /// What this screen actually does. Replaces a caption that read "This is {Provider}'s own sign-in page",
+    /// which was false and carried real exposure: misrepresenting who receives a user's credentials is a
+    /// misrepresentation of origin, is prohibited by both app stores' deceptive-behaviour rules, and is
+    /// indistinguishable from credential phishing.
+    ///
+    /// <para>Every clause here is verifiable in the implementation: the password is used once by
+    /// <c>ExchangeCredentialsForTokenAsync</c>, only the resulting token envelope reaches
+    /// <c>ISecureTokenStore</c> (asserted by the connector guardrail tests), and revoking consent clears it.</para>
+    /// </summary>
+    public string SignInCaption =>
+        $"Trimix signs in to {ProviderName} on your behalf. Your password is used once to get a read-only "
+        + "access token, is never saved, and you can disconnect at any time.";
 
     [ObservableProperty]
     private string _username = "";
@@ -85,14 +112,14 @@ public partial class ProviderOAuthViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
-    /// <summary>The first-link auto-sync task — fire-and-forget in production, awaitable by tests.</summary>
+    /// <summary>The post-link auto-sync task — fire-and-forget in production, awaitable by tests.</summary>
     public Task? AutoSyncTask { get; private set; }
 
     /// <summary>Dismiss without authorizing ("Done" in the browser chrome).</summary>
     [RelayCommand]
     private Task Close() => _navigator.GoBackAsync();
 
-    /// <summary>"Sign in &amp; authorize" — disclosure → consent → credential exchange → first-link auto-sync.</summary>
+    /// <summary>"Sign in &amp; authorize" — disclosure → consent → credential exchange → post-link auto-sync.</summary>
     [RelayCommand]
     private async Task SignInAndAuthorizeAsync()
     {
@@ -110,10 +137,6 @@ public partial class ProviderOAuthViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            // Captured BEFORE consent is granted: linking state is consent-derived, so reading it
-            // after GrantAsync would always report "not the first link".
-            var wasFirstLink = !_syncSession.HasLinkedSources;
-
             // Guardrail order: the connector's own ToS-risk disclosure comes BEFORE consent, and
             // consent comes before any network I/O. With no consent recorded, AuthenticateAsync is a
             // zero-I/O local call that returns NeedsInteraction + the disclosure text.
@@ -152,6 +175,7 @@ public partial class ProviderOAuthViewModel : ObservableObject
 
             if (result.Status != ConnectorAuthStatus.Granted)
             {
+                _haptics.Perform(HapticCue.Error);
                 await _dialogs.AlertAsync(
                     "Couldn't connect",
                     result.Message ?? "Sign-in failed. Check your details and try again.");
@@ -159,16 +183,21 @@ public partial class ProviderOAuthViewModel : ObservableObject
             }
 
             Username = "";
+            _haptics.Perform(HapticCue.Success);
             _syncSession.RefreshLinkState();
             // No toast (the design removed them): the state change is the provider row flipping to
             // "Connected" plus the auto-started first sync's streaming sheet.
             await _navigator.GoBackAsync();
 
-            if (wasFirstLink && _syncSession.HasLinkedSources)
+            if (_syncSession.HasLinkedSources)
             {
-                // Prototype: the first link auto-starts a sync ~900ms later. Owned by the singleton
-                // session so it survives this transient VM; the task handle is kept for tests.
-                AutoSyncTask = _syncSession.AutoSyncAfterFirstLinkAsync();
+                // Every successful link auto-starts a sync ~900ms later — a diver who just linked a
+                // provider expects to see that provider's dives without hunting for a sync button. The
+                // run pulls ALL linked sources (idempotent upsert), so linking a second provider refreshes
+                // the first too. Owned by the singleton session so it survives this transient VM; the task
+                // handle is kept for tests. (This used to fire only on the FIRST link, which left a
+                // second-provider link looking inert — reported by the founder.)
+                AutoSyncTask = _syncSession.AutoSyncAfterLinkAsync();
             }
         }
         finally

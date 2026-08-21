@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Dive detail, the Notes pane: view / edit / empty, persisted locally on the dive. Three mutually exclusive
+     states driven by IsNotesEditing / HasNotes / IsNotesEmpty. -->
+<ContentView
+    x:Class="Trimix.App.Panes.NotesPane"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:DiveDetailViewModel">
+
+    <ScrollView x:Name="Scroller">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+            <VerticalStackLayout.GestureRecognizers>
+                <!-- Paging lives HERE rather than on the page's container: on Android a ScrollView consumes the
+                     touch stream, so recognizers on an ancestor of one never fire. -->
+                <SwipeGestureRecognizer Direction="Left" Command="{Binding NextPaneCommand}" Threshold="40" />
+                <SwipeGestureRecognizer Direction="Right" Command="{Binding PreviousPaneCommand}" Threshold="40" />
+            </VerticalStackLayout.GestureRecognizers>
+
+            <!-- Section heading. The page's switcher chips were removed (sections change by sliding), so
+                 each pane names itself — otherwise the current section is identified only by a dot. -->
+            <Label Style="{StaticResource MonoLabelMint}" Text="NOTES" Margin="0,0,0,-4"
+                   SemanticProperties.HeadingLevel="Level1" />
+
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+
+                <!-- Editing: eyebrow + Done, then the editor. -->
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding IsNotesEditing}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="NOTES" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                        <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Done"
+                                Command="{Binding SaveNotesCommand}"
+                                SemanticProperties.Description="Save notes" />
+                    </Grid>
+                    <Border Style="{StaticResource InputField}">
+                        <Editor
+                            Text="{Binding NotesDraft}"
+                            Placeholder="What did you see? Conditions, buddies, wildlife…"
+                            AutoSize="TextChanges"
+                            MinimumHeightRequest="84"
+                            SemanticProperties.Description="Dive notes" />
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Saved notes: tap anywhere to edit. -->
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding HasNotes}"
+                                     SemanticProperties.Hint="Tap to edit your notes">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding StartNotesEditCommand}" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="NOTES" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level2" />
+                        <controls:AppIcon Grid.Column="1" Icon="pencil" Size="16" VerticalOptions="Center"
+                                          AutomationProperties.IsInAccessibleTree="False" />
+                    </Grid>
+                    <Border Style="{StaticResource GlassCard}">
+                        <Label Style="{StaticResource Body15}" LineBreakMode="WordWrap" Text="{Binding NotesText}" />
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Empty: "+ Add notes". -->
+                <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsNotesEmpty}"
+                                       MinimumHeightRequest="{StaticResource MinTapTarget}"
+                                       SemanticProperties.Description="Add notes"
+                                       SemanticProperties.Hint="Opens the notes editor">
+                    <HorizontalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding StartNotesEditCommand}" />
+                    </HorizontalStackLayout.GestureRecognizers>
+                    <controls:AppIcon Icon="plus" Size="16" VerticalOptions="Center"
+                                      AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Style="{StaticResource Body15}" Text="Add notes" VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

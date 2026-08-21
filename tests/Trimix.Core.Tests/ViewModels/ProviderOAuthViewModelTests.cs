@@ -46,17 +46,18 @@ public class ProviderOAuthViewModelTests
 
     private ProviderOAuthViewModel NewGarminVm()
     {
-        var garmin = new GarminCloudSourceConnector(_http, _tokens, _consent, new FakeFitActivityParser());
+        var garmin = new GarminCloudSourceConnector(_http, _tokens, _consent);
         return new ProviderOAuthViewModel([garmin], [], _consent, NewSession(), _navigator, _dialogs)
         {
             ConnectorId = "garmin_connect",
         };
     }
 
+    // Observed Garmin Dive flow: JSON login returning a service ticket, then the ticket exchange.
+    // See docs/reverse-engineering/garmin-dive-api.md.
     private static void ScriptGarminLogin(RecordedHttpTransport http) => http
-        .EnqueueText("<input type=\"hidden\" name=\"_csrf\" value=\"CSRF-TOKEN-123\" />")
-        .EnqueueText("<script>var response_url = \"https://connect.garmin.com/modern?ticket=ST-0-abcDEF123\";</script>")
-        .EnqueueText("{\"access_token\":\"garmin-access-xyz\",\"token_type\":\"Bearer\"}");
+        .EnqueueText("{\"serviceTicketId\":\"ST-0383050-abc-sso\",\"responseStatus\":{\"type\":\"SUCCESSFUL\"},\"customerMfaInfo\":null}")
+        .EnqueueText("{\"access_token\":\"garmin-access-xyz\",\"token_type\":\"bearer\",\"refresh_token\":\"garmin-refresh-xyz\",\"expires_in\":86399}");
 
     [Fact]
     public void Chrome_renders_the_provider_identity()
@@ -66,7 +67,27 @@ public class ProviderOAuthViewModelTests
         Assert.Equal("Garmin Dive", vm.ProviderName);
         Assert.Equal("garmin.com", vm.Domain);
         Assert.Equal("Sign in to Garmin Dive", vm.SignInHeading);
-        Assert.Contains("Trimix only asks to read your dive log", vm.OwnPageCaption, StringComparison.Ordinal);
+        // The sheet chrome names the app doing the asking, not a website.
+        Assert.Contains("TRIMIX", vm.SheetTitle, StringComparison.Ordinal);
+        Assert.Contains("Garmin Dive", vm.SheetTitle, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_sign_in_caption_never_claims_to_be_the_vendors_own_page()
+    {
+        // This page used to caption itself "This is {Provider}'s own sign-in page" while capturing the diver's
+        // provider password into Trimix's own process. That is a misrepresentation of who receives the
+        // credentials — prohibited by both app stores, and the sort of claim that reads as bad faith later.
+        // Pinning it here means the impersonation cannot quietly return.
+        var vm = NewGarminVm();
+
+        Assert.DoesNotContain("own sign-in page", vm.SignInCaption, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Trimix signs in", vm.SignInCaption, StringComparison.Ordinal);
+
+        // And it must keep making the three promises the implementation actually keeps.
+        Assert.Contains("read-only", vm.SignInCaption, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("never saved", vm.SignInCaption, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("disconnect", vm.SignInCaption, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -89,7 +110,7 @@ public class ProviderOAuthViewModelTests
     public async Task Authorize_shows_the_real_disclosure_before_consent()
     {
         var recorder = new RecordingConfirmDialogs { ConfirmResult = false };
-        var garmin = new GarminCloudSourceConnector(_http, _tokens, _consent, new FakeFitActivityParser());
+        var garmin = new GarminCloudSourceConnector(_http, _tokens, _consent);
         var vm2 = new ProviderOAuthViewModel([garmin], [], _consent, NewSession(), _navigator, recorder)
         {
             ConnectorId = "garmin_connect",
@@ -115,7 +136,8 @@ public class ProviderOAuthViewModelTests
 
         Assert.True(_consent.HasConsent("garmin_connect"));
         // Only the exchanged token is persisted — never the password; the VM's copy is cleared.
-        Assert.Equal("garmin-access-xyz", _tokens.Values[GarminTokenKey]);
+        // Garmin stores a token envelope (access + 30-day refresh + expiry), not a bare access token.
+        Assert.Contains("garmin-access-xyz", _tokens.Values[GarminTokenKey], StringComparison.Ordinal);
         Assert.DoesNotContain(_tokens.Values.Values, v => v.Contains(Password, StringComparison.Ordinal));
         Assert.Equal("", vm.Password);
         // The password reached the wire exactly once (ProvideCredentials fed it into the connector).
@@ -125,15 +147,17 @@ public class ProviderOAuthViewModelTests
         Assert.Equal(1, _navigator.BackCount);
         Assert.Empty(_dialogs.Toasts);
 
-        // FIRST link → the session auto-starts a sync (prototype ~900ms; 0 in tests).
+        // A successful link → the session auto-starts a sync (prototype ~900ms; 0 in tests).
         Assert.NotNull(vm.AutoSyncTask);
         await vm.AutoSyncTask!;
         Assert.Equal(1, _coordinator.SyncCalls);
     }
 
     [Fact]
-    public async Task Second_link_does_not_auto_start_another_sync()
+    public async Task Second_link_also_auto_starts_a_sync()
     {
+        // A diver who links a SECOND provider expects to see its dives too — the auto-sync must fire for
+        // every link, not just the first (founder-reported: adding ScubaPro after Garmin synced nothing).
         await _consent.GrantAsync("garmin_connect"); // a provider is already linked
         var vm = NewGarminVm();
         _dialogs.ConfirmResult = true;
@@ -143,8 +167,9 @@ public class ProviderOAuthViewModelTests
 
         await vm.SignInAndAuthorizeCommand.ExecuteAsync(null);
 
-        Assert.Null(vm.AutoSyncTask);
-        Assert.Equal(0, _coordinator.SyncCalls);
+        Assert.NotNull(vm.AutoSyncTask);
+        await vm.AutoSyncTask!;
+        Assert.Equal(1, _coordinator.SyncCalls);
     }
 
     [Fact]

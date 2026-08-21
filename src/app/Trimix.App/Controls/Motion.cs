@@ -1,3 +1,5 @@
+using Trimix.App.Services;
+
 namespace Trimix.App.Controls;
 
 /// <summary>
@@ -6,13 +8,29 @@ namespace Trimix.App.Controls;
 /// <list type="bullet">
 /// <item><see cref="ScreenInAsync"/> — the design's <c>screenIn .35s ease</c> (fade + translateY 10→0),
 /// run by <see cref="TrimixPage"/> on every appearance.</item>
-/// <item><see cref="RowStaggerAsync"/> — the design's <c>rowIn .4s ease</c> list-row entrance
+/// <item><see cref="RowStaggerAsync"/> — the design's <c>rowIn</c> list-row entrance
 /// (fade + translateX −8→0), staggered per row.</item>
 /// </list>
 /// </summary>
 public static class Motion
 {
-    /// <summary>screenIn: .35s ease, opacity 0→1 + translateY 10→0. Safe to fire-and-forget.</summary>
+    /// <summary>screenIn duration. The one knob if 200ms ever reads as abrupt.</summary>
+    public const uint ScreenInMs = 200;
+
+    /// <summary>Per-row entrance duration for the list stagger.</summary>
+    public const uint RowInMs = 240;
+
+    /// <summary>
+    /// Delay between consecutive rows. Kept small on purpose: at the old 60ms the TENTH logbook row had not
+    /// even begun animating until 600ms after the data was ready, which reads as the list loading slowly
+    /// when in fact it was finished.
+    /// </summary>
+    public const int RowStaggerMs = 30;
+
+    /// <summary>screenIn: opacity 0→1 + translateY 10→0. Safe to fire-and-forget.
+/// <para>Shortened from the design's 350ms to 200ms: this animation gates how quickly EVERY screen
+/// settles, so it is the single largest contributor to how slow a transition feels. The 10→0 slide is
+/// deliberately retained — only the duration changed.</para></summary>
     public static async Task ScreenInAsync(VisualElement target)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -27,13 +45,13 @@ public static class Motion
         target.Opacity = 0;
         target.TranslationY = 10;
         await Task.WhenAll(
-            target.FadeTo(1, 350, Easing.CubicOut),
-            target.TranslateTo(0, 0, 350, Easing.CubicOut));
+            target.FadeTo(1, ScreenInMs, Easing.CubicOut),
+            target.TranslateTo(0, 0, ScreenInMs, Easing.CubicOut));
     }
 
     /// <summary>rowIn: each row .4s ease, opacity 0→1 + translateX −8→0, staggered by
     /// <paramref name="staggerMs"/>. Prepares all rows invisible first so late rows don't flash.</summary>
-    public static async Task RowStaggerAsync(IReadOnlyList<VisualElement> rows, int staggerMs = 60)
+    public static async Task RowStaggerAsync(IReadOnlyList<VisualElement> rows, int staggerMs = RowStaggerMs)
     {
         ArgumentNullException.ThrowIfNull(rows);
 
@@ -71,8 +89,8 @@ public static class Motion
         }
 
         await Task.WhenAll(
-            row.FadeTo(1, 400, Easing.CubicOut),
-            row.TranslateTo(0, row.TranslationY, 400, Easing.CubicOut));
+            row.FadeTo(1, RowInMs, Easing.CubicOut),
+            row.TranslateTo(0, row.TranslationY, RowInMs, Easing.CubicOut));
     }
 }
 
@@ -89,6 +107,14 @@ public class TrimixPage : ContentPage
 
     private bool _suppressNextScreenIn;
 
+    protected TrimixPage()
+    {
+        // Every tap target on every page ticks on touch — wired ONCE here rather than repeated in eight page
+        // constructors, so a page added later cannot forget it. Running before the derived
+        // InitializeComponent() is the point: every element then arrives via DescendantAdded.
+        Feedback.AttachTapFeedback(this);
+    }
+
     /// <summary>
     /// Skip the screenIn on the NEXT appearance only. Call this before pushing a transparent modal
     /// overlay over this page: the page never actually left the screen, so replaying the entrance when
@@ -100,6 +126,9 @@ public class TrimixPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+
+        // Spin the Taptic Engine up so the first tap on this page is not the one that pays for it.
+        Feedback.Warm();
 
         if (_suppressNextScreenIn)
         {

@@ -75,8 +75,11 @@
                 <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="13" Padding="2,0">
                         <Border Grid.Column="0" StrokeShape="RoundRectangle 18.5" StrokeThickness="0" WidthRequest="37" HeightRequest="37" Background="#1A2FE3C4" VerticalOptions="Center">
-                            <!-- spinCw 1.4s linear while syncing (code-behind; honors reduced motion). -->
-                            <controls:AppIcon x:Name="SyncSpinnerIcon" Icon="sync" Size="17" HorizontalOptions="Center" VerticalOptions="Center" />
+                            <!-- spinCw 1.4s linear while syncing (code-behind; honors reduced motion).
+                                 CenterInk is required, not cosmetic: the sync glyph's ink sits half a viewbox
+                                 unit above the viewbox centre, so rotating about the view centre without it
+                                 makes the glyph orbit the pivot — a visible wobble. -->
+                            <controls:AppIcon x:Name="SyncSpinnerIcon" Icon="sync" Size="17" CenterInk="True" HorizontalOptions="Center" VerticalOptions="Center" />
                         </Border>
                         <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
                             <Label Style="{StaticResource Heading18}" FontSize="14.5" Text="Syncing…" SemanticProperties.HeadingLevel="Level2" />

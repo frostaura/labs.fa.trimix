@@ -31,6 +31,7 @@ public class LogbookViewModelTests
             new FakeClock()),
             new Trimix.Core.Formatting.UnitFormatter(new Trimix.Core.Platform.InMemoryPreferences()),
             new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
+            new FakeProviderPriority(),
             []);
 
     private async Task SeedAsync(params DiveDto[] dives)

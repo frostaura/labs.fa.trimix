@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Analytics;
 using Trimix.Core.Billing;
+using Trimix.Core.Connectors;
 using Trimix.Core.Connectors.Cloud;
 using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Connectors.Push;
@@ -95,6 +96,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IPreferences, InMemoryPreferences>();
         services.TryAddSingleton<IConnectivityService, AlwaysOnlineConnectivity>();
         services.TryAddSingleton<ILocationService, NullLocationService>();
+        services.TryAddSingleton<IMapLauncher, NullMapLauncher>();
+        services.TryAddSingleton<IHaptics, NullHaptics>();
         services.TryAddSingleton<IAppInfo, DefaultAppInfo>();
         services.TryAddSingleton<INavigator, NoopNavigator>();
         services.TryAddSingleton<IUserDialogs, NoopUserDialogs>();
@@ -140,8 +143,9 @@ public static class ServiceCollectionExtensions
         // default (EnableCloudConnectors defaults ON — the connectors ARE the product surface, shown in the
         // Providers list); availability comes from registration + the per-user consent/disclosure gate, never
         // from the descriptor flag. The master switch remains the deploy kill-switch: OFF unregisters the
-        // family entirely. Mares + ScubaPro share the reverse-engineered MySSI read corridor (MySsiCloudClient)
-        // — neither vendor has a cloud of its own.
+        // family entirely. Mares reads through the reverse-engineered MySSI corridor (MySsiCloudClient);
+        // ScubaPro reads LogTRAK's own Firebase backend (verified live 2026-08-07 — it does NOT use MySSI;
+        // see docs/reverse-engineering/scubapro-logtrak-api.md), constructing its own FirebaseCloudClient.
         services.TryAddSingleton<MySsiCloudClient>();
         if (options.EnableCloudConnectors)
         {
@@ -150,6 +154,9 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDiveSourceConnector, OceanicCloudSourceConnector>();
             services.AddSingleton<IDiveSourceConnector, MaresCloudSourceConnector>();
             services.AddSingleton<IDiveSourceConnector, ScubaProCloudSourceConnector>();
+            // Shearwater ships as a dark "Coming soon" row only (no corridor exists yet — Shearwater Cloud is
+            // desktop/BLE). Not in ProviderCatalog.LiveConnectorIds, so it is never connectable.
+            services.AddSingleton<IDiveSourceConnector, ShearwaterCloudSourceConnector>();
         }
 
         // Reverse-engineered cert-agency PUSH destinations (Connectors/Push): PADI + SSI personal export.
@@ -169,6 +176,10 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDiveDestinationConnector, SsiPushDestinationConnector>();
         }
 
+
+        // User-defined provider priority (merge tie-break / which computer wins overlapping dives). Default
+        // order = source-connector registration order, so it mirrors the Providers list before any reorder.
+        services.TryAddSingleton<IProviderPriority, ProviderPriorityService>();
 
         services.TryAddSingleton<IImportService, ImportService>();
 

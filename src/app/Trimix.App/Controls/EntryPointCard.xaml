@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- The dive's entry coordinates.
+
+     On iOS the code-behind fills MapHost with a real MapKit map — native, free and keyless. On Android it stays
+     empty and the row below is the whole card: an embedded Google map would need a Maps SDK API key shipped in
+     the APK plus a billable Cloud project, which this deliberately serverless app has no way to manage. Both
+     platforms get the tappable row, so Android is a strict SUBSET of the iOS card rather than a different
+     design. -->
+<ContentView
+    x:Class="Trimix.App.Controls.EntryPointCard"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:DiveDetailViewModel"
+    IsVisible="{Binding HasEntryPoint}">
+
+    <Border Style="{StaticResource GlassCard}" Padding="0">
+        <VerticalStackLayout Spacing="0">
+
+            <!-- iOS only; zero height on Android. -->
+            <ContentView x:Name="MapHost" />
+
+            <!-- Two columns, not three. The leading slot used to hold Icon="sites", but IconSites was
+                 deleted along with the Sites capability — AppIcon then drew an empty 16px box and the row
+                 read as oddly indented. The trailing chevron already signals that the row is tappable. -->
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="10"
+                  Padding="16,12"
+                  MinimumHeightRequest="{StaticResource MinTapTarget}"
+                  SemanticProperties.Description="{Binding EntryPointText, StringFormat='Entry point {0}'}"
+                  SemanticProperties.Hint="Opens this location in your maps app">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenEntryPointCommand}" />
+                </Grid.GestureRecognizers>
+
+                <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                    <Label Style="{StaticResource MonoLabelDim}" FontSize="9" Text="ENTRY POINT"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Style="{StaticResource Body15}" StyleClass="tnum" FontSize="14"
+                           Text="{Binding EntryPointText}"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                </VerticalStackLayout>
+                <controls:AppIcon Grid.Column="1" Icon="chevron" Size="14" VerticalOptions="Center"
+                                  Color="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}"
+                                  AutomationProperties.IsInAccessibleTree="False" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

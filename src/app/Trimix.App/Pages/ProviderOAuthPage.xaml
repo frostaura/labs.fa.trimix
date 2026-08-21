@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Provider sign-in (prototype S6): an in-app-browser-styled sheet — dark chrome bar with "Done" +
-     lock + {provider}.com, then the provider's own light "web page": logo, "Sign in to {Provider}",
-     "This is {Provider}'s own sign-in page. Trimix only asks to read your dive log.", credential
-     fields, "Sign in & authorize", and the "Read-only access · revoke anytime." footer. The page is
-     deliberately LIGHT regardless of the app's forced dark theme (it plays the vendor's page).
-     The VM owns the guardrail chain: disclosure → consent → one-shot credential exchange (token
-     only, never the password) → first-link auto-sync. -->
+<!-- Provider sign-in: a TRIMIX screen that collects the diver's provider credentials.
+
+     This page used to imitate an in-app browser showing the vendor's website — a padlock beside
+     "{provider}.com", a browser refresh glyph, and a forced-light "web page" viewport, captioned "This is
+     {Provider}'s own sign-in page". None of that was true: it is a native form in Trimix's own process, and the
+     credentials go straight into the connector. Beyond being dishonest, asserting a padlock and a domain for an
+     origin the user is not connected to is a misrepresentation of origin (passing off), the kind of deceptive
+     presentation both app stores prohibit, and visually indistinguishable from credential phishing. The
+     connector layer already states plainly that this is NOT an official vendor integration; this screen now
+     agrees with it.
+
+     When provider sign-in moves into a WebView loading the vendor's real page, browser chrome becomes accurate
+     and can legitimately return — driven by the WebView's actual URL, never a hard-coded string.
+
+     The VM owns the guardrail chain: disclosure → consent → one-shot credential exchange (token only, never the
+     password) → first-link auto-sync. -->
 <controls:TrimixPage
     x:Class="Trimix.App.Pages.ProviderOAuthPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -20,9 +29,9 @@
 
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Browser chrome: ← close + lock + domain + refresh glyph. The chrome keeps its in-app
-             browser look, but the dismiss converges on the shared ← back affordance (44pt target)
-             instead of the old "Done" text button. -->
+        <!-- Sheet chrome: ← close + an honest title naming the app doing the asking. Deliberately NOT a
+             padlock and a domain: that pairing is the browser's assertion of an authenticated connection to an
+             origin, and this is a Trimix form. -->
         <Grid Grid.Row="0" ColumnDefinitions="44,*,44" Margin="12,8,12,8" ColumnSpacing="8">
             <Grid
                 Grid.Column="0"
@@ -35,123 +44,91 @@
                     <TapGestureRecognizer Command="{Binding CloseCommand}" />
                 </Grid.GestureRecognizers>
             </Grid>
-            <!-- Lock + domain: star column + truncation so a long vendor domain can never clip the chrome. -->
-            <HorizontalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
-                <controls:AppIcon
-                    Icon="lock"
-                    Size="12"
-                    StrokeThickness="1.8"
-                    Color="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondary}}"
-                    VerticalOptions="Center" />
-                <Label
-                    Style="{StaticResource MonoLabel}"
-                    Text="{Binding Domain}"
-                    TextColor="{StaticResource TextPrimary}"
-                    TextTransform="None"
-                    LineBreakMode="TailTruncation"
-                    VerticalOptions="Center" />
-            </HorizontalStackLayout>
-            <!-- Browser refresh glyph balancing the close button (decorative, per the design chrome). -->
-            <controls:AppIcon
-                Grid.Column="2"
-                Icon="sync"
-                Size="14"
-                StrokeThickness="1.8"
-                Color="{StaticResource TextSecondary}"
-                HorizontalOptions="Center"
-                VerticalOptions="Center"
-                AutomationProperties.IsInAccessibleTree="False" />
+            <Label
+                Grid.Column="1"
+                Style="{StaticResource MonoLabel}"
+                Text="{Binding SheetTitle}"
+                TextColor="{StaticResource TextPrimary}"
+                LineBreakMode="TailTruncation"
+                HorizontalTextAlignment="Center"
+                VerticalOptions="Center" />
         </Grid>
 
-        <!-- The provider's "web page" (light, framed like an in-app browser viewport) -->
+        <!-- An ordinary Trimix surface. It used to be forced light with hard-coded vendor-ish colours purely
+             so it would read as a different website. -->
         <Border
             Grid.Row="1"
             Margin="0"
             Padding="0"
             StrokeThickness="0"
-            Background="#F6F8F8"
+            Background="{AppThemeBinding Light={StaticResource LightSurface}, Dark={StaticResource Surface}}"
             StrokeShape="RoundRectangle 18,18,0,0">
             <ScrollView>
                 <VerticalStackLayout Padding="26,30,26,30" Spacing="14">
 
-                    <!-- Provider "logo" (truthful monogram placeholder, never a claimed official mark) -->
+                    <!-- Monogram placeholder — never a claimed official vendor mark. -->
                     <Border
                         WidthRequest="46"
                         HeightRequest="46"
                         StrokeShape="RoundRectangle 12"
-                        Stroke="#DBE1E3"
-                        Background="#FFFFFF"
+                        Style="{StaticResource GlassCard}"
+                        Padding="0"
                         HorizontalOptions="Start"
                         AutomationProperties.IsInAccessibleTree="False">
                         <Label
                             Text="{Binding Monogram}"
                             FontFamily="SpaceGroteskBold"
                             FontSize="20"
-                            TextColor="#0C1512"
+                            TextColor="{AppThemeBinding Light={StaticResource LightTextPrimary}, Dark={StaticResource TextPrimary}}"
                             HorizontalOptions="Center"
                             VerticalOptions="Center" />
                     </Border>
 
                     <Label
-                        Text="{Binding SignInHeading}"
-                        FontFamily="SpaceGroteskBold"
+                        Style="{StaticResource Title24}"
                         FontSize="22"
-                        TextColor="#0C1512"
+                        Text="{Binding SignInHeading}"
                         SemanticProperties.HeadingLevel="Level1" />
 
-                    <Label
-                        Text="{Binding OwnPageCaption}"
-                        FontFamily="HankenGrotesk"
-                        FontSize="14"
-                        TextColor="#46524D" />
+                    <Label Style="{StaticResource Caption13}" LineBreakMode="WordWrap" Text="{Binding SignInCaption}" />
 
                     <!-- Credential fields (fed ONCE into the connector; password never persisted) -->
-                    <Border StrokeShape="RoundRectangle 10" Stroke="#CDDAD3" Background="#FFFFFF" Padding="12,2">
+                    <Border Style="{StaticResource InputField}">
                         <Entry
                             Text="{Binding Username}"
                             Placeholder="Email or username"
                             Keyboard="Email"
-                            TextColor="#0C1512"
-                            PlaceholderColor="#8A968F"
                             BackgroundColor="Transparent"
                             SemanticProperties.Description="Provider account email or username" />
                     </Border>
-                    <Border StrokeShape="RoundRectangle 10" Stroke="#CDDAD3" Background="#FFFFFF" Padding="12,2">
+                    <Border Style="{StaticResource InputField}">
                         <Entry
                             Text="{Binding Password}"
                             Placeholder="Password"
                             IsPassword="True"
-                            TextColor="#0C1512"
-                            PlaceholderColor="#8A968F"
                             BackgroundColor="Transparent"
                             SemanticProperties.Description="Provider account password" />
                     </Border>
 
                     <Button
                         Text="Sign in &amp; authorize"
-                        FontFamily="SpaceGroteskBold"
-                        BackgroundColor="#0B6C59"
-                        TextColor="#FFFFFF"
-                        CornerRadius="12"
+                        Style="{StaticResource PrimaryButton}"
                         MinimumHeightRequest="52"
                         Margin="0,6,0,0"
                         Command="{Binding SignInAndAuthorizeCommand}"
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
                         SemanticProperties.Description="Sign in and authorize"
-                        SemanticProperties.Hint="Signs in on the provider's page and authorizes read-only access" />
+                        SemanticProperties.Hint="Signs in to the provider and authorizes read-only access" />
 
                     <ActivityIndicator
                         IsRunning="{Binding IsBusy}"
                         IsVisible="{Binding IsBusy}"
-                        Color="#0B6C59"
                         HorizontalOptions="Center"
                         SemanticProperties.Description="Signing in" />
 
                     <Label
-                        Text="Read-only access · revoke anytime.&#10;You'll be sent back to Trimix."
-                        FontFamily="HankenGrotesk"
-                        FontSize="12.5"
-                        TextColor="#8A968F"
+                        Style="{StaticResource Caption13}"
+                        Text="Read-only access · disconnect anytime."
                         HorizontalTextAlignment="Center"
                         Margin="0,8,0,0" />
                 </VerticalStackLayout>

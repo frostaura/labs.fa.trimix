@@ -33,6 +33,7 @@ public class StatsViewModelTests
         _dialogs,
         _purge,
         new Trimix.Core.Tests.Connectors.Cloud.InMemoryConnectorConsentStore(),
+        new FakeProviderPriority(),
         [],
         []);
 

@@ -24,6 +24,13 @@ public static class PreferenceKeys
 
     /// <summary>The You tab's certification line, e.g. "PADI Advanced OW" (local-only; C8).</summary>
     public const string CertLabel = "trimix.profile.cert";
+
+    /// <summary>User-defined provider priority as a CSV of connector ids, highest first. Decides which
+    /// provider wins when overlapping dives are merged. See <see cref="Connectors.IProviderPriority"/>.</summary>
+    public const string ProviderPriority = "trimix.providers.priority";
+
+    /// <summary>One-shot flag: the Providers reorder hint (drag-to-set-priority) has been shown once.</summary>
+    public const string ProviderReorderHintSeen = "trimix.providers.reorder_hint_seen";
 }
 
 /// <summary>Client-side analytics defaults.</summary>

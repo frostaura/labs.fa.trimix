@@ -1,5 +1,5 @@
-using System.ComponentModel;
 using Trimix.App.Controls;
+using Trimix.App.Panes;
 using Trimix.Core;
 using Trimix.Core.ViewModels;
 
@@ -8,26 +8,144 @@ namespace Trimix.App.Pages;
 [QueryProperty(nameof(DiveId), Routes.Params.DiveId)]
 public partial class DiveDetailPage : TrimixPage
 {
-    /// <summary>Must mirror <see cref="DepthChartDrawable"/>'s plot padding for touch→chart mapping.</summary>
-    private const double ChartPad = 8.0;
-
     private readonly DiveDetailViewModel _viewModel;
-    private readonly DepthChartDrawable _drawable = new();
-    private bool _chartAnimated;
+
+    /// <summary>Which dive has already been loaded, so the two entry points below load exactly once.</summary>
+    private Guid _loadedDiveId;
+
+    /// <summary>Section slide duration — matched to Motion.ScreenInMs so page and pane motion agree.</summary>
+    private const uint PaneSlideMs = Motion.ScreenInMs;
+
+    /// <summary>Previous pane position, which is the only thing that can tell us slide direction.</summary>
+    private int _lastPaneIndex;
 
     public DiveDetailPage(DiveDetailViewModel viewModel)
     {
         _viewModel = viewModel;
         InitializeComponent();
         BindingContext = viewModel;
-        ChartView.Drawable = _drawable;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
 
-        // Touch-to-scrub (C6): drag a crosshair + tooltip along the profile.
-        ChartView.StartInteraction += OnChartTouch;
-        ChartView.DragInteraction += OnChartTouch;
-        ChartView.EndInteraction += OnChartTouchEnded;
-        ChartView.CancelInteraction += OnChartTouchCancelled;
+    /// <summary>
+    /// Reveals the sections once — and only once — the view model has finished loading, with the design's
+    /// screenIn motion. The container is <c>IsVisible=false</c> until then, so there is no empty-skeleton flash.
+    /// </summary>
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(DiveDetailViewModel.IsLoaded) when _viewModel.IsLoaded:
+                PinPanesToTop();
+                ShowPane(_viewModel.CurrentPane, animated: false);
+                _lastPaneIndex = _viewModel.PaneIndex;
+                RevealSections();
+                break;
+
+            // Switching section must also start at the top — a pane keeps its own scroll offset otherwise.
+            case nameof(DiveDetailViewModel.PaneIndex):
+                PinPanesToTop();
+                ShowPane(_viewModel.CurrentPane, animated: true);
+                _lastPaneIndex = _viewModel.PaneIndex;
+                break;
+        }
+    }
+
+    /// <summary>Maps a section to its pane view. The four panes are static siblings sharing one Grid cell.</summary>
+    private View PaneFor(DivePaneKind kind) => kind switch
+    {
+        DivePaneKind.Details => Details,
+        DivePaneKind.Events => Events,
+        DivePaneKind.Notes => Notes,
+        _ => Profile,
+    };
+
+    /// <summary>
+    /// Brings <paramref name="kind"/> on screen with a directional slide + fade — forward slides in from the
+    /// right, back from the left — so changing section reads as movement rather than a hard cut.
+    ///
+    /// <para>Direction comes from the change in <c>PaneIndex</c> (position in the LIVE pane list), not from
+    /// the pane kind, because a dive with no events has a different pane list and "Notes" can be index 1 on
+    /// one dive and index 3 on another.</para>
+    ///
+    /// <para>This is a transition, NOT a finger-tracking carousel: a drag-follows-thumb implementation needs a
+    /// PanGestureRecognizer, which would fight the chart's scrub gesture and iOS's UIScrollView pan — the
+    /// very conflict that made swipe unreliable and put a tappable switcher on this page in the first place.</para>
+    /// </summary>
+    private void ShowPane(DivePaneKind kind, bool animated)
+    {
+        var incoming = PaneFor(kind);
+        var outgoing = Sections.Children
+            .OfType<View>()
+            .FirstOrDefault(v => v.IsVisible && !ReferenceEquals(v, incoming));
+
+        if (!animated || MotionSettings.IsReducedMotionEnabled || Sections.Width <= 0)
+        {
+            foreach (var pane in Sections.Children.OfType<View>())
+            {
+                pane.TranslationX = 0;
+                pane.Opacity = 1;
+                pane.IsVisible = ReferenceEquals(pane, incoming);
+            }
+
+            return;
+        }
+
+        if (ReferenceEquals(outgoing, incoming) || outgoing is null)
+        {
+            incoming.IsVisible = true;
+            return;
+        }
+
+        var forward = _viewModel.PaneIndex >= _lastPaneIndex;
+        var width = Sections.Width;
+        var enterFrom = forward ? width : -width;
+
+        incoming.TranslationX = enterFrom;
+        incoming.Opacity = 0;
+        incoming.IsVisible = true;
+
+        // Both panes move together; the outgoing one is hidden and reset only once it is off screen, so it
+        // is clean for its next turn.
+        _ = incoming.TranslateTo(0, 0, PaneSlideMs, Easing.CubicOut);
+        _ = incoming.FadeTo(1, PaneSlideMs, Easing.CubicOut);
+        _ = outgoing.TranslateTo(-enterFrom, 0, PaneSlideMs, Easing.CubicOut)
+            .ContinueWith(
+                _ =>
+                {
+                    outgoing.IsVisible = false;
+                    outgoing.TranslationX = 0;
+                    outgoing.Opacity = 1;
+                },
+                TaskScheduler.FromCurrentSynchronizationContext());
+        _ = outgoing.FadeTo(0, PaneSlideMs, Easing.CubicOut);
+    }
+
+    /// <summary>
+    /// Reveals the sections with a pure FADE — deliberately not the app's screenIn motion, which also slides
+    /// TranslationY 10→0. Any vertical movement at the moment real content replaces the skeleton reads as the
+    /// page bumping or settling, which is exactly what this transition must not do.
+    /// </summary>
+    private void RevealSections()
+    {
+        if (MotionSettings.IsReducedMotionEnabled)
+        {
+            Sections.Opacity = 1;
+            return;
+        }
+
+        Sections.Opacity = 0;
+        Sections.TranslationY = 0;
+        _ = Sections.FadeTo(1, 160, Easing.CubicOut);
+    }
+
+    /// <summary>Pins every pane's scroll to the top, so no section is ever revealed mid-page.</summary>
+    private void PinPanesToTop()
+    {
+        foreach (var pane in Sections.Children.OfType<IDivePane>())
+        {
+            pane.ScrollToTop();
+        }
     }
 
     public Guid DiveId { get; set; }
@@ -36,17 +154,46 @@ public partial class DiveDetailPage : TrimixPage
     {
         base.OnAppearing();
 
-        // The drawable resolves theme tokens at draw time; redraw when the OS theme flips (e.g. a
-        // sunset auto dark→light) so the chart line never keeps a stale-theme (low-contrast) color.
+        // The drawables resolve theme tokens at draw time; redraw when the OS theme flips (e.g. a sunset auto
+        // dark→light) so neither canvas keeps a stale-theme (low-contrast) colour.
         if (Application.Current is { } app)
         {
             app.RequestedThemeChanged -= OnRequestedThemeChanged;
             app.RequestedThemeChanged += OnRequestedThemeChanged;
         }
 
-        if (DiveId != Guid.Empty)
+        await LoadIfReadyAsync();
+    }
+
+    /// <summary>
+    /// Shell applies <c>[QueryProperty]</c> values around navigation, and <see cref="OnAppearing"/> is not
+    /// guaranteed to run after that has happened — when it does not, <see cref="DiveId"/> is still
+    /// <see cref="Guid.Empty"/> and the dive silently never loads, leaving a blank page. Loading from
+    /// <see cref="OnNavigatedTo"/> as well closes that window; <see cref="_loadedDiveId"/> keeps it to one load.
+    /// </summary>
+    protected override async void OnNavigatedTo(NavigatedToEventArgs args)
+    {
+        base.OnNavigatedTo(args);
+        await LoadIfReadyAsync();
+    }
+
+    private async Task LoadIfReadyAsync()
+    {
+        if (DiveId == Guid.Empty || _loadedDiveId == DiveId)
+        {
+            return;
+        }
+
+        _loadedDiveId = DiveId;
+        try
         {
             await _viewModel.LoadCommand.ExecuteAsync(DiveId);
+        }
+        catch (Exception ex)
+        {
+            // An AsyncRelayCommand swallows exceptions, so a failure here leaves a blank page and no trace.
+            System.Diagnostics.Debug.WriteLine($"[TRIMIX] dive detail load failed: {ex}");
+            throw;
         }
     }
 
@@ -59,87 +206,5 @@ public partial class DiveDetailPage : TrimixPage
         }
     }
 
-    private void OnChartTouch(object? sender, TouchEventArgs e)
-    {
-        var width = ChartView.Width;
-        if (width <= ChartPad * 2 || e.Touches.Length == 0)
-        {
-            return;
-        }
-
-        var x = e.Touches[0].X;
-        var fraction = Math.Clamp((x - ChartPad) / (width - ChartPad * 2), 0, 1);
-        _viewModel.UpdateScrub(fraction);
-
-        _drawable.ScrubX = _viewModel.ScrubX;
-        _drawable.ScrubY = _viewModel.ScrubY;
-        ChartView.Invalidate();
-
-        // Slide the tooltip with the finger; flip to the left near the right edge.
-        var tipWidth = ScrubTip.Width > 0 ? ScrubTip.Width : 90;
-        ScrubTip.TranslationX = x > width * 0.68
-            ? Math.Max(0, x - tipWidth - 12)
-            : Math.Min(width - tipWidth, x + 12);
-    }
-
-    private void OnChartTouchEnded(object? sender, TouchEventArgs e) => EndScrub();
-
-    private void OnChartTouchCancelled(object? sender, EventArgs e) => EndScrub();
-
-    private void EndScrub()
-    {
-        _viewModel.EndScrub();
-        _drawable.ScrubX = null;
-        ChartView.Invalidate();
-    }
-
-    private void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e) =>
-        ChartView.Invalidate();
-
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        // The recorded-channel overlays are additive geometry drawn after the depth line — feed them
-        // through and redraw without touching the draw-in animation.
-        if (e.PropertyName == nameof(DiveDetailViewModel.Overlays))
-        {
-            _drawable.Overlays = _viewModel.Overlays;
-            ChartView.Invalidate();
-            return;
-        }
-
-        if (e.PropertyName != nameof(DiveDetailViewModel.Chart))
-        {
-            return;
-        }
-
-        _drawable.Path = _viewModel.Chart;
-
-        // Design motion (Interactive.dc.html): drawLine 1.8s ease with a .15s delay, then
-        // fillFade .8s ease starting at 1.4s — one composite 2.2s timeline, ONCE per view,
-        // honoring reduced-motion (render complete immediately when reduced).
-        if (!_chartAnimated && !MotionSettings.IsReducedMotionEnabled && !_viewModel.Chart.IsEmpty)
-        {
-            _chartAnimated = true;
-            _drawable.Progress = 0;
-            _drawable.FillOpacity = 0;
-
-            const double total = 2200.0;
-            var timeline = new Animation();
-            // drawLine: 150ms → 1950ms of the timeline.
-            timeline.Add(150 / total, 1950 / total, new Animation(
-                progress => _drawable.Progress = progress, 0, 1, Easing.CubicOut));
-            // fillFade: 1400ms → 2200ms of the timeline.
-            timeline.Add(1400 / total, 1.0, new Animation(
-                opacity => _drawable.FillOpacity = opacity, 0, 1, Easing.CubicOut));
-            // One shared invalidate per tick.
-            timeline.Add(0, 1, new Animation(_ => ChartView.Invalidate(), 0, 1));
-            timeline.Commit(this, "TrimixChartDrawIn", rate: 16, length: (uint)total, Easing.Linear);
-        }
-        else
-        {
-            _drawable.Progress = 1;
-            _drawable.FillOpacity = 1;
-            ChartView.Invalidate();
-        }
-    }
+    private void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e) => Profile.OnThemeChanged();
 }

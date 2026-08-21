@@ -25,7 +25,22 @@ public sealed record DiveRowItem(
     string Route,
     string DepthText,
     string TimeText,
-    string Gas);
+    string Gas,
+    // Rich channels, shown only when the provider reported them (empty string hides the element).
+    string MetaText = "",
+    bool HasDeco = false,
+    // Push-destination suffix ("→ PADI · SSI"), rendered after the per-provider source badges. Empty hides.
+    string Destinations = "")
+{
+    /// <summary>True when the provider supplied anything for the card's meta line.</summary>
+    public bool HasMeta => MetaText.Length > 0;
+
+    /// <summary>True when any push destination is linked (drives the trailing "→ …" label).</summary>
+    public bool HasDestinations => Destinations.Length > 0;
+
+    /// <summary>The distinct provider source badges, in priority order (primary first).</summary>
+    public IReadOnlyList<DiveSourceBadge> Badges => Merged.Badges;
+}
 
 /// <summary>
 /// Logbook home (prototype C3): stat strip DIVES · MAX (unit-aware) · BOTTOM hours, dive rows with
@@ -47,6 +62,7 @@ public partial class LogbookViewModel(
     SyncSessionViewModel sync,
     UnitFormatter units,
     IConnectorConsentStore consent,
+    IProviderPriority priority,
     IEnumerable<IDiveDestinationConnector> destinations) : ObservableObject
 {
     /// <summary>The shared sync session — the page's streaming sync bottom sheet binds to it.</summary>
@@ -107,7 +123,28 @@ public partial class LogbookViewModel(
     private string _statHoursText = "—";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowDives))]
     private bool _isEmpty = true;
+
+    /// <summary>
+    /// False until the first load finishes. The page shows a shimmer skeleton until then: rendering the real
+    /// "No dives yet" empty state first and swapping in four dives a moment later reads as a bug, because the
+    /// app is asserting something untrue rather than saying it is still working.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowDives))]
+    [NotifyPropertyChangedFor(nameof(IsLoadingSkeletonVisible))]
+    private bool _isLoaded;
+
+    /// <summary>The empty state is only ever truthful once loading has finished.</summary>
+    public bool ShowEmptyState => IsLoaded && IsEmpty;
+
+    /// <summary>The list and stat strip appear only with loaded, non-empty data.</summary>
+    public bool ShowDives => IsLoaded && !IsEmpty;
+
+    public bool IsLoadingSkeletonVisible => !IsLoaded;
 
     [ObservableProperty]
     private bool _isCapMeterVisible;
@@ -123,16 +160,29 @@ public partial class LogbookViewModel(
     private async Task LoadAsync()
     {
         var all = await store.GetDivesAsync();
-        var active = all
-            .Where(d => !d.Deleted)
-            .OrderByDescending(d => d.StartUtc)
-            .ToList();
 
-        // Lifetime strip aggregates are over PHYSICAL dives: collapse cross-source duplicates first so the
-        // strip (and the "You" screen) agree with the merged cards below — one dive synced from two sources
-        // must not read as two here while showing once in the list. The free-tier CAP below still counts RAW
-        // active dives (binding entitlement rule): merge never feeds the gate.
-        var summary = DiveStats.Summarize(DiveMergePolicy.Merge(active).Select(m => m.Primary).ToList());
+        // The user's provider priority decides which source wins an overlapping-dive merge. Snapshot the
+        // delegate once so both Merge passes below rank consistently.
+        var priorityFidelity = priority.FidelityDelegate();
+
+        // The merge and the lifetime aggregates are pure arithmetic over every dive the diver owns, so they
+        // run OFF the UI thread — on a large logbook they otherwise stall the thread painting the list.
+        // Keep this lambda pure; it runs on the thread pool.
+        var (active, summary) = await Task.Run(() =>
+        {
+            var activeDives = all
+                .Where(d => !d.Deleted)
+                .OrderByDescending(d => d.StartUtc)
+                .ToList();
+
+            // Lifetime strip aggregates are over PHYSICAL dives: collapse cross-source duplicates first so
+            // the strip (and the "You" screen) agree with the merged cards below — one dive synced from two
+            // sources must not read as two here while showing once in the list. The free-tier CAP below
+            // still counts RAW active dives (binding entitlement rule): merge never feeds the gate.
+            var stats = DiveStats.Summarize(
+                DiveMergePolicy.Merge(activeDives, priorityFidelity).Select(m => m.Primary).ToList());
+            return (activeDives, stats);
+        });
         TotalDives = summary.TotalDives;
         MaxDepthM = summary.MaxDepthM;
         TotalBottomTimeSec = summary.TotalBottomTimeSec;
@@ -154,10 +204,11 @@ public partial class LogbookViewModel(
         // Cap math is on RAW active dives — merge never feeds the entitlement gate.
         var visibleCount = EntitlementGate.LogbookVisibleCount(tier, active.Count);
         var visibleRaw = active.Take(visibleCount).ToList();
-        // Presentation union: collapse cross-source duplicates to one badged row, newest first.
-        var merged = DiveMergePolicy.Merge(visibleRaw)
+        // Presentation union: collapse cross-source duplicates to one badged row, newest first. Off-thread
+        // for the same reason as above.
+        var merged = await Task.Run(() => DiveMergePolicy.Merge(visibleRaw, priorityFidelity)
             .OrderByDescending(m => m.Primary.StartUtc)
-            .ToList();
+            .ToList());
 
         // Route string destinations: the linked push providers (PADI · SSI), shared by every row.
         var linkedDestinations = destinations
@@ -176,12 +227,17 @@ public partial class LogbookViewModel(
             var date = d.StartUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
             rows.Add(new DiveRowItem(
                 m,
-                (merged.Count - i).ToString(CultureInfo.InvariantCulture),
+                // Prefer the provider's own dive number — that is the number in the diver's logbook and on
+                // their computer. Fall back to position in the list when no provider reported one.
+                (d.DiveNumber ?? (merged.Count - i)).ToString(CultureInfo.InvariantCulture),
                 date,
                 ProviderCatalog.ShortLabelFor(d.SourceVendor) + destinationSuffix,
                 units.FormatDepth(d.MaxDepthM),
                 string.Create(CultureInfo.InvariantCulture, $"{Math.Round(d.DurationSec / 60.0):0}min"),
-                d.GasMix ?? "AIR"));
+                d.GasMix ?? "AIR",
+                MetaText: BuildRowMeta(d),
+                HasDeco: d.IsDeco == true,
+                Destinations: destinationSuffix));
         }
 
         VisibleDives = rows;
@@ -192,6 +248,36 @@ public partial class LogbookViewModel(
         // Free tier shows the cap meter once the cap is reached or exceeded ("keeps your last 5").
         IsCapMeterVisible = !EntitlementGate.IsPaid(tier)
             && active.Count >= FreeTier.FreeLogbookVisibleDives;
+
+        // Last statement: everything above is populated, so the skeleton can give way to real content.
+        IsLoaded = true;
+    }
+
+    /// <summary>
+    /// The card's meta line, assembled only from what the provider actually reported: water temperature,
+    /// dive type, and the leading tag. A provider that reports none of them yields an empty string and the
+    /// line is hidden — the card never shows a placeholder or a zero.
+    /// </summary>
+    private string BuildRowMeta(DiveDto dive)
+    {
+        var parts = new List<string>(3);
+
+        if (dive.MinTempC is { } temp)
+        {
+            parts.Add(units.FormatTemp(temp));
+        }
+
+        if (!string.IsNullOrWhiteSpace(dive.DiveTypeLabel))
+        {
+            parts.Add(dive.DiveTypeLabel);
+        }
+
+        if (dive.Tags is { Count: > 0 } tags)
+        {
+            parts.Add(tags[0]);
+        }
+
+        return string.Join("  ·  ", parts);
     }
 
     [RelayCommand]

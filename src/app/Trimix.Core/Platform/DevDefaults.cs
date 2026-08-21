@@ -89,6 +89,24 @@ public sealed class NullLocationService : ILocationService
         Task.FromResult<GeoLocation?>(null);
 }
 
+/// <summary>No-op <see cref="IMapLauncher"/> (platform Essentials replaces this in the App).</summary>
+public sealed class NullMapLauncher : IMapLauncher
+{
+    public Task OpenAsync(double latitude, double longitude, string? label = null, CancellationToken ct = default) =>
+        Task.CompletedTask;
+}
+
+/// <summary>
+/// No-op <see cref="IHaptics"/> (the platform implementation replaces this in the App). Silence is the
+/// correct behaviour for a headless host, so nothing needs a capability check before calling.
+/// </summary>
+public sealed class NullHaptics : IHaptics
+{
+    public void Perform(HapticCue cue)
+    {
+    }
+}
+
 /// <summary>Static <see cref="IAppInfo"/> (platform AppInfo replaces this in the App).</summary>
 public sealed class DefaultAppInfo : IAppInfo
 {

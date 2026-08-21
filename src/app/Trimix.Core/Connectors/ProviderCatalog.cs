@@ -16,9 +16,32 @@ public static class ProviderCatalog
         ["scubapro"] = ("ScubaPro", "scubapro.com", "SCUBAPRO"),
         ["mares"] = ("Mares", "mares.com", "MARES"),
         ["oceanic_cloud"] = ("Oceanic+", "oceanicplus.com", "OCEANIC+"),
+        ["shearwater"] = ("Shearwater", "shearwater.com", "SHEARWATER"),
         ["padi_push_personal"] = ("PADI", "padi.com", "PADI"),
         ["ssi_push_personal"] = ("SSI", "divessi.com", "SSI"),
     };
+
+    /// <summary>
+    /// Connector ids that are <b>supported</b> — the diver can sign in and sync. Every other entry in
+    /// <see cref="ById"/> is reverse-engineered against researched-guess/placeholder endpoints that have never
+    /// touched a live server, so it ships "Coming soon": visible but disabled, which keeps the Providers list
+    /// honest. Supported does not require full-fidelity data: Garmin + ScubaPro are verified end-to-end
+    /// (captured contracts under <c>docs/reverse-engineering/</c>); <b>Suunto</b> has a verified sign-in +
+    /// dive-list corridor (Sports Tracker — <c>suunto-sports-tracker-api.md</c>) and imports what that returns,
+    /// degrading to a summary-only dive where the depth/temp profile isn't available yet (founder decision
+    /// 2026-08-07: a data-completeness gap is still "supported", not "coming soon"). To promote a provider,
+    /// add its id here — nothing else in the UI needs to change.
+    /// </summary>
+    private static readonly HashSet<string> LiveConnectorIds = new(StringComparer.Ordinal)
+    {
+        "garmin_connect",
+        "scubapro",
+        "suunto_cloud",
+    };
+
+    /// <summary>True when a connector is implemented + verified live (connectable today); false ⇒ "Coming soon".</summary>
+    public static bool IsAvailable(string? connectorId) =>
+        connectorId is not null && LiveConnectorIds.Contains(connectorId);
 
     /// <summary>Short platform name for a connector id (falls back to the id itself).</summary>
     public static string NameFor(string connectorId) =>

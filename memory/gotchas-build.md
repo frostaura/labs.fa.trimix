@@ -8,9 +8,10 @@ last_verified: 2026-08-07
 # Build, deploy and on-device verification gotchas
 
 _Runtime UI and interaction traps are in [`gotchas-ui.md`](gotchas-ui.md); durability, connector and reverse-engineering ones
-in [`gotchas.md`](gotchas.md). The division-wide build procedure these sit under is the `maui-device-build` skill in
-[`../../../.claude/skills/`](../../../.claude/skills/README.md) — everything below is what that procedure does **not** cover
-because it is specific to this app. Carried at their original date; not re-verified 2026-08-21._
+in [`gotchas.md`](gotchas.md). This app's toolchain and per-program traps are the `maui-device-build` skill in
+[`../../../.claude/skills/`](../../../.claude/skills/README.md), and the generic MAUI build-and-deploy procedure that skill
+defers to is a capability of the installed Gaia plugins — everything below is what neither covers, because it is specific to
+this app's connectors, emulator and XAML. Carried at their original date; not re-verified 2026-08-21._
 
 - **`-p:EmbedAssembliesIntoApk=true` is mandatory for Android device testing.** .NET Android Debug builds keep assemblies
   OUTSIDE the APK, so `adb install` of a rebuilt APK leaves the previous managed code in place and the app silently runs

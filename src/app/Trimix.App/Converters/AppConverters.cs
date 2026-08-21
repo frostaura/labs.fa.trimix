@@ -282,6 +282,22 @@ public sealed class PageCounterConverter : IValueConverter
         throw new NotSupportedException();
 }
 
+/// <summary>
+/// Multi-binding counter for a carousel whose length is dynamic → "Section 2 of 4". Cannot reuse
+/// <see cref="PageCounterConverter"/>: that one hard-codes <c>OnboardingViewModel.PageCount</c>, whereas the
+/// dive detail carousel drops panes a provider supplied nothing for, so its total varies per dive.
+/// </summary>
+public sealed class SectionCounterConverter : IMultiValueConverter
+{
+    public object Convert(object[]? values, Type targetType, object? parameter, CultureInfo culture) =>
+        values is [int index, int count] && count > 0
+            ? $"Section {Math.Clamp(index + 1, 1, count)} of {count}"
+            : "";
+
+    public object[]? ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 /// <summary>Metres → number part in the preferred unit ("32.4"); pairs with <see cref="DepthSuffixConverter"/>.</summary>
 public sealed class DepthNumberConverter : IValueConverter
 {

@@ -1,14 +1,15 @@
 using Trimix.Core.Abstractions;
 using Trimix.Core.Connectors.Cloud;
-using Trimix.Core.Connectors.Infra;
 using Xunit;
 
 namespace Trimix.Core.Tests.Connectors.Cloud;
 
 /// <summary>
-/// The ScubaPro personal-export source: MySSI credentials → shared <see cref="MySsiCloudClient"/> → dives
-/// filtered to ScubaPro/Uwatec/LogTRAK source computers (ScubaPro has no cloud API; LogTRAK→MySSI is the
-/// researched corridor). Gating semantics are re-proven per-connector in <c>GuardrailTests</c>.
+/// The ScubaPro / Uwatec personal-export source, reading LogTRAK's Firebase backend (project
+/// <c>logtrak2-production</c>): Firebase email/password sign-in → Firestore <c>dives</c> collection queried by
+/// the diver's own <c>userId</c>. Fixtures are copied from the live capture recorded in
+/// <c>docs/reverse-engineering/scubapro-logtrak-api.md</c> (dive <c>QcT3…</c>, Sodwana, 02 Nov 2024, air on a
+/// Galileo T). Gating semantics are re-proven for every connector in <c>GuardrailTests</c>.
 /// </summary>
 public class ScubaProCloudSourceConnectorTests
 {
@@ -17,17 +18,57 @@ public class ScubaProCloudSourceConnectorTests
     private readonly InMemoryConnectorConsentStore _consent = new();
 
     private const string TokenKey = "connector:scubapro:access_token";
-    private const string Password = "myssi-pass-456";
+    private const string Password = "logtrak-pass-456";
+    private const string Uid = "5Pi2iolsrhNpP5WlOtzgJlbVQ6n1";
 
-    private ScubaProCloudSourceConnector Create() =>
-        new(_http, _tokens, _consent, new MySsiCloudClient(_http));
+    private ScubaProCloudSourceConnector Create() => new(_http, _tokens, _consent);
 
-    /// <summary>Mixed logbook: a ScubaPro dive, a legacy Uwatec dive, and a Mares dive the filter must drop.</summary>
-    private const string LogbookJson =
-        "{\"dives\":[" +
-        "{\"dive_id\":301,\"datetime\":\"2026-06-01T08:00:00Z\",\"divetime\":40,\"brand\":\"SCUBAPRO G2 (LogTRAK)\"}," +
-        "{\"dive_id\":302,\"datetime\":\"2026-06-02T09:30:00Z\",\"divetime\":30,\"brand\":\"Uwatec Galileo\"}," +
-        "{\"dive_id\":303,\"datetime\":\"2026-06-03T10:15:00Z\",\"divetime\":45,\"brand\":\"Mares\"}]}";
+    /// <summary>Firebase verifyPassword response — id token, rotating refresh token, and the uid the query filters on.</summary>
+    private static string SignInResponse(string expiresIn = "3600") =>
+        $"{{\"localId\":\"{Uid}\",\"idToken\":\"logtrak-id-xyz\",\"refreshToken\":\"logtrak-refresh-xyz\",\"expiresIn\":\"{expiresIn}\"}}";
+
+    /// <summary>A Firestore <c>:runQuery</c> stream: two dives (real field shapes, arrays truncated to 3
+    /// samples) plus a trailing document-less frame the reader must skip.</summary>
+    private const string LogbookQueryResponse =
+        "[" +
+        "{\"document\":{\"name\":\"projects/logtrak2-production/databases/(default)/documents/dives/QcT3yo7GSR4gPBPz4BoM\",\"fields\":{" +
+            "\"userId\":{\"stringValue\":\"" + Uid + "\"}," +
+            "\"startTime\":{\"stringValue\":\"2024-11-02T07:37:50.000Z\"}," +
+            "\"endTime\":{\"stringValue\":\"2024-11-02T08:33:50.000Z\"}," +
+            "\"depthMetersMax\":{\"doubleValue\":17.33}," +
+            "\"depthMetersAvg\":{\"doubleValue\":11.02}," +
+            "\"waterTempCelsiusMin\":{\"integerValue\":\"22\"}," +
+            "\"waterTempCelsiusMax\":{\"doubleValue\":27.2}," +
+            "\"diveMode\":{\"stringValue\":\"scuba\"}," +
+            "\"saltwaterCalibrated\":{\"booleanValue\":true}," +
+            "\"cnsO2Before\":{\"integerValue\":\"0\"},\"cnsO2After\":{\"integerValue\":\"0\"}," +
+            "\"depthMetersValues\":{\"stringValue\":\"[0,2.595,3.707]\"}," +
+            "\"waterTempCelsiusValues\":{\"stringValue\":\"[27.2,27.2,27.2]\"}," +
+            "\"heartRateBpmValues\":{\"stringValue\":\"[]\"}," +
+            "\"tankData\":{\"mapValue\":{\"fields\":{" +
+                "\"tank1\":{\"mapValue\":{\"fields\":{\"o2Mixture\":{\"stringValue\":\"21\"},\"heMixture\":{\"nullValue\":null}," +
+                    "\"startPressure\":{\"doubleValue\":212.84},\"endPressure\":{\"doubleValue\":89.67},\"size\":{\"nullValue\":null}}}}," +
+                "\"tank2\":{\"nullValue\":null}}}}," +
+            "\"tankPressureValues\":{\"mapValue\":{\"fields\":{\"tank1\":{\"stringValue\":\"[212.75,212.5,211.75]\"}}}}" +
+        "}}}," +
+        "{\"document\":{\"name\":\"projects/logtrak2-production/databases/(default)/documents/dives/EsqWD9k04ShBAN62OFiP\",\"fields\":{" +
+            "\"userId\":{\"stringValue\":\"" + Uid + "\"}," +
+            "\"startTime\":{\"stringValue\":\"2024-10-15T06:00:00.000Z\"}," +
+            "\"endTime\":{\"stringValue\":\"2024-10-15T06:45:00.000Z\"}," +
+            "\"depthMetersMax\":{\"doubleValue\":30.5}," +
+            "\"diveMode\":{\"stringValue\":\"scuba\"}," +
+            "\"depthMetersValues\":{\"stringValue\":\"[0,15,30.5]\"}}}}," +
+        "{\"readTime\":\"2026-08-07T09:00:00Z\"}" +
+        "]";
+
+    private async Task GrantAndAuthenticateAsync()
+    {
+        await _consent.GrantAsync("scubapro");
+        _http.EnqueueText(SignInResponse());
+        var connector = Create();
+        connector.ProvideCredentials("diver@example.com", Password);
+        await connector.AuthenticateAsync();
+    }
 
     [Fact]
     public void Descriptor_keeps_the_dark_descriptor_invariant_and_full_profile()
@@ -51,61 +92,122 @@ public class ScubaProCloudSourceConnectorTests
         var result = await connector.AuthenticateAsync();
 
         Assert.Equal(ConnectorAuthStatus.NeedsInteraction, result.Status);
-        Assert.Contains("LogTRAK", result.Message, StringComparison.Ordinal); // truthful corridor disclosure
+        Assert.Contains("LogTRAK", result.Message, StringComparison.Ordinal); // truthful backend disclosure
         Assert.Empty(_http.Requests);
         Assert.Empty(_tokens.Values);
     }
 
     [Fact]
-    public async Task Authenticate_exchanges_myssi_credentials_and_stores_only_the_token()
+    public async Task Authenticate_exchanges_firebase_credentials_and_stores_only_the_token_and_uid()
     {
-        await _consent.GrantAsync("scubapro");
-        _http.EnqueueText("{\"token\":\"myssi-tok-sp\"}");
-        var connector = Create();
-        connector.ProvideCredentials("diver@example.com", Password);
+        await GrantAndAuthenticateAsync();
 
-        var result = await connector.AuthenticateAsync();
+        // The stored envelope carries the id token AND the uid (the query filter) but never the password.
+        var stored = _tokens.Values[TokenKey];
+        Assert.Contains("logtrak-id-xyz", stored, StringComparison.Ordinal);
+        Assert.Contains(Uid, stored, StringComparison.Ordinal);
+        Assert.DoesNotContain(Password, stored, StringComparison.Ordinal);
 
-        Assert.Equal(ConnectorAuthStatus.Granted, result.Status);
-        Assert.Equal("myssi-tok-sp", _tokens.Values[TokenKey]);
-        Assert.DoesNotContain(_tokens.Values.Values, v => v.Contains(Password, StringComparison.Ordinal));
+        // The sign-in call must carry the bundle header that unblocks the app-restricted API key.
+        Assert.Contains("verifyPassword", _http.Requests[0].Url, StringComparison.Ordinal);
+        Assert.Equal("com.uwatec.LogTrak2", _http.Requests[0].Headers["X-Ios-Bundle-Identifier"]);
     }
 
     [Fact]
-    public async Task List_filters_the_myssi_logbook_to_scubapro_family_dives()
+    public async Task List_returns_the_divers_dives_via_a_userId_filtered_firestore_query()
     {
-        await _consent.GrantAsync("scubapro");
-        _http.EnqueueText("{\"token\":\"myssi-tok-sp\"}");
+        await GrantAndAuthenticateAsync();
+        _http.EnqueueText(LogbookQueryResponse);
         var connector = Create();
-        connector.ProvideCredentials("diver@example.com", Password);
-        await connector.AuthenticateAsync();
-        _http.EnqueueText(LogbookJson);
+        // (a fresh instance would re-auth; reuse via the token already in the store)
 
         var refs = await connector.ListDivesSinceAsync(SyncCursor.None);
 
-        // ScubaPro-branded AND legacy Uwatec dives belong to this source; the Mares dive does not.
-        Assert.Equal(["301", "302"], refs.Select(r => r.SourceId).ToArray());
+        Assert.Equal(["QcT3yo7GSR4gPBPz4BoM", "EsqWD9k04ShBAN62OFiP"], refs.Select(r => r.SourceId).ToArray());
         Assert.All(refs, r => Assert.Equal("scubapro", r.ConnectorId));
+
+        // The query is a Firestore runQuery filtered to the diver's own userId (an unfiltered list is denied).
+        var query = _http.Requests[^1];
+        Assert.EndsWith(":runQuery", query.Url, StringComparison.Ordinal);
+        Assert.Contains("\"fieldPath\":\"userId\"", query.Body, StringComparison.Ordinal);
+        Assert.Contains(Uid, query.Body, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Fetch_resolves_a_full_profile_ImportedDive_through_the_shared_client()
+    public async Task List_applies_the_since_cursor_client_side()
+    {
+        await GrantAndAuthenticateAsync();
+        _http.EnqueueText(LogbookQueryResponse);
+        var connector = Create();
+
+        // Only the November dive is newer than this cursor; the October dive must be dropped.
+        var refs = await connector.ListDivesSinceAsync(new SyncCursor(new DateTime(2024, 11, 1, 0, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Equal(["QcT3yo7GSR4gPBPz4BoM"], refs.Select(r => r.SourceId).ToArray());
+    }
+
+    [Fact]
+    public async Task Fetch_maps_the_full_profile_cylinders_and_gas_from_the_cached_document()
+    {
+        await GrantAndAuthenticateAsync();
+        _http.EnqueueText(LogbookQueryResponse);
+        var connector = Create();
+        var refs = await connector.ListDivesSinceAsync(SyncCursor.None);
+        var requestsAfterList = _http.Requests.Count;
+
+        var dive = await connector.FetchProfileAsync(refs[0]);
+
+        // Summary
+        Assert.Equal(17.33, dive.MaxDepthM);
+        Assert.Equal(11.02, dive.AvgDepthM);
+        Assert.Equal(22, dive.MinTempC);
+        Assert.Equal(3360, dive.DurationSec); // 07:37:50 → 08:33:50
+        Assert.Equal("AIR", dive.GasMix);     // o2Mixture "21" reads as AIR, not EAN21
+        Assert.Equal("Scuba", dive.DiveTypeLabel);
+        Assert.Equal("Salt", dive.WaterType);
+
+        // Profile: three samples, cadence derived from duration/(n-1) = 1680 s.
+        Assert.Equal(3, dive.Samples.Count);
+        Assert.Equal([0, 1680, 3360], dive.Samples.Select(s => s.TSeconds).ToArray());
+        Assert.Equal(3.707, dive.Samples[2].DepthM); // last of the truncated fixture profile
+        Assert.Equal(27.2, dive.Samples[0].TempC);
+        Assert.Equal(212.75, dive.Samples[0].TankPressureBar); // transmitter tank pressure, per sample
+        Assert.Null(dive.Samples[0].HeartRate);                // "[]" channel → no HR
+
+        // Cylinder
+        var cylinder = Assert.Single(dive.Cylinders!);
+        Assert.Equal(21, cylinder.O2);
+        Assert.Equal(212.84, cylinder.StartBar);
+        Assert.Equal(89.67, cylinder.EndBar);
+
+        // Environment + exposure the connector could populate.
+        Assert.Equal(27.2, dive.Environment!.MaxTempC);
+        Assert.Equal(0, dive.Exposure!.CnsEndPercent);
+
+        // The profile was already in the list document — Fetch must NOT make another network call.
+        Assert.Equal(requestsAfterList, _http.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Expired_session_is_refreshed_before_listing()
     {
         await _consent.GrantAsync("scubapro");
-        _http.EnqueueText("{\"token\":\"myssi-tok-sp\"}");
+        _http.EnqueueText(SignInResponse(expiresIn: "0")); // already expired on arrival
         var connector = Create();
         connector.ProvideCredentials("diver@example.com", Password);
         await connector.AuthenticateAsync();
-        _http.EnqueueText(
-            "{\"dive_id\":301,\"datetime\":\"2026-06-01T08:00:00Z\",\"divetime\":40,\"depth_m\":31.2," +
-            "\"temp_c\":19.5,\"profile\":[{\"t\":0,\"depth_m\":0},{\"t\":90,\"depth_m\":31.2,\"temp_c\":19.5}]}");
 
-        var dive = await connector.FetchProfileAsync(
-            new DiveRef("scubapro", "301", new DateTime(2026, 6, 1, 8, 0, 0, DateTimeKind.Utc), 2400));
+        // Next read must refresh via securetoken, then run the query with the fresh token.
+        _http.EnqueueText("{\"id_token\":\"logtrak-id-2\",\"refresh_token\":\"logtrak-refresh-2\",\"expires_in\":\"3600\",\"user_id\":\"" + Uid + "\"}");
+        _http.EnqueueText(LogbookQueryResponse);
 
-        Assert.Equal(31.2, dive.MaxDepthM);
-        Assert.Equal(19.5, dive.MinTempC);
-        Assert.Equal(2, dive.Samples.Count);
-        Assert.EndsWith("/logbook/301", _http.Requests[^1].Url, StringComparison.Ordinal);
+        var refs = await connector.ListDivesSinceAsync(SyncCursor.None);
+
+        Assert.Equal(2, refs.Count);
+        Assert.Contains(_http.Requests, r => r.Url.Contains("securetoken", StringComparison.Ordinal));
+        // The rotated refresh token was persisted back.
+        Assert.Contains("logtrak-refresh-2", _tokens.Values[TokenKey], StringComparison.Ordinal);
+        // The query used the refreshed id token.
+        Assert.Equal("Bearer logtrak-id-2", _http.Requests[^1].Headers["Authorization"]);
     }
 }

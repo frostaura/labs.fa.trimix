@@ -366,6 +366,31 @@ public static partial class DiveStats
         return samples.Select(s => Math.Max(0, s.DepthM)).Average();
     }
 
+    /// <summary>
+    /// Usable average water temperature (°C) for a dive: the provider's reported
+    /// <c>Environment.AvgTempC</c> when present, else the arithmetic mean of the recorded sample
+    /// temperatures. Null when neither exists.
+    ///
+    /// <para>The provider value is preferred because a dive computer averages over its own sampling, whereas
+    /// the sample mean is only as good as the samples that survived import. Mirrors
+    /// <see cref="TryAverageDepth"/> so both tiles derive their averages the same way.</para>
+    /// </summary>
+    public static double? TryAverageTempC(DiveDto dive)
+    {
+        ArgumentNullException.ThrowIfNull(dive);
+        if (dive.Environment?.AvgTempC is double reported)
+        {
+            return reported;
+        }
+
+        var recorded = dive.ProfileSamples
+            .Where(s => s.TempC is not null)
+            .Select(s => s.TempC!.Value)
+            .ToList();
+
+        return recorded.Count > 0 ? recorded.Average() : null;
+    }
+
     private static (double? Sac, double? Rmv) DiveSac(DiveDto dive)
     {
         if (dive.DurationSec <= 0 || dive.Cylinders is not { Count: > 0 } cylinders)

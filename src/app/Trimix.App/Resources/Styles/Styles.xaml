@@ -380,6 +380,32 @@
         <Setter Property="Padding" Value="16,14" />
     </Style>
 
+    <!--
+        Text-input container. This is the one place in the design system that is DELIBERATELY not the same
+        on both platforms, because "a text field" does not look the same on both platforms:
+
+          Android -> a Material filled field: no outline, container fill, top corners rounded and bottom
+                     corners square, with the bottom indicator drawn by the EditText itself
+                     (MaterialUnderlineDrawable — dim at rest, mint and 2dp on focus). An outline PLUS an
+                     indicator is the doubled-container look; Material picks one, and the filled field is
+                     the one that fits inside a dark card layout.
+          iOS     -> the app's normal GlassCard outline and nothing else. iOS text fields have no indicator
+                     and no focus stroke; a mint underline would look like an Android app running on a phone.
+
+        Do not "unify" these. An earlier pass stripped both platforms to a bare rounded box, which is what
+        made the Android build read as an iOS app.
+    -->
+    <Style x:Key="InputField" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="Padding">
+            <Setter.Value>
+                <!-- Android: NO horizontal container padding — Material's 16dp gutter lives on the field
+                     itself (see ApplyMaterialUnderline), so the bottom indicator spans the full container
+                     width the way Material draws it instead of stopping short at each side. -->
+                <OnPlatform x:TypeArguments="Thickness" Android="0,8,0,4" iOS="12,2" Default="12,2" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="GlassCardRaised" TargetType="Border" BasedOn="{StaticResource GlassCard}">
         <Setter Property="Background" Value="{AppThemeBinding Light={StaticResource LightSurfaceRaised}, Dark={StaticResource SurfaceRaised}}" />
     </Style>

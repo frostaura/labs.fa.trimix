@@ -48,6 +48,30 @@ public sealed class MauiConnectivityService : IConnectivityService, IDisposable
 }
 
 /// <summary>
+/// <see cref="IMapLauncher"/> over Essentials <c>Map.OpenAsync</c> — Apple Maps on iOS, Google Maps on Android.
+/// No API key, no NuGet, no secret in the APK.
+///
+/// <para>Failures are swallowed deliberately: a device with no maps app, or a user cancelling the hand-off, must
+/// not surface an error on a dive detail page. The coordinates stay visible on screen regardless.</para>
+/// </summary>
+public sealed class MauiMapLauncher : IMapLauncher
+{
+    public async Task OpenAsync(
+        double latitude, double longitude, string? label = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var options = new MapLaunchOptions { Name = string.IsNullOrWhiteSpace(label) ? "Dive site" : label };
+            await Microsoft.Maui.ApplicationModel.Map.OpenAsync(latitude, longitude, options);
+        }
+        catch (Exception ex) when (ex is FeatureNotSupportedException or FeatureNotEnabledException or PermissionException)
+        {
+            // No maps app / disabled feature — nothing to recover, and nothing worth interrupting the page for.
+        }
+    }
+}
+
+/// <summary>
 /// <see cref="ILocationService"/> over Essentials Geolocation. Permission is requested
 /// just-in-time, "while using" only, never background (PRD privacy posture); denial returns null
 /// and callers degrade gracefully (site search without distance, no auto-match).

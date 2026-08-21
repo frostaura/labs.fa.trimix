@@ -32,6 +32,9 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     private readonly IConnectorConsentStore _consent;
     private readonly INavigator _navigator;
     private readonly IUserDialogs _dialogs;
+    private readonly ILocalStore _store;
+    private readonly IProviderPriority _priority;
+    private readonly IPreferences _preferences;
 
     public ConnectedAccountsViewModel(
         IEnumerable<IDiveSourceConnector> sources,
@@ -39,12 +42,18 @@ public partial class ConnectedAccountsViewModel : ObservableObject
         IConnectorConsentStore consent,
         SyncSessionViewModel syncSession,
         INavigator navigator,
-        IUserDialogs dialogs)
+        IUserDialogs dialogs,
+        ILocalStore store,
+        IProviderPriority priority,
+        IPreferences preferences)
     {
         _consent = consent;
         Sync = syncSession;
         _navigator = navigator;
         _dialogs = dialogs;
+        _store = store;
+        _priority = priority;
+        _preferences = preferences;
 
         foreach (var source in sources)
         {
@@ -63,34 +72,111 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     /// <summary>The shared sync session — radar button, last-sync label, syncing states.</summary>
     public SyncSessionViewModel Sync { get; }
 
-    /// <summary>All provider rows, sources first then destinations, in stable registry order.</summary>
-    public ObservableCollection<ProviderRow> Providers { get; } = [];
+    /// <summary>
+    /// Linked providers, sources first in the user's priority order (the order that decides overlapping-dive
+    /// merges) then any linked destinations. This is the DRAGGABLE group — reordering it persists priority.
+    /// </summary>
+    public ObservableCollection<ProviderRow> ConnectedProviders { get; } = [];
+
+    /// <summary>Unlinked providers — the "connect me" group. Not sortable (priority is meaningless until a
+    /// provider is linked and has dives).</summary>
+    public ObservableCollection<ProviderRow> DisconnectedProviders { get; } = [];
+
+    /// <summary>Section-visibility flags so an empty group hides its header.</summary>
+    [ObservableProperty]
+    private bool _hasConnectedProviders;
+
+    [ObservableProperty]
+    private bool _hasDisconnectedProviders;
+
+    /// <summary>Bounded height for the connected (draggable) list — a reorderable CollectionView must not
+    /// sit inside a ScrollView (the drag would fight it), so it is sized to its content and scrolls
+    /// internally past a handful of rows.</summary>
+    [ObservableProperty]
+    private double _connectedListHeight;
+
+    private const double RowHeightEstimate = 88;
 
     /// <summary>True briefly after arriving via an unlinked "Sync now" — flashes the Connect buttons.</summary>
     [ObservableProperty]
     private bool _isNudging;
 
-    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O).</summary>
+    /// <summary>
+    /// True when the "drag to reorder — the top computer wins overlapping dives" hint should show — only with
+    /// ≥2 connected source providers (so priority is meaningful) and only until the diver has seen it once.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isReorderHintVisible;
+
+    /// <summary>Rebuilds the provider rows from persisted consent + token state (zero network I/O), split into
+    /// the Connected (draggable, priority-ordered sources first) and Not-connected groups.</summary>
     [RelayCommand]
     public async Task LoadAsync()
     {
-        Providers.Clear();
+        var rows = new List<ProviderRow>();
         foreach (var entry in _connectorsById.Values)
         {
             var descriptor = DescriptorOf(entry);
             var row = new ProviderRow(descriptor.ConnectorId, entry is IDiveSourceConnector);
 
-            // Linked = consented AND a stored token answers Granted. For the gated connectors this
-            // reads only local state — AuthenticateAsync performs no network call without pending
-            // credentials (and none at all before consent).
-            row.IsLinked = _consent.HasConsent(descriptor.ConnectorId)
+            // Linked = implemented/live AND consented AND a stored token answers Granted. A "Coming soon"
+            // provider can never be linked, and short-circuiting here also skips its AuthenticateAsync (its
+            // endpoints are placeholders). For the live gated connectors this reads only local state —
+            // AuthenticateAsync performs no network call without pending credentials (and none before consent).
+            row.IsLinked = row.IsAvailable
+                && _consent.HasConsent(descriptor.ConnectorId)
                 && (await AuthenticateSafeAsync(entry)).Status == ConnectorAuthStatus.Granted;
             row.RefreshStatus(Sync.IsSyncing);
-            Providers.Add(row);
+            rows.Add(row);
         }
+
+        // Connected sources render in the user's priority order (a new/unordered one sorts last); linked
+        // destinations follow. Disconnected rows keep registry order (sources then destinations).
+        var order = _priority.Order().ToList();
+        var connected = rows
+            .Where(r => r.IsLinked)
+            .OrderByDescending(r => r.IsSource) // sources before destinations
+            .ThenBy(r => order.IndexOf(r.ConnectorId) is var i && i >= 0 ? i : int.MaxValue)
+            .ToList();
+        var disconnected = rows.Where(r => !r.IsLinked).ToList();
+
+        Replace(ConnectedProviders, connected);
+        Replace(DisconnectedProviders, disconnected);
+        HasConnectedProviders = connected.Count > 0;
+        HasDisconnectedProviders = disconnected.Count > 0;
+        // Size the draggable list to content, capped so it never eats the whole screen (it scrolls past ~6).
+        ConnectedListHeight = Math.Min(connected.Count, 6) * RowHeightEstimate;
+
+        IsReorderHintVisible = connected.Count(r => r.IsSource) >= 2
+            && _preferences.Get(PreferenceKeys.ProviderReorderHintSeen) is null;
 
         Sync.RefreshLinkState();
         Sync.RefreshLastSyncLabel();
+    }
+
+    private static void Replace(ObservableCollection<ProviderRow> target, List<ProviderRow> rows)
+    {
+        target.Clear();
+        foreach (var row in rows)
+        {
+            target.Add(row);
+        }
+    }
+
+    /// <summary>
+    /// Persist the current <see cref="ConnectedProviders"/> order as the merge priority. Called after the
+    /// draggable list finishes a reorder (the CollectionView has already moved the item in place). Only
+    /// source providers carry dives, so only their order is stored.
+    /// </summary>
+    public void PersistConnectedOrder() =>
+        _priority.Set(ConnectedProviders.Where(r => r.IsSource).Select(r => r.ConnectorId).ToList());
+
+    /// <summary>Dismisses the reorder hint and remembers it (one-shot).</summary>
+    [RelayCommand]
+    public void DismissReorderHint()
+    {
+        _preferences.Set(PreferenceKeys.ProviderReorderHintSeen, "1");
+        IsReorderHintVisible = false;
     }
 
     /// <summary>
@@ -102,6 +188,13 @@ public partial class ConnectedAccountsViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(row);
 
+        // "Coming soon" providers are inert — the row shows a pill, not a Connect button, but guard the
+        // command too so nothing can link a provider that isn't implemented yet.
+        if (!row.IsAvailable)
+        {
+            return;
+        }
+
         if (!row.IsLinked)
         {
             await _navigator.GoToAsync(Routes.ProviderOAuth, new Dictionary<string, object>
@@ -111,9 +204,15 @@ public partial class ConnectedAccountsViewModel : ObservableObject
             return;
         }
 
+        // Sources import dives; unlinking one removes that provider's dives from this device. Push
+        // destinations (PADI/SSI) carry no dives, so their unlink copy stays about the link + token only.
+        var message = row.IsSource
+            ? $"Trimix will forget the link, delete the stored access token, and remove {row.PlatformName}'s "
+                + "dives from this device. Dives another linked provider also recorded stay in your logbook."
+            : "Trimix will forget the link and delete the stored access token.";
         var unlink = await _dialogs.ConfirmAsync(
             $"Unlink {row.PlatformName}?",
-            "Trimix will forget the link and delete the stored access token. Your dives stay in your logbook.",
+            message,
             accept: "Unlink",
             cancel: "Cancel");
         if (!unlink)
@@ -125,6 +224,15 @@ public partial class ConnectedAccountsViewModel : ObservableObject
         // No toast (the design has none): the row itself animating back to "Not connected" /
         // "Connect" IS the confirmation.
         await _consent.RevokeAsync(row.ConnectorId);
+
+        // Remove this provider's imported dives (source connectors only). SourceVendor == connector id, so a
+        // dive another still-linked provider also recorded survives as that provider's own row. The logbook
+        // and "You" stats recompute from the store on their next load, so totals fall accordingly.
+        if (row.IsSource)
+        {
+            await _store.DeleteDivesByVendorAsync(row.ConnectorId);
+        }
+
         row.IsLinked = false;
         row.RefreshStatus(Sync.IsSyncing);
         Sync.RefreshLinkState();
@@ -149,7 +257,12 @@ public partial class ConnectedAccountsViewModel : ObservableObject
             return;
         }
 
-        foreach (var row in Providers)
+        foreach (var row in ConnectedProviders)
+        {
+            row.RefreshStatus(Sync.IsSyncing);
+        }
+
+        foreach (var row in DisconnectedProviders)
         {
             row.RefreshStatus(Sync.IsSyncing);
         }
@@ -191,6 +304,19 @@ public partial class ProviderRow(string connectorId, bool isSource) : Observable
 
     public bool IsSource { get; } = isSource;
 
+    /// <summary>
+    /// True when this provider is implemented + verified live and can actually be connected today
+    /// (see <see cref="ProviderCatalog.IsAvailable"/>). False ⇒ the row renders disabled with a
+    /// "Coming soon" pill and cannot be linked.
+    /// </summary>
+    public bool IsAvailable { get; } = ProviderCatalog.IsAvailable(connectorId);
+
+    /// <summary>Inverse of <see cref="IsAvailable"/> — drives the "Coming soon" pill visibility.</summary>
+    public bool IsComingSoon => !IsAvailable;
+
+    /// <summary>Row dimming: full for a live provider, faded for a "Coming soon" one.</summary>
+    public double RowOpacity => IsAvailable ? 1d : 0.55d;
+
     /// <summary>Short platform name ("Garmin Dive", "PADI").</summary>
     public string PlatformName { get; } = ProviderCatalog.NameFor(connectorId);
 
@@ -206,9 +332,17 @@ public partial class ProviderRow(string connectorId, bool isSource) : Observable
     [ObservableProperty]
     private string _ctaText = "Connect";
 
-    /// <summary>Recomputes the status/CTA strings (prototype: Not connected → Linked ✓ / Syncing…).</summary>
+    /// <summary>Recomputes the status/CTA strings (prototype: Not connected → Linked ✓ / Syncing…).
+    /// A not-yet-implemented provider is pinned to the "Coming soon" state regardless of link/sync.</summary>
     public void RefreshStatus(bool isSyncing)
     {
+        if (!IsAvailable)
+        {
+            StatusText = "Coming soon";
+            CtaText = "Coming soon";
+            return;
+        }
+
         StatusText = IsLinked ? (isSyncing ? "Syncing…" : "Linked · synced") : "Not connected";
         CtaText = IsLinked ? "Linked ✓" : "Connect";
     }

@@ -37,6 +37,9 @@ public sealed class AppIcon : GraphicsView
     public static readonly BindableProperty StrokeThicknessProperty = BindableProperty.Create(
         nameof(StrokeThickness), typeof(double), typeof(AppIcon), 1.6, propertyChanged: OnVisualChanged);
 
+    public static readonly BindableProperty CenterInkProperty = BindableProperty.Create(
+        nameof(CenterInk), typeof(bool), typeof(AppIcon), false, propertyChanged: OnVisualChanged);
+
     public AppIcon()
     {
         Drawable = new IconDrawable(this);
@@ -45,7 +48,7 @@ public sealed class AppIcon : GraphicsView
         Apply();
     }
 
-    /// <summary>Lowercase icon name — "logbook", "sites", "you", "sync", "plus", "gear", "pencil",
+    /// <summary>Lowercase icon name — "logbook", "you", "sync", "plus", "gear", "pencil",
     /// "lock", "warning", "back", "chevron", "check", "trend", "fingerprint".</summary>
     public string? Icon
     {
@@ -72,6 +75,24 @@ public sealed class AppIcon : GraphicsView
     {
         get => (double)GetValue(StrokeThicknessProperty);
         set => SetValue(StrokeThicknessProperty, value);
+    }
+
+    /// <summary>
+    /// Draws the glyph centred on its own ink rather than on the 24-unit viewbox origin. Set this when the
+    /// icon is <b>rotated</b>: MAUI rotates a view about its bounds centre, so any icon whose ink is not
+    /// centred in the viewbox orbits that pivot instead of spinning in place.
+    ///
+    /// <para>The <c>sync</c> radar is exactly this case — its arc is centred on (12,12) but the arrowhead
+    /// reaches y=3, putting the ink centre at (12, 11.5), half a viewbox unit high. At Size=17 that is
+    /// ~0.35 dip of eccentricity: a visible wobble once per revolution.</para>
+    ///
+    /// <para>Opt-in on purpose: the statically-placed icons are positioned against the viewbox today, so
+    /// re-centring them all would shift existing layouts for no benefit.</para>
+    /// </summary>
+    public bool CenterInk
+    {
+        get => (bool)GetValue(CenterInkProperty);
+        set => SetValue(CenterInkProperty, value);
     }
 
     private static void OnVisualChanged(BindableObject bindable, object oldValue, object newValue) =>
@@ -134,6 +155,19 @@ public sealed class AppIcon : GraphicsView
             // SVG semantics: uniform scale of geometry AND stroke from the 24-unit viewbox.
             var scale = (float)(owner.Size / ViewBox);
             canvas.Scale(scale, scale);
+
+            if (owner.CenterInk)
+            {
+                // Shift the glyph so its ink centre lands on the viewbox centre, making the view's own
+                // bounds centre a wobble-free rotation pivot. Path bounds are the right measure here:
+                // strokes are round-capped and therefore extend symmetrically, so the path's centre is
+                // the ink's centre.
+                var ink = path.GetBoundsByFlattening();
+                canvas.Translate(
+                    (float)(ViewBox / 2) - ink.Center.X,
+                    (float)(ViewBox / 2) - ink.Center.Y);
+            }
+
             canvas.DrawPath(path);
             canvas.RestoreState();
         }

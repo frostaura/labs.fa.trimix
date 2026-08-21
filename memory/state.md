@@ -9,7 +9,7 @@ last_verified: 2026-08-21
 
 ## ⚠ Durability — inspected 2026-08-21, decays fast
 
-Re-run `repo-durability-check` before repeating any of this. **No fetch was performed**, so ahead/behind is
+Re-run the repo-durability check before repeating any of this. **No fetch was performed**, so ahead/behind is
 measured against the ref last fetched 2026-08-07.
 
 - **A large uncommitted body** — the whole 2026-08-07 work *plus* the never-tracked harness and RE

@@ -5,9 +5,12 @@ using Xunit;
 namespace Trimix.Core.Tests.Charts;
 
 /// <summary>
-/// Additive overlay geometry: secondary channel series, the recorded-ceiling band, and recorded
-/// event markers. All null-tolerant — a channel is surfaced only when samples carry it, so the
-/// depth-temp-only (HealthKit) case yields at most a temperature series.
+/// Additive overlay geometry: the recorded-ceiling bands and recorded event markers. Both are empty unless the
+/// samples carry the channel.
+///
+/// <para>Temperature moved to <see cref="TemperatureLane"/> and is covered by <c>TemperatureLaneTests</c>; the
+/// tank-pressure and NDL series were removed (no connector populates tank pressure, and NDL was never drawn —
+/// both remain as text in the profile table and the recorded readouts).</para>
 /// </summary>
 public class ChartGeometryOverlayTests
 {
@@ -45,96 +48,28 @@ public class ChartGeometryOverlayTests
         var samples = new[] { Rich(0, 0), Rich(60, 20), Rich(120, 8) };
         var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
 
-        Assert.Null(overlays.Temperature);
-        Assert.Null(overlays.TankPressure);
-        Assert.Null(overlays.Ndl);
-        Assert.Null(overlays.CeilingBand);
+        Assert.Empty(overlays.CeilingBands);
         Assert.Empty(overlays.Markers);
         Assert.False(overlays.HasAny);
+        // The depth-only case must also yield no temperature lane.
+        Assert.Null(ChartGeometry.BuildTemperatureLane(samples, Depth(samples)));
     }
 
     [Fact]
-    public void Depth_temp_only_healthkit_case_yields_only_a_temperature_series()
+    public void Depth_temp_only_healthkit_case_yields_no_main_canvas_overlays()
     {
+        // Temperature is drawn on its own canvas now, so a depth+temp source adds NOTHING to the main chart.
         var samples = new[] { Rich(0, 0, temp: 20), Rich(60, 20, temp: 14), Rich(120, 5, temp: 16) };
         var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
 
-        Assert.NotNull(overlays.Temperature);
-        Assert.Equal("temp", overlays.Temperature!.ChannelKey);
-        Assert.Equal(ChartAxisSide.Right, overlays.Temperature.Axis);
-        Assert.Null(overlays.TankPressure);
-        Assert.Null(overlays.Ndl);
-        Assert.Null(overlays.CeilingBand);
+        Assert.Empty(overlays.CeilingBands);
         Assert.Empty(overlays.Markers);
-        Assert.True(overlays.HasAny);
+        Assert.False(overlays.HasAny);
+        Assert.NotNull(ChartGeometry.BuildTemperatureLane(samples, Depth(samples)));
     }
 
     [Fact]
-    public void A_channel_with_fewer_than_two_readings_is_not_emitted()
-    {
-        // Only one sample carries temperature → no series (needs >= 2).
-        var samples = new[] { Rich(0, 0, temp: 20), Rich(60, 20), Rich(120, 5) };
-        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
-
-        Assert.Null(overlays.Temperature);
-    }
-
-    [Fact]
-    public void Temperature_series_normalizes_value_up_and_shares_the_depth_x_axis()
-    {
-        var samples = new[] { Rich(0, 0, temp: 10), Rich(60, 20, temp: 30), Rich(120, 5, temp: 20) };
-        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
-
-        var series = Assert.IsType<ChartSeries>(overlays.Temperature);
-        Assert.Equal(10, series.MinValue);
-        Assert.Equal(30, series.MaxValue);
-
-        // X shared with the depth chart (t / duration).
-        Assert.Equal(0.0, series.Points[0].X, 6);
-        Assert.Equal(0.5, series.Points[1].X, 6);
-        Assert.Equal(1.0, series.Points[2].X, 6);
-
-        // Value-up: max (30) → Y 0 (top); min (10) → Y 1 (bottom); mid (20) → 0.5.
-        Assert.Equal(1.0, series.Points[0].Y, 6); // temp 10 = coldest = bottom
-        Assert.Equal(0.0, series.Points[1].Y, 6); // temp 30 = warmest = top
-        Assert.Equal(0.5, series.Points[2].Y, 6); // temp 20 = mid
-    }
-
-    [Fact]
-    public void A_flat_channel_collapses_to_the_axis_midline()
-    {
-        var samples = new[] { Rich(0, 5, tank: 200), Rich(60, 20, tank: 200), Rich(120, 5, tank: 200) };
-        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
-
-        var series = Assert.IsType<ChartSeries>(overlays.TankPressure);
-        Assert.Equal(200, series.MinValue);
-        Assert.Equal(200, series.MaxValue);
-        Assert.All(series.Points, p => Assert.Equal(0.5, p.Y, 6));
-    }
-
-    [Fact]
-    public void Tank_pressure_and_ndl_emit_their_own_right_axis_series()
-    {
-        var samples = new[]
-        {
-            Rich(0, 0, tank: 210, ndl: 99),
-            Rich(60, 30, tank: 150, ndl: 12),
-            Rich(120, 5, tank: 90, ndl: 40),
-        };
-        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
-
-        Assert.NotNull(overlays.TankPressure);
-        Assert.Equal("tank_pressure", overlays.TankPressure!.ChannelKey);
-        Assert.Equal(90, overlays.TankPressure.MinValue);
-        Assert.Equal(210, overlays.TankPressure.MaxValue);
-
-        Assert.NotNull(overlays.Ndl);
-        Assert.Equal("ndl", overlays.Ndl!.ChannelKey);
-        Assert.Equal(ChartAxisSide.Right, overlays.Ndl.Axis);
-    }
-
-    [Fact]
-    public void Ceiling_band_spans_only_ceiling_samples_and_normalizes_by_the_main_max_depth()
+    public void Ceiling_bands_span_only_contiguous_ceiling_runs_and_normalize_by_the_main_max_depth()
     {
         // maxDepth = 40; a 6m ceiling recorded at two samples → Lower Y = 6/40 = 0.15.
         var samples = new[]
@@ -146,7 +81,9 @@ public class ChartGeometryOverlayTests
         };
         var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
 
-        var band = Assert.IsType<ChartBand>(overlays.CeilingBand);
+        // The two ceiling samples are CONSECUTIVE, so they form exactly one run — every number below is
+        // unchanged from when this returned a single band.
+        var band = Assert.Single(overlays.CeilingBands);
         Assert.Equal("ceiling", band.ChannelKey);
         Assert.Equal(2, band.Upper.Count);
         Assert.Equal(2, band.Lower.Count);
@@ -164,7 +101,7 @@ public class ChartGeometryOverlayTests
         var samples = new[] { Rich(0, 0, temp: 20), Rich(60, 20, temp: 14) };
         var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
 
-        Assert.Null(overlays.CeilingBand);
+        Assert.Empty(overlays.CeilingBands);
     }
 
     [Fact]
@@ -268,4 +205,129 @@ public class ChartGeometryOverlayTests
         var deco = Assert.Single(overlays.Markers, m => m.Kind == ChartMarkerKind.DecoOnset);
         Assert.Equal(0.5, deco.Y, 6);
     }
+
+    // ── de-noising regressions ──────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Two_separate_deco_windows_produce_two_bands()
+    {
+        // THE REGRESSION TEST for the bridged amber slab. Filtering to "samples with a ceiling" and closing one
+        // polygon over the survivors asserted a do-not-ascend zone across the gap between these two windows.
+        var samples = new[]
+        {
+            Rich(0, 0),
+            Rich(60, 30, ceiling: 6),
+            Rich(120, 24, ceiling: 6),
+            Rich(180, 10),               // ← ceiling cleared: the gap
+            Rich(240, 18, ceiling: 3),
+            Rich(300, 12, ceiling: 3),
+        };
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
+
+        Assert.Equal(2, overlays.CeilingBands.Count);
+        var first = overlays.CeilingBands[0];
+        var second = overlays.CeilingBands[1];
+        // The bands must not touch — the gap has to survive into the geometry.
+        Assert.True(first.Lower[^1].X < second.Lower[0].X);
+        Assert.Equal(6.0 / 30.0, first.Lower[0].Y, 6);
+        Assert.Equal(3.0 / 30.0, second.Lower[0].Y, 6);
+    }
+
+    [Fact]
+    public void A_single_sample_deco_blip_produces_no_band_but_still_marks_deco_onset()
+    {
+        // A lone ceiling sample is a zero-width sliver. Dropping it is safe because the DecoOnset marker
+        // already records the moment the computer flagged deco.
+        var samples = new[] { Rich(0, 0), Rich(60, 30, ceiling: 6), Rich(120, 10) };
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
+
+        Assert.Empty(overlays.CeilingBands);
+        Assert.Contains(overlays.Markers, m => m.Kind == ChartMarkerKind.DecoOnset);
+    }
+
+    [Fact]
+    public void Ascent_rate_oscillating_around_the_threshold_warns_once()
+    {
+        // THE REGRESSION TEST for marker spam. Without hysteresis this emitted a chevron on every crossing:
+        // a 1 Hz ascent-rate channel hovering at the limit buried the chart in glyphs.
+        var samples = new[]
+        {
+            Rich(0, 30, ascent: 12),
+            Rich(10, 28, ascent: 9),
+            Rich(20, 26, ascent: 13),
+            Rich(30, 24, ascent: 9),
+            Rich(40, 22, ascent: 12),
+        };
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
+
+        Assert.Single(overlays.Markers, m => m.Kind == ChartMarkerKind.AscentWarning);
+    }
+
+    [Fact]
+    public void A_run_that_clears_the_hysteresis_floor_can_warn_again()
+    {
+        // Dropping below the clear threshold genuinely ends the run, so a later fast ascent is a new warning.
+        var samples = new[]
+        {
+            Rich(0, 40, ascent: 12),
+            Rich(60, 30, ascent: 2),     // well below the clear floor
+            Rich(120, 20, ascent: 14),
+        };
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
+
+        Assert.Equal(2, overlays.Markers.Count(m => m.Kind == ChartMarkerKind.AscentWarning));
+    }
+
+    [Fact]
+    public void Ascent_warnings_are_capped_per_kind()
+    {
+        // 20 well-separated fast-ascent runs; only the first six are drawn.
+        var samples = new List<ProfileSampleDto>();
+        for (var run = 0; run < 20; run++)
+        {
+            samples.Add(Rich((run * 100) + 0, 30, ascent: 14));  // rising edge
+            samples.Add(Rich((run * 100) + 50, 28, ascent: 1));  // clears the run
+        }
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth([.. samples]));
+
+        var warnings = overlays.Markers.Where(m => m.Kind == ChartMarkerKind.AscentWarning).ToList();
+        Assert.Equal(6, warnings.Count);
+        Assert.Equal(warnings.Select(m => m.X).Distinct().Count(), warnings.Count);
+    }
+
+    [Fact]
+    public void Markers_closer_than_the_separation_floor_are_thinned()
+    {
+        // Two distinct runs only ~1 % of the timeline apart would overlap as glyphs, so the second is dropped.
+        var samples = new List<ProfileSampleDto> { Rich(0, 5, ascent: 14), Rich(2, 5, ascent: 1) };
+        samples.Add(Rich(4, 5, ascent: 14));
+        samples.Add(Rich(400, 5, ascent: 1));
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth([.. samples]));
+
+        Assert.Single(overlays.Markers, m => m.Kind == ChartMarkerKind.AscentWarning);
+    }
+
+    [Fact]
+    public void Deco_onset_is_never_thinned_away_by_its_neighbours()
+    {
+        // DecoOnset is the most safety-relevant glyph, so it is exempt from separation and capping even when it
+        // lands on top of another marker.
+        var samples = new[]
+        {
+            Rich(0, 30, ascent: 14, ceiling: 6),
+            Rich(10, 28, ceiling: 6),
+        };
+
+        var overlays = ChartGeometry.BuildProfileOverlays(samples, Depth(samples));
+
+        Assert.Contains(overlays.Markers, m => m.Kind == ChartMarkerKind.DecoOnset);
+        Assert.Contains(overlays.Markers, m => m.Kind == ChartMarkerKind.AscentWarning);
+    }
 }
+

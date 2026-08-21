@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Dive detail, the Events pane: what the dive computer RECORDED.
+
+     Everything here is imported and surfaced verbatim. Trimix never computes tissue loading or deco — the
+     frozen liability line — so the wording stays "recorded" throughout, and alert values are shown only where
+     the unit was confirmed against real data (see FormatAlertDetail in the Garmin connector). -->
+<ContentView
+    x:Class="Trimix.App.Panes.EventsPane"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:DiveDetailViewModel">
+
+    <ScrollView x:Name="Scroller">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+            <VerticalStackLayout.GestureRecognizers>
+                <!-- Paging lives HERE rather than on the page's container: on Android a ScrollView consumes the
+                     touch stream, so recognizers on an ancestor of one never fire. -->
+                <SwipeGestureRecognizer Direction="Left" Command="{Binding NextPaneCommand}" Threshold="40" />
+                <SwipeGestureRecognizer Direction="Right" Command="{Binding PreviousPaneCommand}" Threshold="40" />
+            </VerticalStackLayout.GestureRecognizers>
+
+            <!-- Section heading. The page's switcher chips were removed (sections change by sliding), so
+                 each pane names itself — otherwise the current section is identified only by a dot. -->
+            <Label Style="{StaticResource MonoLabelMint}" Text="EVENTS" Margin="0,0,0,-4"
+                   SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- Timestamped computer events on the dive's elapsed timeline, so they line up with the profile. -->
+            <Border Style="{StaticResource GlassCard}" IsVisible="{Binding HasEvents}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="EVENTS (RECORDED)" SemanticProperties.HeadingLevel="Level2" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Events}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DiveEventItem">
+                                <!-- The time column is a FIXED width, not Auto. Every row here is its own
+                                     Grid inside a BindableLayout, so an Auto column is measured per row —
+                                     "9:12" and "102:40" then produce different column widths and the labels
+                                     start at a different x on every line, which is the staggered look. A
+                                     fixed column makes the whole list share one gutter. 58 fits the widest
+                                     elapsed time ("100:05") at this size.
+                                     VerticalOptions=Center on all three: the time/detail are Caption13 (13)
+                                     and the label is Body15 (16), so top-aligned they sit on different
+                                     baselines and stagger vertically too. -->
+                                <Grid ColumnDefinitions="58,*,Auto" ColumnSpacing="12" Padding="0,4">
+                                    <Label Grid.Column="0" Style="{StaticResource Caption13}" StyleClass="tnum"
+                                           Text="{Binding TimeText}" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Style="{StaticResource Body15}"
+                                           Text="{Binding Label}" VerticalOptions="Center" />
+                                    <Label Grid.Column="2" Style="{StaticResource Caption13}" StyleClass="tnum"
+                                           Text="{Binding Detail}" VerticalOptions="Center"
+                                           HorizontalTextAlignment="End" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Recorded (imported) deco channels — display-only. These surface values the dive computer
+                 STORED (min NDL, deepest ceiling, peak CNS); Trimix never computes tissue loading or deco. -->
+            <Border Style="{StaticResource GlassCard}" IsVisible="{Binding HasRecordedReadouts}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="RECORDED (IMPORTED)" SemanticProperties.HeadingLevel="Level2" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecordedReadouts}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RecordedReadout">
+                                <Grid ColumnDefinitions="*,Auto" Padding="0,4" ColumnSpacing="12">
+                                    <Label Grid.Column="0" Style="{StaticResource Caption13}"
+                                           Text="{Binding Label}" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Style="{StaticResource Body15}" StyleClass="tnum"
+                                           Text="{Binding Value}" VerticalOptions="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

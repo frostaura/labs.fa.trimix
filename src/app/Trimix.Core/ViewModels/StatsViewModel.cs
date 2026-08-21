@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts;
 using Trimix.Core.Abstractions;
+using Trimix.Core.Connectors;
 using Trimix.Core.Connectors.Infra;
 using Trimix.Core.Formatting;
 using Trimix.Core.Privacy;
@@ -39,6 +40,7 @@ public partial class StatsViewModel(
     IUserDialogs dialogs,
     IConnectorPurgeService connectorPurge,
     IConnectorConsentStore consent,
+    IProviderPriority priority,
     IEnumerable<IDiveSourceConnector> sources,
     IEnumerable<IDiveDestinationConnector> destinations) : ObservableObject
 {
@@ -210,7 +212,7 @@ public partial class StatsViewModel(
         // wrong the more sources a diver connects. Collapse to one merged dive each so totals, histograms and
         // SAC-over-time match the merged logbook cards. (The free-tier CAP still counts RAW dives — that is a
         // binding entitlement rule and lives in LogbookViewModel; merge here is display-analytics only.)
-        var dives = DiveMergePolicy.Merge(active).Select(m => m.Primary).ToList();
+        var dives = DiveMergePolicy.Merge(active, priority.FidelityDelegate()).Select(m => m.Primary).ToList();
 
         var summary = DiveStats.Summarize(dives);
         TotalDives = summary.TotalDives;

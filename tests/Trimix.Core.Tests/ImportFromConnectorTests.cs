@@ -180,22 +180,49 @@ public class ImportFromConnectorTests
     }
 
     [Fact]
-    public async Task Reimporting_already_stored_dives_never_retriggers_the_cap()
+    public async Task Resyncing_skips_dives_already_on_device_without_fetching_their_profiles()
     {
-        // Deterministic ids make a re-sync of the same dives an upsert, not new imports — the free
-        // ceiling must not fire on it (PRD Flow B step 5: unlock-at-cap re-imports onto the same ids).
+        // Deterministic ids make a dive's identity decidable from its DiveRef alone — before paying for the
+        // profile download. A re-sync of unchanged dives must therefore fetch NOTHING (a Garmin profile is
+        // ~750 KB), must not re-emit dive_logged_import (the frozen funnel's activation signal would inflate),
+        // and must not fire the free ceiling (PRD Flow B step 5).
         _entitlements.CurrentTier = EntitlementTier.Free;
         var dives = ManyDives(FreeTier.FreeImportDivesPerSession);
         var connector = new FakeSourceConnector("garmin_connect", dives);
         await CreateService(connector).ImportFromConnectorAsync(connector, SyncCursor.None);
+        var firstPassImports = _analytics.Events.Count(e => e.Name == FunnelEvents.DiveLoggedImport);
 
         var again = new FakeSourceConnector("garmin_connect", dives);
         var result = await CreateService(again).ImportFromConnectorAsync(again, SyncCursor.None);
 
         Assert.False(result.CapReached);
-        Assert.Equal(FreeTier.FreeImportDivesPerSession, result.ImportedDives.Count); // upserts, same ids
+        Assert.Empty(result.ImportedDives);            // nothing new — reporting "5 imported" would be a lie
+        Assert.Equal(0, again.FetchProfileCalls);      // the expensive download was skipped entirely
         Assert.Equal(FreeTier.FreeImportDivesPerSession, (await _store.GetDivesAsync()).Count);
+        Assert.Equal(
+            firstPassImports,
+            _analytics.Events.Count(e => e.Name == FunnelEvents.DiveLoggedImport)); // no duplicate emissions
         Assert.DoesNotContain(_analytics.Events, e => e.Name == FunnelEvents.PaywallShown);
+    }
+
+    [Fact]
+    public async Task Unlocking_after_the_cap_still_imports_the_dives_that_were_truncated()
+    {
+        // The skip above must not break unlock-at-cap: previously truncated dives were never stored, so
+        // they are still fetched and imported once the tier allows them.
+        _entitlements.CurrentTier = EntitlementTier.Free;
+        var dives = ManyDives(FreeTier.FreeImportDivesPerSession + 3);
+        var first = new FakeSourceConnector("garmin_connect", dives);
+        var capped = await CreateService(first).ImportFromConnectorAsync(first, SyncCursor.None);
+        Assert.True(capped.CapReached);
+
+        _entitlements.CurrentTier = EntitlementTier.Pro;
+        var after = new FakeSourceConnector("garmin_connect", dives);
+        var result = await CreateService(after).ImportFromConnectorAsync(after, SyncCursor.None);
+
+        Assert.Equal(3, result.ImportedDives.Count); // exactly the three that had been truncated
+        Assert.Equal(3, after.FetchProfileCalls);    // and only those three were downloaded
+        Assert.Equal(dives.Count, (await _store.GetDivesAsync()).Count);
     }
 
     private static IReadOnlyList<ImportedDive> ManyDives(int count) =>

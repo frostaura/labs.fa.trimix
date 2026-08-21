@@ -121,6 +121,25 @@ public class SqliteLocalStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteDivesByVendor_hard_removes_only_that_vendor_and_returns_the_count()
+    {
+        await _store.InitializeAsync();
+        var garminA = Dive() with { Id = Guid.NewGuid(), SourceVendor = "garmin_connect" };
+        var garminB = Dive() with { Id = Guid.NewGuid(), SourceVendor = "garmin_connect" };
+        var scuba = Dive() with { Id = Guid.NewGuid(), SourceVendor = "scubapro" };
+        await _store.UpsertDiveAsync(garminA);
+        await _store.UpsertDiveAsync(garminB);
+        await _store.UpsertDiveAsync(scuba);
+
+        var removed = await _store.DeleteDivesByVendorAsync("garmin_connect");
+
+        Assert.Equal(2, removed);
+        // Hard delete — the scubapro dive is the only row left, not a tombstone among ghosts.
+        var remaining = Assert.Single(await _store.GetDivesAsync());
+        Assert.Equal("scubapro", remaining.SourceVendor);
+    }
+
+    [Fact]
     public async Task Analytics_queue_is_fifo_and_removal_is_exact()
     {
         await _store.EnqueueAnalyticsEventAsync(Event(FunnelEvents.SiteViewed));

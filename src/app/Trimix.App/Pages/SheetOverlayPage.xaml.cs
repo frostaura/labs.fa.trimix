@@ -90,7 +90,9 @@ public partial class SheetOverlayPage : TransparentModalPage
             var spin = new Animation(v => SyncSpinnerIcon.Rotation = v * 360);
             spin.Commit(
                 SyncSpinnerIcon, SpinAnimationHandle, rate: 16, length: 1400, Easing.Linear,
-                repeat: () => _viewModel.Sync.IsSyncing);
+                // Re-check reduced motion each cycle, not just at start: toggling the accessibility setting
+                // mid-sync should stop the spin, and the old predicate kept it running until IsSyncing changed.
+                repeat: () => _viewModel.Sync.IsSyncing && !MotionSettings.IsReducedMotionEnabled);
         }
         else
         {

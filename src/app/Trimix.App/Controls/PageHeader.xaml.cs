@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Trimix.App.Services;
 using Trimix.Core.Abstractions;
 
 namespace Trimix.App.Controls;
@@ -55,6 +56,15 @@ public partial class PageHeader : ContentView
 
     private async void OnBackTapped(object? sender, TappedEventArgs e)
     {
+        // First statement, deliberately. This handler navigates, and a handler subscribed later (the
+        // generic tap-feedback hook) would necessarily run after the nav call — putting the tick behind the
+        // transition. The generic hook still fires a moment later and is swallowed by the coalesce window.
+        Feedback.Navigate();
+
+        // Yield one runloop turn so the haptic is actually driven before the pop jams the UI thread — see
+        // HapticCommand.Execute for why emitting the cue early is not on its own enough.
+        await Task.Yield();
+
         if (BackCommand is { } command)
         {
             if (command.CanExecute(null))

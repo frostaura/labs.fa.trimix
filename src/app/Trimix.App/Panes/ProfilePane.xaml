@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Dive detail, pane 1 of the carousel: identity + the profile itself.
+
+     This is a ContentView with its own code-behind on purpose. The chart needs real x:Name fields
+     (ChartView / TempLaneView / ScrubTip) for the drawables, the touch-to-scrub handlers and the tooltip
+     translation — putting the chart inside a page-level DataTemplate would lose those names, and the
+     alternative (one template holding every pane, gated by index) would instantiate the chart once per
+     carousel item. -->
+<ContentView
+    x:Class="Trimix.App.Panes.ProfilePane"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:DiveDetailViewModel">
+
+    <ScrollView x:Name="Scroller">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+            <VerticalStackLayout.GestureRecognizers>
+                <!-- Paging lives HERE rather than on the page's container: on Android a ScrollView consumes the
+                     touch stream, so recognizers on an ancestor of one never fire. -->
+                <SwipeGestureRecognizer Direction="Left" Command="{Binding NextPaneCommand}" Threshold="40" />
+                <SwipeGestureRecognizer Direction="Right" Command="{Binding PreviousPaneCommand}" Threshold="40" />
+            </VerticalStackLayout.GestureRecognizers>
+
+            <!-- Section heading. The page's switcher chips were removed (sections change by sliding), so
+                 each pane names itself — otherwise the current section is identified only by a dot. -->
+            <Label Style="{StaticResource MonoLabelMint}" Text="PROFILE" Margin="0,0,0,-4"
+                   SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- Meta line · route strip (title + origin chip live in the page's shared header). -->
+            <VerticalStackLayout Spacing="{StaticResource TightSpacing}">
+                <Label Style="{StaticResource Caption13}" LineBreakMode="WordWrap" Text="{Binding MetaText}" />
+
+                <!-- Route strip: FROM {VENDOR} › PADI ✓ SSI ✓ (linked push providers). Short chips on one
+                     row. NOT a FlexLayout: MAUI's FlexLayout throws "something is deeply wrong" at arrange
+                     time when it hosts IsVisible=false children or an empty bindable child (framework bug) —
+                     HSLs collapse invisible children safely. -->
+                <HorizontalStackLayout Spacing="0" Margin="0,4,0,0">
+                    <Border Style="{StaticResource BadgeMint}" Margin="0,0,6,4" VerticalOptions="Center">
+                        <Label Style="{StaticResource BadgeTextMint}" Text="{Binding OriginLabel, StringFormat='FROM {0}'}" />
+                    </Border>
+                    <controls:AppIcon
+                        Icon="chevron"
+                        Size="12"
+                        Color="{AppThemeBinding Light={StaticResource LightTextDisabled}, Dark={StaticResource TextDisabled}}"
+                        Margin="0,0,6,4"
+                        VerticalOptions="Center"
+                        IsVisible="{Binding HasRouteDestinations}"
+                        AutomationProperties.IsInAccessibleTree="False" />
+                    <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{Binding RouteDestinations}" VerticalOptions="Center">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border Style="{StaticResource Chip}" Margin="0,0,6,4">
+                                    <Label Style="{StaticResource ChipLabel}" Text="{Binding .}" />
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </HorizontalStackLayout>
+
+                <!-- Cross-source merge (§3 / §8.2): one physical dive recorded on several computers. Each
+                     source badge is tappable — it swaps this whole detail view to that computer's own
+                     recording in place. The selected source is shown at full strength; the others dim. -->
+                <VerticalStackLayout Spacing="{StaticResource TightSpacing}" IsVisible="{Binding IsMerged}">
+                    <Label Style="{StaticResource MonoLabelDim}" Text="SOURCES · TAP TO COMPARE" />
+                    <!-- HSL, not FlexLayout — see the route-strip note (framework arrange bug). -->
+                    <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{Binding SourceOptions}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SourceOption">
+                                <Border Style="{StaticResource BadgeMint}" Margin="0,0,8,0">
+                                    <Border.Triggers>
+                                        <!-- Non-selected sources dim; the one on screen stays full strength. -->
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="False">
+                                            <Setter Property="Opacity" Value="0.45" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding SelectSourceCommand, Source={RelativeSource AncestorType={x:Type vm:DiveDetailViewModel}}, x:DataType=vm:DiveDetailViewModel}"
+                                            CommandParameter="{Binding Id}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Style="{StaticResource BadgeTextMint}" Text="{Binding Label}" />
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- 4 metric tiles (2x2). Each tile announces once; children excluded from the a11y tree.
+                 MAX DEPTH and MIN TEMP carry an average as subtext — the averages exist in the data and were
+                 previously never shown anywhere on this page. -->
+            <Grid RowDefinitions="*,*" ColumnDefinitions="*,*" RowSpacing="{StaticResource CardSpacing}" ColumnSpacing="{StaticResource CardSpacing}">
+
+                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource TightSpacing}"
+                                         SemanticProperties.Description="{Binding MaxDepthAccessibleText}">
+                        <Label Style="{StaticResource MonoLabel}" Text="MAX DEPTH" AutomationProperties.IsInAccessibleTree="False" />
+                        <HorizontalStackLayout Spacing="3">
+                            <Label Style="{StaticResource StatNumeralMint}" StyleClass="tnum" Text="{Binding MaxDepthText, Converter={StaticResource UnitPrefixPart}}" AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource UnitSuffix}" Text="{Binding MaxDepthText, Converter={StaticResource UnitSuffixPart}}" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
+                        </HorizontalStackLayout>
+                        <Label Style="{StaticResource MonoLabelDim}" FontSize="9" TextTransform="None"
+                               Text="{Binding AvgDepthText, StringFormat='avg {0}'}"
+                               IsVisible="{Binding HasAverageDepth}"
+                               AutomationProperties.IsInAccessibleTree="False" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding BottomTimeText, StringFormat='Bottom time {0}'}">
+                        <Label Style="{StaticResource MonoLabel}" Text="BOTTOM TIME" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding BottomTimeText}" AutomationProperties.IsInAccessibleTree="False" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource TightSpacing}"
+                                         SemanticProperties.Description="{Binding MinTempAccessibleText}">
+                        <Label Style="{StaticResource MonoLabel}" Text="MIN TEMP" AutomationProperties.IsInAccessibleTree="False" />
+                        <HorizontalStackLayout Spacing="3">
+                            <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding MinTempText, Converter={StaticResource UnitPrefixPart}}" AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource UnitSuffix}" Text="{Binding MinTempText, Converter={StaticResource UnitSuffixPart}}" VerticalOptions="End" Margin="0,0,0,4" AutomationProperties.IsInAccessibleTree="False" />
+                        </HorizontalStackLayout>
+                        <Label Style="{StaticResource MonoLabelDim}" FontSize="9" TextTransform="None"
+                               Text="{Binding AvgTempText, StringFormat='avg {0}'}"
+                               IsVisible="{Binding HasAverageTemp}"
+                               AutomationProperties.IsInAccessibleTree="False" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource GlassCard}">
+                    <VerticalStackLayout Spacing="{StaticResource TightSpacing}" SemanticProperties.Description="{Binding GasText, StringFormat='Gas {0}'}">
+                        <Label Style="{StaticResource MonoLabel}" Text="GAS" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Style="{StaticResource StatNumeral}" StyleClass="tnum" Text="{Binding GasText}" AutomationProperties.IsInAccessibleTree="False" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- DEPTH / TIME — profile chart, temperature lane, touch-to-scrub, accessible table. -->
+            <Border Style="{StaticResource GlassCard}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Style="{StaticResource MonoLabel}" Text="DEPTH / TIME" SemanticProperties.HeadingLevel="Level2" />
+                        <Label Grid.Column="1" Style="{StaticResource MonoLabelDim}" Text="touch to scrub"
+                               IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}" />
+                    </Grid>
+
+                    <!-- ONE grid for the plot, the lane and the axis labels, so all three share the same
+                         column widths by construction. That is what guarantees the lane's time axis lines up
+                         with the depth chart's, and it removes the hand-computed axis margin the old two-grid
+                         layout needed. -->
+                    <Grid RowDefinitions="200,Auto,52,Auto"
+                          ColumnDefinitions="*,Auto"
+                          ColumnSpacing="7"
+                          IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}">
+
+                        <Grid Grid.Row="0" Grid.Column="0">
+                            <GraphicsView
+                                x:Name="ChartView"
+                                SemanticProperties.Description="{Binding ChartSemanticDescription}" />
+                            <!-- Scrub tooltip — code-behind slides it with the finger (view concern). -->
+                            <Border
+                                x:Name="ScrubTip"
+                                Style="{StaticResource Chip}"
+                                HorizontalOptions="Start"
+                                VerticalOptions="Start"
+                                Padding="8,4"
+                                IsVisible="{Binding IsScrubbing}"
+                                InputTransparent="True"
+                                MinimumHeightRequest="0"
+                                WidthRequest="176">
+                                <!-- The Chip style carries MinimumHeightRequest=34 for tap targets, which
+                                     this tooltip is not (InputTransparent) — that minimum made the pill
+                                     ~34pt tall around ~20pt of text with the row against the top edge, so it
+                                     is dropped above and the pill hugs its content vertically.
+
+                                     WIDTH IS FIXED on purpose, sized to the widest readout
+                                     ("100.0 m · 30 °C · 100:05") plus slack so the time can never clip. A
+                                     content-sized pill re-laid itself out on every digit change under a
+                                     scrubbing finger — that was the flicker — and because the tooltip's
+                                     follow-the-finger translation is computed from ScrubTip.Width, the
+                                     jitter compounded. Font auto-scaling is off on the labels so a large
+                                     accessibility text size cannot overflow the fixed box.-->
+                                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                    <!-- Depth floats from the LEFT edge; temp and time are anchored to the
+                                         RIGHT. Depth is the value whose width changes most while scrubbing
+                                         ("0 m" → "11.9 m"), and in a single centred row every one of those
+                                         changes shoved the temperature and the time sideways. Splitting the
+                                         row means the only thing that moves is the value actually changing,
+                                         and the time — the rightmost, most-read value — never moves at all. -->
+                                    <Label Grid.Column="0"
+                                           Style="{StaticResource MonoLabelMint}" FontSize="9.5" TextTransform="None"
+                                           Text="{Binding ScrubDepthText}"
+                                           HorizontalOptions="Start" VerticalOptions="Center"
+                                           FontAutoScalingEnabled="False" />
+                                    <HorizontalStackLayout Grid.Column="1" Spacing="4"
+                                                           HorizontalOptions="End" VerticalOptions="Center">
+                                        <Label Style="{StaticResource MonoLabel}" FontSize="9.5" TextTransform="None"
+                                               Text="{Binding ScrubTempText}"
+                                               IsVisible="{Binding HasScrubTemp}" FontAutoScalingEnabled="False" />
+                                        <Label Style="{StaticResource MonoLabel}" FontSize="9.5" TextTransform="None"
+                                               Text="{Binding ScrubTimeText}"
+                                               FontAutoScalingEnabled="False" />
+                                    </HorizontalStackLayout>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Depth axis ENDS: surface at the top hairline, deepest sample at the bottom one.
+                             AxisLabelInset puts each label's vertical centre on its hairline (the old layout
+                             sat ~2 px off because the label column and the drawable disagreed about the pad). -->
+                        <Grid Grid.Row="0" Grid.Column="1"
+                              WidthRequest="{x:Static controls:ChartMetrics.AxisLabelColumnWidth}"
+                              Margin="{x:Static controls:ChartMetrics.AxisLabelInset}">
+                            <Label Style="{StaticResource MonoLabelDim}" FontSize="9" TextTransform="None"
+                                   Text="{Binding DepthSurfaceText}" VerticalOptions="Start" HorizontalTextAlignment="End" />
+                            <Label Style="{StaticResource MonoLabelDim}" FontSize="9" TextTransform="None"
+                                   Text="{Binding DepthFloorText}" VerticalOptions="End" HorizontalTextAlignment="End"
+                                   IsVisible="{Binding HasDepthFloorLabel}" />
+                        </Grid>
+
+                        <!-- Temperature lane eyebrow: its own label + observed range, which is why the main
+                             legend no longer needs a "Temp" entry. -->
+                        <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="Auto,*" Margin="0,8,0,2"
+                              IsVisible="{Binding HasTemperatureLane}">
+                            <Label Grid.Column="0" Style="{StaticResource MonoLabelDim}" FontSize="9" Text="TEMP" />
+                            <Label Grid.Column="1" Style="{StaticResource MonoLabelDim}" FontSize="9" TextTransform="None"
+                                   Text="{Binding TempRangeText}" HorizontalTextAlignment="End" />
+                        </Grid>
+
+                        <GraphicsView Grid.Row="2" Grid.Column="0" x:Name="TempLaneView"
+                                      IsVisible="{Binding HasTemperatureLane}"
+                                      SemanticProperties.Description="{Binding TemperatureLaneSemanticDescription}" />
+
+                        <!-- X axis: 0:00 · half · total. Inside the shared grid, so it needs no magic margin. -->
+                        <Grid Grid.Row="3" Grid.Column="0" ColumnDefinitions="*,*,*" Margin="0,4,0,0">
+                            <Label Grid.Column="0" Style="{StaticResource MonoLabelDim}" FontSize="8.5" TextTransform="None" Text="0:00" HorizontalOptions="Start" />
+                            <Label Grid.Column="1" Style="{StaticResource MonoLabelDim}" FontSize="8.5" TextTransform="None" Text="{Binding AxisMidText}" HorizontalOptions="Center" />
+                            <Label Grid.Column="2" Style="{StaticResource MonoLabelDim}" FontSize="8.5" TextTransform="None" Text="{Binding AxisEndText}" HorizontalOptions="End" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- Non-color legend (WCAG 1.4.1): channel identity by text + swatch, never hue alone.
+                         Each entry shows only when that layer is actually drawn. HSL, not FlexLayout —
+                         invisible children crash FlexLayout's arrange (see the route-strip note). -->
+                    <HorizontalStackLayout Spacing="0" IsVisible="{Binding HasOverlayLegend}">
+                        <HorizontalStackLayout Spacing="6" Margin="0,0,14,4">
+                            <BoxView WidthRequest="12" HeightRequest="3" CornerRadius="2" VerticalOptions="Center"
+                                     Color="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}"
+                                     AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource Caption13}" Text="Depth" />
+                        </HorizontalStackLayout>
+                        <!-- Dotted swatch for the dotted average line — the swatch matches the mark. -->
+                        <HorizontalStackLayout Spacing="6" Margin="0,0,14,4" IsVisible="{Binding HasAverageDepth}">
+                            <HorizontalStackLayout Spacing="2" VerticalOptions="Center" Opacity="0.7"
+                                                   AutomationProperties.IsInAccessibleTree="False">
+                                <BoxView WidthRequest="2" HeightRequest="2" CornerRadius="1"
+                                         Color="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
+                                <BoxView WidthRequest="2" HeightRequest="2" CornerRadius="1"
+                                         Color="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
+                                <BoxView WidthRequest="2" HeightRequest="2" CornerRadius="1"
+                                         Color="{AppThemeBinding Light={StaticResource LightSonarDeep}, Dark={StaticResource Sonar}}" />
+                            </HorizontalStackLayout>
+                            <Label Style="{StaticResource Caption13}" Text="{Binding AvgDepthText, StringFormat='Avg {0}'}" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="6" Margin="0,0,14,4" IsVisible="{Binding HasCeilingOverlay}">
+                            <BoxView WidthRequest="12" HeightRequest="3" CornerRadius="2" VerticalOptions="Center"
+                                     Color="{AppThemeBinding Light={StaticResource LightWarn}, Dark={StaticResource Warn}}"
+                                     AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Style="{StaticResource Caption13}" Text="Ceiling" />
+                        </HorizontalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <Label
+                        Style="{StaticResource Caption13}"
+                        Text="No profile samples — this source synced summary numbers only."
+                        IsVisible="{Binding Chart.IsEmpty}" />
+                    <Button
+                        Style="{StaticResource SecondaryButton}"
+                        Text="View as table"
+                        Command="{Binding ToggleProfileTableCommand}"
+                        IsVisible="{Binding Chart.IsEmpty, Converter={StaticResource InverseBool}}"
+                        SemanticProperties.Description="View profile as table"
+                        SemanticProperties.Hint="Shows or hides the dive profile as a data table">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding IsProfileTableVisible}" Value="True">
+                                <Setter Property="Text" Value="Hide table" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+                    <!-- Columnar WCAG alternative (§8.4): columns appear only for channels the dive recorded,
+                         so the table grows exactly with the recorded data. Rows are downsampled — see
+                         ChartGeometry.BuildProfileTable. -->
+                    <ScrollView Orientation="Horizontal" IsVisible="{Binding IsProfileTableVisible}">
+                        <VerticalStackLayout Spacing="0">
+                            <HorizontalStackLayout Padding="0,8" Spacing="16" BindableLayout.ItemsSource="{Binding ProfileTableHeaders}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Label Style="{StaticResource Caption13}" Text="{Binding .}" FontAttributes="Bold" WidthRequest="56" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
+                            <BoxView />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding ProfileTable}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ProfileTableRow">
+                                        <HorizontalStackLayout Padding="0,6" Spacing="16" BindableLayout.ItemsSource="{Binding Cells}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Label Style="{StaticResource Body15}" StyleClass="tnum" Text="{Binding .}" WidthRequest="56" />
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </HorizontalStackLayout>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+            </Border>
+
+            <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

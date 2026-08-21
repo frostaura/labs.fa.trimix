@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Trimix.App.Services;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.App.Controls;
 using Trimix.Core.ViewModels;
@@ -33,6 +34,10 @@ public partial class StatsPage : TrimixPage
     /// the slider is being dragged (reduced motion snaps to the enlarged size, no tween).</summary>
     private void OnEanDragStarted(object? sender, EventArgs e)
     {
+        // Grabbing and releasing the slider are both discrete choices, so they get the Selection cue —
+        // the same one the section switcher and the chart scrub use.
+        Feedback.Selection();
+
         if (MotionSettings.IsReducedMotionEnabled)
         {
             EanBadge.Scale = 1.3;
@@ -45,6 +50,8 @@ public partial class StatsPage : TrimixPage
     /// <summary>Drag end: the badge settles back to its resting size.</summary>
     private void OnEanDragCompleted(object? sender, EventArgs e)
     {
+        Feedback.Selection();
+
         if (MotionSettings.IsReducedMotionEnabled)
         {
             EanBadge.Scale = 1.0;

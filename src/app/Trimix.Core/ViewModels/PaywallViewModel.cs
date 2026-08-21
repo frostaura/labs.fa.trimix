@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Trimix.Contracts;
 using Trimix.Core.Abstractions;
+using Trimix.Core.Platform;
 using Trimix.Core.Billing;
 
 namespace Trimix.Core.ViewModels;
@@ -26,8 +27,11 @@ public partial class PaywallViewModel(
     ILocalStore store,
     IAnalytics analytics,
     INavigator navigator,
-    IUserDialogs dialogs) : ObservableObject
+    IUserDialogs dialogs,
+    IHaptics? haptics = null) : ObservableObject
 {
+    private readonly IHaptics _haptics = haptics ?? new NullHaptics();
+
     [ObservableProperty]
     private IReadOnlyList<StoreProduct> _products = [];
 
@@ -110,6 +114,7 @@ public partial class PaywallViewModel(
                     [FunnelEvents.Props.SkuId] = skuId,
                     [FunnelEvents.Props.Reason] = ex.GetType().Name,
                 });
+                _haptics.Perform(HapticCue.Error);
                 await dialogs.AlertAsync("Purchase failed", "The store could not complete the purchase. You were not charged.");
                 return;
             }
@@ -133,6 +138,7 @@ public partial class PaywallViewModel(
             // Stay on the page: PurchaseSucceeded flips the view to the Unlocked (S9) state and
             // "Go to logbook" dismisses.
             PurchaseSucceeded = true;
+            _haptics.Perform(HapticCue.Success);
             await analytics.FlushAsync();
         }
         finally

@@ -48,6 +48,10 @@ public partial class ConnectedAccountsPage : TrimixPage
         }
     }
 
+    /// <summary>The connected list finished a native drag-reorder — persist the new merge priority. The
+    /// CollectionView has already moved the item in the bound ObservableCollection.</summary>
+    private void OnConnectedReordered(object? sender, EventArgs e) => _viewModel.PersistConnectedOrder();
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(ConnectedAccountsViewModel.IsNudging))

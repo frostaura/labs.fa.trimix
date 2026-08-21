@@ -15,12 +15,16 @@ public sealed record MySsiDiveSummary(
     string? ComputerBrand);
 
 /// <summary>
-/// Shared reverse-engineered <b>read</b> client for the MySSI (DiveSSI) private cloud — the single
-/// highest-leverage integration surface in the provider set: <b>Mares and ScubaPro have no cloud API of
-/// their own</b>, but both corridors terminate in MySSI (ScubaPro via LogTRAK→MySSI; Mares via the
-/// Head/SSI corridor — MySSI reads Mares computers directly). One reverse-engineered surface therefore
-/// feeds three connectors: <c>MaresCloudSourceConnector</c>, <c>ScubaProCloudSourceConnector</c> (read)
-/// and <c>SsiPushDestinationConnector</c> (write, separate options).
+/// Shared reverse-engineered <b>read</b> client for the MySSI (DiveSSI) private cloud. It serves the
+/// <c>MaresCloudSourceConnector</c> read path (Mares has no cloud API of its own; MySSI reads Mares computers
+/// directly) and is adjacent to <c>SsiPushDestinationConnector</c> (write, separate options).
+///
+/// <para><b>ScubaPro no longer routes here (2026-08-07).</b> The old design assumed ScubaPro synced
+/// LogTRAK→MySSI, but a live capture proved LogTRAK has its own Firebase backend — see
+/// <c>ScubaProCloudSourceConnector</c> and <c>docs/reverse-engineering/scubapro-logtrak-api.md</c>. The Mares
+/// corridor below is now the ONLY MySSI read user, and — because the ScubaPro assumption was wrong — the
+/// Mares-via-MySSI assumption is itself unverified until captured; the endpoints here remain
+/// researched-guess defaults.</para>
 ///
 /// <para><b>Token discipline.</b> The client is stateless about credentials: <see cref="AuthenticateAsync"/>
 /// performs the one-shot credential→token exchange and <em>returns</em> the token — persistence is owned by

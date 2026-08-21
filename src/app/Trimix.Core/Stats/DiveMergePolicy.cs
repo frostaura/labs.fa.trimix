@@ -15,14 +15,23 @@ namespace Trimix.Core.Stats;
 /// </summary>
 public static class DiveMergePolicy
 {
-    /// <summary>Two dives may be the same physical dive only if their starts are within this many seconds.</summary>
-    public const double StartToleranceSeconds = 90;
+    /// <summary>
+    /// Padding added to each end of a dive's time window before testing for overlap, as a fraction of the
+    /// <b>geometric mean</b> of the two dives' durations (√(durA·durB) — the root of their product, which
+    /// keeps the margin in seconds and stays symmetric). Two computers on the same dive can start and stop
+    /// minutes apart — up to ~10 minutes — so the margin is deliberately generous and grows with dive
+    /// length. At 0.30 a typical 30–60 min dive lands at the 10-minute ceiling; a short bounce dive gets
+    /// only a couple of minutes. Clamped by <see cref="OverlapPadFloorSeconds"/> /
+    /// <see cref="OverlapPadCeilingSeconds"/> — the ceiling stops a large pad from bridging a short surface
+    /// interval and merging two genuinely separate repetitive dives.
+    /// </summary>
+    public const double OverlapPadFraction = 0.30;
 
-    /// <summary>…and their durations are within this many seconds.</summary>
-    public const double DurationToleranceSeconds = 90;
+    /// <summary>Lower clamp on the overlap padding (seconds) — even short dives get this much slack.</summary>
+    public const double OverlapPadFloorSeconds = 120;
 
-    /// <summary>…and their max depths agree within this many metres.</summary>
-    public const double MaxDepthToleranceMeters = 1.5;
+    /// <summary>Upper clamp on the overlap padding (seconds) — a computer pair can be ~10 min apart.</summary>
+    public const double OverlapPadCeilingSeconds = 600;
 
     /// <summary>Vendor / source token → friendly badge label. Case-insensitive.</summary>
     private static readonly IReadOnlyDictionary<string, string> VendorLabels =
@@ -32,6 +41,10 @@ public static class DiveMergePolicy
             ["apple_health"] = "Apple Watch",
             ["garmin_fit"] = "Garmin",
             ["garmin"] = "Garmin",
+            // Live cloud-connector ids (== DiveDto.SourceVendor for synced dives).
+            ["garmin_connect"] = "Garmin",
+            ["suunto_cloud"] = "Suunto",
+            ["oceanic_cloud"] = "Oceanic+",
             ["suunto_json"] = "Suunto",
             ["suunto"] = "Suunto",
             ["uddf"] = "UDDF",
@@ -39,24 +52,34 @@ public static class DiveMergePolicy
             ["file_import"] = "File",
             ["mares"] = "Mares",
             ["scubapro"] = "ScubaPro",
-            ["aqualung"] = "Aqualung",
             ["manual"] = "Manual",
         };
 
     /// <summary>
-    /// The §3 heuristic: same physical dive iff start, duration, and max depth all agree within their
-    /// tolerances. Symmetric.
+    /// The §3 heuristic, time-interval based: same physical dive iff the two dives' time windows overlap
+    /// once each end is padded (<see cref="OverlapPadFraction"/> of the shorter dive, clamped to
+    /// [<see cref="OverlapPadFloorSeconds"/>, <see cref="OverlapPadCeilingSeconds"/>]). You cannot be on
+    /// two dives at once, so overlapping windows is the decisive signal; the padding only absorbs
+    /// inter-device clock/detection skew. Depth is deliberately not part of the match (it still feeds
+    /// <see cref="FidelityScore"/>). Symmetric.
     /// </summary>
     public static bool IsSamePhysicalDive(DiveDto a, DiveDto b)
     {
         ArgumentNullException.ThrowIfNull(a);
         ArgumentNullException.ThrowIfNull(b);
-        var dStart = Math.Abs((a.StartUtc - b.StartUtc).TotalSeconds);
-        var dDuration = Math.Abs((double)(a.DurationSec - b.DurationSec));
-        var dDepth = Math.Abs(a.MaxDepthM - b.MaxDepthM);
-        return dStart <= StartToleranceSeconds
-            && dDuration <= DurationToleranceSeconds
-            && dDepth <= MaxDepthToleranceMeters;
+
+        var startA = a.StartUtc;
+        var endA = a.StartUtc.AddSeconds(Math.Max(0, a.DurationSec));
+        var startB = b.StartUtc;
+        var endB = b.StartUtc.AddSeconds(Math.Max(0, b.DurationSec));
+
+        var pad = TimeSpan.FromSeconds(Math.Clamp(
+            OverlapPadFraction * Math.Min(Math.Max(0, a.DurationSec), Math.Max(0, b.DurationSec)),
+            OverlapPadFloorSeconds,
+            OverlapPadCeilingSeconds));
+
+        // Padded-interval overlap: A starts before B ends (+pad) AND B starts before A ends (+pad).
+        return startA < endB + pad && startB < endA + pad;
     }
 
     /// <summary>
@@ -188,7 +211,9 @@ public static class DiveMergePolicy
             UpdatedAtUtc = cluster.Max(d => d.UpdatedAtUtc),
         };
 
-        var badges = cluster
+        // Badges follow the same ranking that picked the primary, so the primary provider's badge is first
+        // and the rest follow priority/fidelity order (stable within equal rank = start-time order).
+        var badges = ranked
             .Select(d => new DiveSourceBadge(d.Source, d.SourceVendor, BadgeLabel(d)))
             .DistinctBy(b => (b.Source, b.Vendor ?? string.Empty))
             .ToList();

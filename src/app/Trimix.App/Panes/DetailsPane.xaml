@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Dive detail, the Details pane: everything the provider reported about the dive, grouped into cards.
+
+     A group only exists when the provider populated at least one of its facts, and a fact only exists when the
+     value was actually reported — so this pane is rich for Garmin and short for a summary-only source, with no
+     per-provider branching anywhere in the UI. A gap is a null upstream. -->
+<ContentView
+    x:Class="Trimix.App.Panes.DetailsPane"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Trimix.App.Controls"
+    xmlns:vm="clr-namespace:Trimix.Core.ViewModels;assembly=Trimix.Core"
+    x:DataType="vm:DiveDetailViewModel">
+
+    <ScrollView x:Name="Scroller">
+        <VerticalStackLayout Padding="{StaticResource PageContentPadding}" Spacing="{StaticResource SectionSpacing}">
+            <VerticalStackLayout.GestureRecognizers>
+                <!-- Paging lives HERE rather than on the page's container: on Android a ScrollView consumes the
+                     touch stream, so recognizers on an ancestor of one never fire. -->
+                <SwipeGestureRecognizer Direction="Left" Command="{Binding NextPaneCommand}" Threshold="40" />
+                <SwipeGestureRecognizer Direction="Right" Command="{Binding PreviousPaneCommand}" Threshold="40" />
+            </VerticalStackLayout.GestureRecognizers>
+
+            <!-- Section heading. The page's switcher chips were removed (sections change by sliding), so
+                 each pane names itself — otherwise the current section is identified only by a dot. -->
+            <Label Style="{StaticResource MonoLabelMint}" Text="DETAILS" Margin="0,0,0,-4"
+                   SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- Entry point, FIRST on this pane: embedded MapKit map on iOS (free, keyless), tappable
+                 coordinate row on both platforms. Where the dive happened is the most orienting fact here,
+                 so it leads rather than sitting below the fact groups. -->
+            <controls:EntryPointCard />
+
+            <VerticalStackLayout
+                Spacing="{StaticResource CardSpacing}"
+                IsVisible="{Binding HasFactGroups}"
+                BindableLayout.ItemsSource="{Binding FactGroups}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DiveFactGroup">
+                        <Border Style="{StaticResource GlassCard}">
+                            <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                                <Label
+                                    Style="{StaticResource MonoLabel}"
+                                    Text="{Binding Title}"
+                                    SemanticProperties.HeadingLevel="Level2" />
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Facts}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DiveFact">
+                                            <Grid ColumnDefinitions="*,Auto" Padding="0,4"
+                                                  SemanticProperties.Description="{Binding Label}">
+                                                <Label Grid.Column="0" Style="{StaticResource Caption13}" Text="{Binding Label}" />
+                                                <Label Grid.Column="1" Style="{StaticResource Body15}" StyleClass="tnum"
+                                                       Text="{Binding Value}" HorizontalTextAlignment="End" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <!-- Provider dive tags as chips. Horizontally scrollable because a diver can carry many (Garmin
+                 exposes 22), and HSL rather than FlexLayout per the route-strip arrange bug. -->
+            <Border Style="{StaticResource GlassCard}" IsVisible="{Binding HasTags}">
+                <VerticalStackLayout Spacing="{StaticResource CardSpacing}">
+                    <Label Style="{StaticResource MonoLabel}" Text="TAGS" SemanticProperties.HeadingLevel="Level2" />
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout Spacing="0" BindableLayout.ItemsSource="{Binding Tags}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border Style="{StaticResource BadgeMint}" Margin="0,0,8,0">
+                                        <Label Style="{StaticResource BadgeTextMint}" Text="{Binding .}" />
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+            </Border>
+
+            <BoxView Color="Transparent" HeightRequest="{StaticResource TabScrollBottomInset}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

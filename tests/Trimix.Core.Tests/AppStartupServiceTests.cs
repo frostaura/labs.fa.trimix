@@ -15,12 +15,19 @@ namespace Trimix.Core.Tests;
 /// </summary>
 public sealed class AppStartupServiceTests
 {
-    private static AppStartupService NewStartup(IPreferences? preferences = null) =>
+    private static AppStartupService NewStartup(
+        IPreferences? preferences = null,
+        ILocalStore? store = null,
+        IConnectorConsentStore? consent = null,
+        IEnumerable<IDiveSourceConnector>? sources = null) =>
         new(
-            new InMemoryLocalStore(),
+            store ?? new InMemoryLocalStore(),
             new FakeEntitlementService(),
             new RecordingAnalytics(),
-            preferences ?? new InMemoryPreferences());
+            preferences ?? new InMemoryPreferences(),
+            sources ?? [],
+            consent ?? new PreferencesConnectorConsentStore(
+                new InMemoryPreferences(), new SecureStoreTokenStore(new InMemorySecureStore())));
 
     [Fact]
     public async Task Startup_leaves_connector_links_untouched()
@@ -38,6 +45,26 @@ public sealed class AppStartupServiceTests
         // The link SURVIVES the launch — the whole point of "link once".
         Assert.True(consent.HasConsent("garmin_connect"));
         Assert.NotNull(await tokens.GetAsync(ConnectorTokenKeys.CloudSourceToken("garmin_connect")));
+    }
+
+    [Fact]
+    public async Task Startup_purges_dives_from_providers_that_are_not_connected()
+    {
+        var preferences = new InMemoryPreferences();
+        var tokens = new SecureStoreTokenStore(new InMemorySecureStore());
+        var consent = new PreferencesConnectorConsentStore(preferences, tokens);
+        await consent.GrantAsync("garmin_connect"); // Garmin connected; ScubaPro is NOT
+        var store = new InMemoryLocalStore();
+        await store.UpsertDiveAsync(Stats.StatsTestFactory.Dive(sourceVendor: "garmin_connect"));
+        await store.UpsertDiveAsync(Stats.StatsTestFactory.Dive(sourceVendor: "scubapro")); // orphan
+
+        var startup = NewStartup(preferences, store, consent,
+            [new FakeSourceConnector("garmin_connect"), new FakeSourceConnector("scubapro")]);
+        await startup.RunAsync();
+
+        // The orphan (unconnected ScubaPro) dive is swept on launch; the connected Garmin dive stays.
+        var kept = Assert.Single(await store.GetDivesAsync());
+        Assert.Equal("garmin_connect", kept.SourceVendor);
     }
 
     [Fact]

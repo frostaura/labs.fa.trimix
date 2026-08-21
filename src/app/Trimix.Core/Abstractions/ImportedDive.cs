@@ -18,4 +18,20 @@ public sealed record ImportedDive(
     double? MinTempC,
     string? GasMix,
     IReadOnlyList<ProfileSampleDto> Samples,
-    IReadOnlyList<CylinderDto>? Cylinders = null);
+    IReadOnlyList<CylinderDto>? Cylinders = null,
+    // ── rich provider channels, mirrored onto DiveDto by ImportService.ToDiveDto ──
+    // All optional by design: each connector fills what its provider actually returns, and the UI hides
+    // whatever is null. That is the whole per-provider graceful-degradation mechanism — there is no
+    // capability enum to keep in sync, a gap is simply a null.
+    int? DiveNumber = null,
+    int? BottomTimeSec = null,
+    int? SurfaceIntervalSec = null,
+    bool? IsDeco = null,
+    string? DiveTypeLabel = null,
+    string? TimezoneId = null,
+    string? WaterType = null,
+    DiveEnvironmentDto? Environment = null,
+    DiveExposureDto? Exposure = null,
+    DiveComputerDto? Computer = null,
+    IReadOnlyList<DiveAlertDto>? Alerts = null,
+    IReadOnlyList<string>? Tags = null);

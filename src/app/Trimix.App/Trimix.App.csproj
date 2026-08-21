@@ -61,6 +61,13 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<!-- Maps is referenced for iOS ONLY. MapKit there is free and needs no API key, so the entry-point card
+		     can embed a real map. The Android equivalent would pull in Google Play Services Maps and demand a
+		     Maps SDK key inside the APK plus a billable Cloud project — for a control we would never instantiate
+		     on Android, since that platform hands off to the Google Maps app instead. Conditioning the reference
+		     keeps the Android build free of the dependency entirely. -->
+		<PackageReference Include="Microsoft.Maui.Controls.Maps" Version="$(MauiVersion)"
+		                  Condition="$(TargetFramework.Contains('-ios'))" />
 	</ItemGroup>
 
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">

@@ -48,6 +48,26 @@ public sealed class InMemoryLocalStore : ILocalStore
         return Task.CompletedTask;
     }
 
+    public Task<int> DeleteDivesByVendorAsync(string sourceVendor, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sourceVendor);
+        lock (_gate)
+        {
+            // Hard delete (not a tombstone): the provider is being unlinked, and a tombstone would be
+            // resurrected by the next sync of a still-consented provider.
+            var ids = _dives.Values
+                .Where(d => string.Equals(d.SourceVendor, sourceVendor, StringComparison.Ordinal))
+                .Select(d => d.Id)
+                .ToList();
+            foreach (var id in ids)
+            {
+                _dives.Remove(id);
+            }
+
+            return Task.FromResult(ids.Count);
+        }
+    }
+
     public Task ClearDivesAsync(CancellationToken cancellationToken = default)
     {
         lock (_gate)

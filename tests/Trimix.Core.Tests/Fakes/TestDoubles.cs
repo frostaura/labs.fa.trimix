@@ -3,8 +3,58 @@ using System.Runtime.CompilerServices;
 using Trimix.Contracts;
 using Trimix.Contracts.Dtos;
 using Trimix.Core.Abstractions;
+using Trimix.Core.Connectors;
+using Trimix.Core.Stats;
 
 namespace Trimix.Core.Tests.Fakes;
+
+/// <summary>
+/// <see cref="IProviderPriority"/> double mirroring <see cref="ProviderPriorityService"/>. Constructed with
+/// no order it is NEUTRAL — every rank is 0, so the composite delegate reduces to
+/// <see cref="DiveMergePolicy.FidelityScore"/> and existing fidelity-based assertions are unaffected. Seed an
+/// order to exercise priority-driven merges/badges.
+/// </summary>
+public sealed class FakeProviderPriority : IProviderPriority
+{
+    private List<string> _order;
+
+    public FakeProviderPriority(params string[] order) => _order = order.ToList();
+
+    public IReadOnlyList<string> Order() => _order;
+
+    public int RankOf(string? sourceVendor) => Rank(_order, sourceVendor);
+
+    public Func<DiveDto, int> FidelityDelegate()
+    {
+        var order = _order.ToList();
+        return dive => Rank(order, dive.SourceVendor) * 1000 + DiveMergePolicy.FidelityScore(dive);
+    }
+
+    public void Set(IReadOnlyList<string> order) => _order = order.ToList();
+
+    public void Move(string connectorId, int newIndex)
+    {
+        var from = _order.IndexOf(connectorId);
+        if (from < 0)
+        {
+            return;
+        }
+
+        _order.RemoveAt(from);
+        _order.Insert(Math.Clamp(newIndex, 0, _order.Count), connectorId);
+    }
+
+    private static int Rank(List<string> order, string? vendor)
+    {
+        if (string.IsNullOrEmpty(vendor))
+        {
+            return 0;
+        }
+
+        var index = order.IndexOf(vendor);
+        return index < 0 ? 0 : order.Count - index;
+    }
+}
 
 public sealed class FakeClock : IClock
 {

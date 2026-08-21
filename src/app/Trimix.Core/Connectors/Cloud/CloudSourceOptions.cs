@@ -13,14 +13,20 @@ namespace Trimix.Core.Connectors.Cloud;
 /// </summary>
 public sealed class CloudSourceOptions
 {
-    // ── Garmin Connect (garth-style SSO → OAuth exchange) ──
-    public string? GarminSigninUrl { get; set; }
+    // ── Garmin Dive (private app API — observed and verified live; see
+    //    docs/reverse-engineering/garmin-dive-api.md). These are NOT guesses: the defaults in
+    //    GarminCloudSourceConnector are the real endpoints. The overrides remain so a Garmin-side change
+    //    can be absorbed by config rather than a release. ──
+    public string? GarminLoginUrl { get; set; }
 
-    public string? GarminTokenExchangeUrl { get; set; }
+    public string? GarminTokenUrl { get; set; }
 
-    public string? GarminActivitySearchUrl { get; set; }
+    public string? GarminDiveSummaryUrl { get; set; }
 
-    public string? GarminDownloadUrl { get; set; }
+    public string? GarminDiveDetailUrl { get; set; }
+
+    /// <summary>The SSO <c>service</c> / <c>service_url</c> both auth legs must agree on.</summary>
+    public string? GarminServiceUrl { get; set; }
 
     // ── Suunto app cloud (ROPC token → workouts → FIT export) ──
     public string? SuuntoTokenUrl { get; set; }
@@ -34,9 +40,21 @@ public sealed class CloudSourceOptions
 
     public string? OceanicDivesUrl { get; set; }
 
-    // ── MySSI (DiveSSI) shared cloud — the READ corridor serving BOTH the Mares and ScubaPro sources
-    //    (neither vendor has a cloud API of its own; both flow into MySSI). Consumed by MySsiCloudClient. ──
+    // ── MySSI (DiveSSI) shared cloud — the READ corridor for the Mares source (Mares has no cloud API of
+    //    its own; it flows into MySSI). Consumed by MySsiCloudClient. NOTE: ScubaPro was moved OFF this
+    //    corridor on 2026-08-07 — LogTRAK has its own Firebase backend (see the ScubaPro* fields below and
+    //    docs/reverse-engineering/scubapro-logtrak-api.md). Whether Mares genuinely uses MySSI is now itself
+    //    unverified and should be captured before first live contact. ──
     public string? MySsiLoginUrl { get; set; }
 
     public string? MySsiDivesUrl { get; set; }
+
+    // ── ScubaPro / Uwatec LogTRAK (Firebase project logtrak2-production — Firebase Auth + Cloud Firestore,
+    //    verified live; see docs/reverse-engineering/scubapro-logtrak-api.md). The connector's in-source
+    //    constants are the REAL, public app identifiers; these overrides exist only so a provider-side
+    //    rotation of the project id or Web API key is absorbed by deploy config rather than a release. The
+    //    Google endpoint hosts are not overridable here — FirebaseAppConfig owns those. ──
+    public string? ScubaProFirebaseProjectId { get; set; }
+
+    public string? ScubaProFirebaseApiKey { get; set; }
 }

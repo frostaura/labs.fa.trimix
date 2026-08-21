@@ -99,6 +99,29 @@ public sealed class SqliteLocalStore(SqliteLocalStoreOptions options) : ILocalSt
         await UpsertDiveAsync(dive with { Deleted = true }, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<int> DeleteDivesByVendorAsync(string sourceVendor, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sourceVendor);
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+        // SourceVendor lives inside the JSON blob (not a column), so filter by deserializing. Hard-delete by
+        // primary key — a tombstone would be resurrected by the next sync of a still-consented provider, and
+        // there is no server to sync a deletion to anyway.
+        var rows = await _connection.Table<DiveRow>().ToListAsync().ConfigureAwait(false);
+        var removed = 0;
+        foreach (var row in rows)
+        {
+            var dive = JsonSerializer.Deserialize<DiveDto>(row.Json, JsonOptions)!;
+            if (string.Equals(dive.SourceVendor, sourceVendor, StringComparison.Ordinal))
+            {
+                await _connection.DeleteAsync<DiveRow>(row.Id).ConfigureAwait(false);
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
     public async Task ClearDivesAsync(CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken).ConfigureAwait(false);

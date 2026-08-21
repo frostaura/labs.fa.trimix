@@ -1,4 +1,3 @@
-using System.Text;
 using Trimix.Core.Abstractions;
 using Trimix.Core.Connectors.Cloud;
 using Xunit;
@@ -6,8 +5,11 @@ using Xunit;
 namespace Trimix.Core.Tests.Connectors.Cloud;
 
 /// <summary>
-/// The Suunto private-cloud personal-export (reverse-eng, gated) source connector: ROPC token → list scuba
-/// workouts → export FIT. Fidelity is intentionally depth+temp only (cloud FIT strips tank/gas per research).
+/// The Suunto private-cloud personal-export (reverse-eng, gated) source connector. Backend is Sports Tracker
+/// (<c>api.sports-tracker.com</c>, verified 2026-08-07): <c>POST /login2</c> (form <c>l/p/version</c>) →
+/// <c>sessionkey</c> carried as <c>STTAuthorization</c>; <c>GET /workouts</c> lists. Fidelity is depth+temp
+/// only. The diving-activity filter and the profile-fetch endpoint remain UNVERIFIED (no dive in the captured
+/// account) — Suunto ships "Coming soon" until a real dive confirms them.
 /// </summary>
 public class SuuntoCloudSourceConnectorTests
 {
@@ -46,64 +48,92 @@ public class SuuntoCloudSourceConnectorTests
     }
 
     [Fact]
-    public async Task Authenticate_password_grant_stores_only_the_token()
+    public async Task Login2_stores_only_the_session_key_never_the_password()
     {
         await _consent.GrantAsync("suunto_cloud");
-        _http.EnqueueText("{\"access_token\":\"suunto-jwt-abc\",\"token_type\":\"Bearer\",\"expires_in\":86400}");
+        // Sports Tracker login2 returns { sessionkey, userKey, … } — the session key becomes the token.
+        _http.EnqueueText("{\"username\":\"dean\",\"userKey\":\"stt-session-abc\",\"sessionkey\":\"stt-session-abc\"}");
         var connector = Create();
         connector.ProvideCredentials("diver@example.com", Password);
 
         var result = await connector.AuthenticateAsync();
 
         Assert.Equal(ConnectorAuthStatus.Granted, result.Status);
-        Assert.Equal("suunto-jwt-abc", _tokens.Values[TokenKey]);
+        Assert.Equal("stt-session-abc", _tokens.Values[TokenKey]);
         Assert.DoesNotContain(_tokens.Values.Values, v => v.Contains(Password, StringComparison.Ordinal));
         Assert.Single(_http.Requests);
+        // Verified corridor: form-encoded login2 with l/p/version — not an OAuth token grant.
+        Assert.Contains("login2", _http.Requests[0].Url);
+        Assert.Contains("l=diver%40example.com", _http.Requests[0].Body);
+        Assert.Contains("version=2", _http.Requests[0].Body);
     }
 
     [Fact]
-    public async Task List_filters_to_diving_workouts_and_fetch_exports_fit()
+    public async Task List_parses_the_workouts_payload_and_filters_by_activity()
     {
         await _consent.GrantAsync("suunto_cloud");
-        _http.EnqueueText("{\"access_token\":\"suunto-jwt-abc\"}");
+        _http.EnqueueText("{\"sessionkey\":\"stt-session-abc\"}");
         var connector = Create();
         connector.ProvideCredentials("diver@example.com", Password);
         await connector.AuthenticateAsync();
 
         // startTime is epoch millis (computed here so the parse path is validated, not a hardcoded constant).
-        // One dive (activityId 82), one run (activityId 1) that must be filtered out.
+        // Real Sports Tracker schema: workoutKey, activityId, startTime (ms), totalTime (sec, may be float).
+        // One "dive" (activityId 82 — the UNVERIFIED diving-id placeholder), one run (activityId 1) filtered out.
         var start = new DateTimeOffset(2026, 6, 13, 8, 0, 0, TimeSpan.Zero);
         var startMs = start.ToUnixTimeMilliseconds();
         _http.EnqueueText(
-            "{\"payload\":[" +
-            $"{{\"workoutKey\":\"w-dive-1\",\"activityId\":82,\"startTime\":{startMs},\"totalTime\":2100}}," +
-            $"{{\"workoutKey\":\"w-run-9\",\"activityId\":1,\"startTime\":{startMs},\"totalTime\":1800}}]}}");
-        var fitBytes = Encoding.ASCII.GetBytes("SUUNTO-FIT");
-        _http.EnqueueBinary(fitBytes);
+            "{\"error\":null,\"payload\":[" +
+            $"{{\"workoutKey\":\"6a75ebc7\",\"activityId\":82,\"startTime\":{startMs},\"stopTime\":{startMs + 2_100_000},\"totalTime\":2100.0}}," +
+            $"{{\"workoutKey\":\"6a75ec0f\",\"activityId\":1,\"startTime\":{startMs},\"totalTime\":1800.0}}]," +
+            "\"metadata\":{\"workoutcount\":\"2\",\"until\":\"1786112971226\"}}");
 
         var refs = await connector.ListDivesSinceAsync(SyncCursor.None);
-        Assert.Single(refs);
-        Assert.Equal("w-dive-1", refs[0].SourceId);
-        Assert.Equal(2100, refs[0].DurationSec);
-        Assert.Equal(start.UtcDateTime, refs[0].StartUtc);
 
-        var dive = await connector.FetchProfileAsync(refs[0]);
-        Assert.Equal(28.5, dive.MaxDepthM);
-        Assert.Equal(fitBytes, _fit.ParsedPayloads.Single());
+        var dive = Assert.Single(refs);
+        Assert.Equal("6a75ebc7", dive.SourceId);
+        Assert.Equal(2100, dive.DurationSec);
+        Assert.Equal(start.UtcDateTime, dive.StartUtc);
+        // Verified corridor: the list call carries the session key in STTAuthorization and hits /workouts.
+        Assert.Contains("/workouts?since=0&offset=0&limit=50", _http.Requests[1].Url);
+        Assert.Equal("stt-session-abc", _http.Requests[1].Headers["STTAuthorization"]);
     }
 
     [Fact]
-    public async Task Configured_override_url_replaces_the_default_token_endpoint()
+    public async Task Fetch_degrades_to_a_summary_dive_when_the_profile_endpoint_fails()
     {
-        // Deploy-time override injects the real token host; a null override keeps the researched constant.
+        // "Support what we have": the profile endpoint is an unverified guess, so a non-2xx must NOT drop the
+        // dive — FetchProfile returns a summary-only dive (start + duration from the list) with no samples.
         await _consent.GrantAsync("suunto_cloud");
-        var options = new CloudSourceOptions { SuuntoTokenUrl = "https://override.example/suunto/token" };
+        _http.EnqueueText("{\"sessionkey\":\"stt-session-abc\"}");
+        var connector = Create();
+        connector.ProvideCredentials("diver@example.com", Password);
+        await connector.AuthenticateAsync();
+
+        var start = new DateTimeOffset(2026, 6, 13, 8, 0, 0, TimeSpan.Zero);
+        var diveRef = new DiveRef("suunto_cloud", "6a75ebc7", start.UtcDateTime, 2100);
+        _http.EnqueueText("{\"error\":\"not found\"}", status: 404); // the guessed profile endpoint 404s
+
+        var dive = await connector.FetchProfileAsync(diveRef);
+
+        Assert.Equal(start.UtcDateTime, dive.StartUtc);
+        Assert.Equal(2100, dive.DurationSec);
+        Assert.Equal(0, dive.MaxDepthM);
+        Assert.Empty(dive.Samples); // profile absent — imported as a summary, not dropped
+    }
+
+    [Fact]
+    public async Task Configured_override_url_replaces_the_default_login_endpoint()
+    {
+        // Deploy-time override injects the real login host; a null override keeps the verified constant.
+        await _consent.GrantAsync("suunto_cloud");
+        var options = new CloudSourceOptions { SuuntoTokenUrl = "https://override.example/suunto/login2" };
         var connector = new SuuntoCloudSourceConnector(_http, _tokens, _consent, _fit, options);
-        _http.EnqueueText("{\"access_token\":\"suunto-jwt-abc\"}");
+        _http.EnqueueText("{\"sessionkey\":\"stt-session-abc\"}");
         connector.ProvideCredentials("diver@example.com", Password);
 
         await connector.AuthenticateAsync();
 
-        Assert.Equal("https://override.example/suunto/token", _http.Requests[0].Url);
+        Assert.Equal("https://override.example/suunto/login2", _http.Requests[0].Url);
     }
 }

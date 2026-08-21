@@ -59,6 +59,48 @@ public static partial class ChartGeometry
         return new DepthChartPath(line, area, maxDepth, duration);
     }
 
+    /// <summary>Point budget for the DRAWN depth polyline. See <see cref="BuildRenderPath"/>.</summary>
+    internal const int MaxRenderPoints = 400;
+
+    /// <summary>
+    /// Reduces a depth path to a drawing-sized polyline. A cloud-synced 1 Hz profile is ~5,600 points for a
+    /// 100-minute dive, drawn into roughly 300 device-independent units — about 19 points per pixel, which
+    /// renders the depth sensor's ±0.1 m quantisation as a furry line rather than a clean trace.
+    ///
+    /// <para>This is deliberately a SEPARATE path from <see cref="BuildDepthChart"/>, not a change to it: the
+    /// full polyline is what <see cref="YAtX"/> interpolates for the scrub crosshair, and what the overlays
+    /// and the max-depth label are derived from. Only the drawable consumes the reduced one.</para>
+    ///
+    /// <para><see cref="DepthChartPath.MaxDepthM"/> and <see cref="DepthChartPath.DurationSeconds"/> are copied
+    /// verbatim, and the deepest point always survives, so the drawn line still touches the plot floor and
+    /// still agrees with the labelled max depth.</para>
+    /// </summary>
+    public static DepthChartPath BuildRenderPath(DepthChartPath full, int maxPoints = MaxRenderPoints)
+    {
+        ArgumentNullException.ThrowIfNull(full);
+        if (full.IsEmpty || full.Line.Count <= maxPoints)
+        {
+            return full;
+        }
+
+        var line = full.Line;
+        var kept = KeepIndices(line.Count, maxPoints, i => line[i].Y);
+
+        var reduced = new ChartPoint[kept.Length];
+        for (var i = 0; i < kept.Length; i++)
+        {
+            reduced[i] = line[kept[i]];
+        }
+
+        // Close the fill along the surface, exactly as BuildDepthChart does.
+        var area = new ChartPoint[reduced.Length + 2];
+        area[0] = reduced[0] with { Y = 0 };
+        reduced.CopyTo(area.AsSpan(1));
+        area[^1] = reduced[^1] with { Y = 0 };
+
+        return new DepthChartPath(reduced, area, full.MaxDepthM, full.DurationSeconds);
+    }
+
     /// <summary>
     /// Linear interpolation of the normalized depth polyline at normalized elapsed
     /// <paramref name="x"/> ∈ [0,1] — the touch-to-scrub crosshair's Y (C6). Clamped to the
