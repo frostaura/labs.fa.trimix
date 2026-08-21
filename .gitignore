@@ -8,3 +8,7 @@ TestResults/
 .idea/
 .vs/
 artifacts/
+
+# Scratch — every temporary artefact (logs, screenshots, captures, reports).
+# Emptied at the end of every session; see the tree root CLAUDE.md "Scratch" section.
+.tmp/
