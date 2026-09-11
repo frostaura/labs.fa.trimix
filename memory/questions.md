@@ -19,7 +19,7 @@ Every one of these is **founder-owned** — none can be closed by writing more c
   funnel fires to a local sink with no ingest anywhere. Running the demand gate needs *some* thin
   beacon, which would be the one plausible exception to the no-servers invariant. Until this is
   decided, M3 cannot be run at all, whatever the build state.
-- **Is the heaviest-build, thinnest-TAM bet in the Gaia slate worth field-testing?** Unchanged by the
+- **Is the heaviest-build, thinnest-TAM bet in the Labs portfolio worth field-testing?** Unchanged by the
   rebuild. The free community-demand gate exists precisely to answer this cheaply.
 - **Name clearance has never been run** and transitively gates the store listing, the public domain and
   going public with the repo. Store + `.com` + USPTO (Class 9/42); no candidate has been cleared.

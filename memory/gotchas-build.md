@@ -5,13 +5,14 @@ type: gotcha
 last_verified: 2026-08-07
 ---
 
-# Build, deploy and on-device verification gotchas
+# Gotchas — build and on-device deploy
 
-_Runtime UI and interaction traps are in [`gotchas-ui.md`](gotchas-ui.md); durability, connector and reverse-engineering ones
-in [`gotchas.md`](gotchas.md). This app's toolchain and per-program traps are the `maui-device-build` skill in
-[`../../../.claude/skills/`](../../../.claude/skills/README.md), and the generic MAUI build-and-deploy procedure that skill
-defers to is authored upstream in Gaia rather than installed here — everything below is what neither covers, because
-it is specific to this app's connectors, emulator and XAML._
+_Runtime UI traps are in [`gotchas-ui.md`](gotchas-ui.md); durability and capture hygiene in [`gotchas.md`](gotchas.md);
+connector verification in [`gotchas-connectors.md`](gotchas-connectors.md). This app's toolchain and per-program traps are
+the division's `maui-device-build` skill in [`../../../.claude/skills/`](../../../.claude/skills/README.md); the generic
+MAUI build-and-deploy procedure that skill defers to is a Gaia plugin skill, and whether it resolves on this Mac is
+[`../../../../memory/plugin-roster-drift.md`](../../../../memory/plugin-roster-drift.md)'s business, not this file's.
+Everything below is what neither covers, because it is specific to this app's connectors, emulator and XAML._
 
 - **`-p:EmbedAssembliesIntoApk=true` is mandatory for Android device testing.** .NET Android Debug builds keep assemblies
   OUTSIDE the APK, so `adb install` of a rebuilt APK leaves the previous managed code in place and the app silently runs

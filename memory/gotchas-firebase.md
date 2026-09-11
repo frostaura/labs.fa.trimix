@@ -5,7 +5,7 @@ type: gotcha
 last_verified: 2026-08-07
 ---
 
-# Firebase / Firestore reverse-engineering gotchas
+# Gotchas — Firebase/Firestore
 
 _Learned capturing ScubaPro's LogTRAK app; they apply to any Firebase-backed vendor reached through
 [`FirebaseCloudClient`](../src/app/Trimix.Core/Connectors/Infra/FirebaseCloudClient.cs). Durability and

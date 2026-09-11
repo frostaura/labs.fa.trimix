@@ -21,7 +21,11 @@ last_verified: 2026-09-11
   storage migration), and the `site_*` funnel constants stay because the taxonomy is frozen. Do not
   read any of them as a surviving Sites capability — there is none.
 - **The physical-iPhone deploy path is open and unused.** Since 2026-07-29 the app deploys wirelessly
-  to the founder's iPhone 17 Air under the `net.frostaura.trimix` profile (paid team, valid to 2027);
-  the repeatable recipe lives in the `fa-trimix-build-environment` user memory. That retired the
-  long-standing provisioning blocker, so on-device StoreKit and real-vendor-endpoint testing are
-  available and have still not been exercised.
+  to the founder's iPhone 17 Air under the `net.frostaura.trimix` profile (paid team, valid to 2027).
+  That retired the long-standing provisioning blocker, so on-device StoreKit and real-vendor-endpoint
+  testing are available and have still not been exercised. **The recipe is not written down anywhere
+  in this tree:** the in-tree home for it is the division's
+  [`maui-device-build`](../../../.claude/skills/maui-device-build/SKILL.md) skill, which defers the
+  iOS device procedure to a Gaia plugin skill that is not installed on this Mac
+  ([`../../../../memory/plugin-roster-drift.md`](../../../../memory/plugin-roster-drift.md)), so
+  today the next deploy re-derives it. Write it into that skill when it is re-derived.
