@@ -9,10 +9,11 @@ last_verified: 2026-09-11
 
 ## Durability — inspected 2026-09-11
 
-- **The working tree is clean and `main` matches its `origin/main` tracking ref.** The last push
-  (2026-08-21) landed both the whole 2026-08-07 feature body *and* the harness plus all three
-  reverse-engineering contracts, which until then had never been tracked at all. **Nothing of value
-  now lives only in this working tree** — the worst standing hazard in this program is closed.
+- **`main` is ahead-only of `origin/main` and carries no product work — only context commits.** The
+  2026-08-21 push landed the whole 2026-08-07 feature body *and* the harness plus all three
+  reverse-engineering contracts, which until then had never been tracked at all. **No product work
+  lives only in this working tree any more** — the worst standing hazard in this program is closed,
+  and a plain `git push` is safe whenever the founder calls it.
 - **No fetch has run since 2026-08-07**, so the tracking ref is local evidence of the last push from
   this clone, not a live read of GitHub — fetch before concluding anything about the remote. Remote is
   the private `frostaura/fa.trimix` over HTTPS via `gh` (no SSH key on this Mac); one clone only, on
