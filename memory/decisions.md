@@ -44,5 +44,4 @@ Haptics, motion and perceived performance: [`decisions-haptics.md`](decisions-ha
 - **Standing from 2026-07-03/07-05:** the aggregator pivot and its legal override (no clean published dive API
   exists, so vendor-cloud pull and cert-agency push are reverse-engineered — a knowingly-accepted gate-3
   ToS/CFAA risk); the name "Trimix", founder-picked and flagged high-collision; the root-reviewed MAUI client
-  override; and **PostGIS rejected** in favour of in-memory haversine — moot since the `SiteAtlas` it existed
-  for went with the Sites capability, but it stands as precedent if geo ever returns.
+  override.

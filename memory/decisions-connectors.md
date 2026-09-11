@@ -9,7 +9,7 @@ last_verified: 2026-08-07
 
 _Split out of [`decisions.md`](decisions.md). One rule generalises: **every shared-corridor assumption made in this program has
 turned out wrong when finally captured** — treat any vendor without a document under `docs/reverse-engineering/` as
-unimplemented. Original dates; not re-verified 2026-08-21._
+unimplemented._
 
 ## Garmin — 2026-07-30, the first live capture
 

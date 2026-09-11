@@ -9,7 +9,7 @@ last_verified: 2026-08-07
 
 _Split out of [`decisions.md`](decisions.md), which stays product/connector/legal; haptics, motion and perceived performance
 are in [`decisions-haptics.md`](decisions-haptics.md). Nothing here is cosmetic — every entry records a founder call or a trap
-paid for once already. Carried at their original dates; not re-run 2026-08-21._
+paid for once already._
 
 - **Text inputs are DELIBERATELY different per platform.** Android gets a Material **filled** field: no outline, container
   fill, top corners rounded and bottom square, with a bottom indicator drawn by the EditText (dim 1 dp at rest, mint 2 dp on

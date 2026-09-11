@@ -8,8 +8,7 @@ last_verified: 2026-08-07
 # Haptics, motion and perceived performance
 
 _Split out of [`decisions-ui.md`](decisions-ui.md), which keeps layout and visual chrome. Nothing here is cosmetic — each entry
-is a founder call or a trap paid for once already. The matching runtime traps are in [`gotchas-ui.md`](gotchas-ui.md). Carried
-at their original dates; not re-run 2026-08-21._
+is a founder call or a trap paid for once already. The matching runtime traps are in [`gotchas-ui.md`](gotchas-ui.md)._
 
 - **Haptics are a semantic port, not a vibrate call.** `IHaptics` in Core carries six cues — Tap, Selection, Navigate, Success,
   Warning, Error — and the App maps them to each OS's own idiom: iOS Taptic Engine generators (impact / selection /

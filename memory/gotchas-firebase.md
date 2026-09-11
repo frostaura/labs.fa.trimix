@@ -9,7 +9,7 @@ last_verified: 2026-08-07
 
 _Learned capturing ScubaPro's LogTRAK app; they apply to any Firebase-backed vendor reached through
 [`FirebaseCloudClient`](../src/app/Trimix.Core/Connectors/Infra/FirebaseCloudClient.cs). Durability and
-connector-verification traps: [`gotchas.md`](gotchas.md). Carried at their original date._
+connector-verification traps: [`gotchas.md`](gotchas.md)._
 
 - **A Firebase app's dive data will NOT appear in an HTTP proxy capture.** The native Firestore SDK speaks
   gRPC, which ignores the system HTTP proxy — so you see Firebase Auth and Storage flows but zero data, and

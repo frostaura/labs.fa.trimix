@@ -7,8 +7,7 @@ last_verified: 2026-08-07
 
 # MAUI runtime UI & interaction gotchas
 
-_Build/deploy traps: [`gotchas-build.md`](gotchas-build.md). Durability and connector ones: [`gotchas.md`](gotchas.md).
-Carried at their original date; not re-verified 2026-08-21._
+_Build/deploy traps: [`gotchas-build.md`](gotchas-build.md). Durability and connector ones: [`gotchas.md`](gotchas.md)._
 
 - **A MAUI handler mapping re-runs on EVERY property update of its view, so it must never assign a fresh reference-typed
   value unconditionally.** A new `RoundRectangle` for `StrokeShape` or a new `SolidColorBrush` for `Background` inside a

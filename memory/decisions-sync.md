@@ -8,7 +8,7 @@ last_verified: 2026-08-07
 # Multi-provider sync & merge decisions
 
 _Split out of [`decisions.md`](decisions.md), which stays product, economics and cross-cutting policy. All of
-this landed 2026-08-07 and has since been committed and pushed._
+this landed 2026-08-07 and is committed and pushed._
 
 - **Overlapping dives group by TIME-INTERVAL OVERLAP**, not the old start+duration+depth tolerances.
   `DiveMergePolicy.IsSamePhysicalDive` clusters two dives iff their padded windows overlap, where
