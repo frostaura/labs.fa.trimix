@@ -1,60 +1,60 @@
 ---
 name: fa-trimix-state
-description: "Serverless, on-device, API-sync-only dive log; Garmin + ScubaPro verified live, Suunto supported at summary fidelity; 410/410 Core tests as of 2026-08-07; a large uncommitted body plus an unpushed context commit; four behaviours awaiting founder device verification"
+description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Repo clean and pushed, Core suite real and green (2026-09-11). Five shipped behaviours never seen on the founder's iPhone."
 type: state
-last_verified: 2026-08-21
+last_verified: 2026-09-11
 ---
 
 # Current state
 
-## ⚠ Durability — inspected 2026-08-21, decays fast
+## Durability — inspected 2026-09-11
 
-Re-run the repo-durability check before repeating any of this. **No fetch was performed**, so ahead/behind is
-measured against the ref last fetched 2026-08-07.
+- **The working tree is clean and `main` matches its `origin/main` tracking ref.** The last push
+  (2026-08-21) landed both the whole 2026-08-07 feature body *and* the harness plus all three
+  reverse-engineering contracts, which until then had never been tracked at all. **Nothing of value
+  now lives only in this working tree** — the worst standing hazard in this program is closed.
+- **No fetch has run since 2026-08-07**, so the tracking ref is local evidence of the last push from
+  this clone, not a live read of GitHub — fetch before concluding anything about the remote. Remote is
+  the private `frostaura/fa.trimix` over HTTPS via `gh` (no SSH key on this Mac); one clone only, on
+  this iCloud path; no `.git/*.lock` debris at this inspection.
 
-- **A large uncommitted body** — the whole 2026-08-07 work *plus* the never-tracked harness and RE
-  contracts (see the alert topic). It exists nowhere but this Mac, **unchanged for two weeks**, on an
-  iCloud path where eviction is a known hazard. Run `audit-tree.py` for the current path count.
-- **`main` is AHEAD-ONLY of `origin/main`** — the unpushed range is `b160536` (memory topic-store
-  migration) onward, zero deletions, a clean fast-forward. Remote is private `frostaura/fa.trimix` over HTTPS via `gh`.
-- Stale `.git/index.lock` + `.git/objects/maintenance.lock` were present on 2026-08-21 and cleared in the
-  same pass; sweep `find .git -name '*.lock'` before concluding a commit failed for another reason.
-- **Committing and pushing has been the highest-value action here since 2026-08-07**, awaiting founder go.
+## Build & test
 
-## Build & test — verified 2026-08-07, not re-run since
-
-**410/410 Core tests green**; both TFMs build with 0 errors and `net10.0-ios` still compiles. Installed on the
-Android emulator and wirelessly on the physical iPhone 17 Air (`devicectl`, device
-`CAF80486-0AA8-5641-B865-93773026D3A9`). Not re-run 2026-08-21 — this workspace cannot build the repo.
+- **The Core suite is real and fully green** — `dotnet test tests/Trimix.Core.Tests`, re-run
+  2026-09-11 on the user-local `~/.dotnet` toolchain, zero failures across 51 test files. There is no
+  CI, so this is a one-Mac result and nothing else will catch a regression (`gotchas.md`).
+- Verified 2026-08-07 and not re-checked since: both TFMs building, `net10.0-ios` still compiling,
+  installs on the Android emulator and on the founder's physical iPhone 17 Air.
 
 ## What the product is right now
 
-Serverless, on-device, API-sync-only dive log, 2-tab bar (Log · You), six read connectors under
-`Connectors/Cloud/`. `src/tools/Trimix.Harness` is deliberately outside `fa.trimix.slnx` *and* accidentally
-outside git.
+Serverless, on-device, API-sync-only dive log; 2-tab bar (Log · You); six vendor read connectors
+under `Connectors/Cloud/`. **Live allowlist = `ProviderCatalog.LiveConnectorIds` = `garmin_connect`, `scubapro`, `suunto_cloud`**
+— read off the source 2026-09-11. Dimmed "COMING SOON": Shearwater (deliberate placeholder, its cloud
+is desktop/BLE), Oceanic+, Mares, PADI, SSI. Onboarding S1 mirrors the same two lists as static rows.
 
-**Live allowlist = `ProviderCatalog.LiveConnectorIds` = `garmin_connect`, `scubapro`, `suunto_cloud`.**
-Coming soon: Shearwater (deliberate placeholder — Shearwater Cloud is desktop/BLE), Oceanic+, Mares, PADI, SSI.
-Onboarding S1 mirrors the same two lists as static wrap rows.
+- **Garmin** — verified end-to-end on the founder's own account, full 1 Hz profile fidelity.
+- **ScubaPro** — verified end-to-end over LogTRAK/Firebase (`logtrak2-production`), full profile,
+  through the reusable `FirebaseCloudClient`. It does not use MySSI.
+- **Suunto** — sign-in and dive-list verified (Sports Tracker), **summary fidelity only**: depth/temp
+  and the diving activityId are unconfirmed, so the profile leg degrades and an account with no real
+  dives lists nothing.
+- Oceanic+, Mares and the PADI/SSI push path have never touched a live server; Mares's MySSI
+  assumption is suspect (`decisions-connectors.md`).
 
-- **Garmin** — verified end-to-end on the founder's own account: dives #66–69, Sodwana, 5,581 samples at 1 Hz.
-- **ScubaPro** — verified end-to-end: LogTRAK/Firebase (`logtrak2-production`), 22 dives, full 311-sample
-  profile, through the reusable `FirebaseCloudClient`. It does NOT use MySSI.
-- **Suunto** — sign-in + dive-list verified (Sports Tracker), **summary fidelity only**: depth/temp and the
-  diving activityId are unconfirmed so the profile leg degrades; an account with no real dives lists nothing.
-- Oceanic+, Mares and PADI/SSI push have never touched a live server; Mares's MySSI assumption is suspect.
+Provider priority with overlap merge, unlink hard-delete plus a launch orphan sweep, and the grouped
+Providers screen with native drag-reorder are all in (`decisions-sync.md`). The auto-sync flash is a
+cosmetic open item whose fix was reverted.
 
-Provider priority + overlapping-dive merge, unlink hard-delete with a launch orphan sweep and the grouped
-Providers screen with native drag-reorder are in (`decisions-sync.md`). The auto-sync flash is a cosmetic open
-item; its fix was reverted.
+## Never observed on the founder's iPhone
 
-## Awaiting founder verification on the iPhone
+Emulator-verified or code-complete only. Two need real data from two overlapping providers, which an
+emulator cannot seed:
 
-Emulator-verified: reorder persists, hint shows, badges render, no crash. What needs the founder's device and
-real data (two overlapping providers cannot be seeded on an emulator):
+1. **Multi-provider merge** — one row, both badges in priority order, the priority provider's stats
+   leading, and "SOURCES · TAP TO COMPARE" swapping dive-detail to the other recording in place.
+2. **Flash-free sync** — dimmed backdrop and sync sheet the instant the logbook appears.
 
-1. **Multi-provider merge** — one row, both badges in priority order, the priority provider's stats leading,
-   and the "SOURCES · TAP TO COMPARE" strip swapping dive-detail to the other provider's version in place.
-2. **Flash-free sync** — dimmed backdrop + sync sheet the instant the logbook appears.
-3. Reorder feel (haptics/animation) on device, iOS dive-detail section paging, the embedded iOS map gesture
-   and the logbook tap haptic — all shipped, none observed by an agent.
+Three shipped feel behaviours have never been watched by anyone: reorder feel (haptics/animation) on
+device, the embedded iOS map gesture, and the logbook tap haptic. iOS dive-detail section paging is a
+harder case and is an open question, not a verification item — `questions.md`.

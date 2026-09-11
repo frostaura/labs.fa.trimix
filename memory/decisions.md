@@ -2,7 +2,7 @@
 name: fa-trimix-decisions
 description: "Product and policy decisions with rationale: serverless pivot, API-sync-only, connector promotion + guardrails, no auth, free tier = last 5 dives, the LiveConnectorIds availability allowlist, the standing aggregator/legal override"
 type: decision
-last_verified: 2026-08-21
+last_verified: 2026-09-11
 ---
 
 # Live decisions

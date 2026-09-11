@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-decisions-connectors
-description: "Per-vendor reverse-engineering decisions with rationale: Garmin verified and needs no FIT, ScubaPro is LogTRAK/Firebase not MySSI, Suunto is Sports Tracker not cloudapi, Aqualung/DiverLog evaluated and rejected, the sign-in page must not impersonate a vendor"
+description: "Every shared-corridor assumption here was wrong when finally captured: ScubaPro is LogTRAK/Firebase not MySSI (so Mares is suspect), Suunto is Sports Tracker not cloudapi, Garmin needs no FIT, MFA divers unsupported by design."
 type: decision
 last_verified: 2026-08-07
 ---

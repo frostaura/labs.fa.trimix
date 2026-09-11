@@ -1,15 +1,27 @@
 ---
 name: fa-trimix-watch
-description: "Harness + all three RE contracts have never been tracked (see the alert); physical-iPhone deploy recipe retired the provisioning blocker; branch is ahead-only of origin/main with the 2026-08-07 body still uncommitted; adversarial re-review recommended before M3; dead server DTOs to clean"
+description: "Unpaid debts: no adversarial re-review of the rebuilt tree before M3, dead backend DTOs and Sites leftovers still shipping in Trimix.Contracts, and a physical-iPhone deploy path that is unblocked and has never been used."
 type: watch
-last_verified: 2026-08-21
+last_verified: 2026-09-11
 ---
 
 # Watch list
 
-- **Runs on the founder's physical iPhone (2026-07-29).** Deployed wirelessly to "Dean's iPhone 17 Air" — the `net.frostaura.trimix` provisioning profile was minted (paid team UX32XL7Q96, valid to 2027) and the signed device build installed + launched via `devicectl`. Full repeatable recipe (throwaway-Xcode-project → `xcodebuild -allowProvisioningUpdates` → `dotnet -p:CodesignProvision` → `devicectl install/launch`; unlock-the-phone trap) is in the `fa-trimix-build-environment` memory. This retires the long-standing "Apple paid provisioning + physical device" blocker for on-device StoreKit/biometric… — note biometric is now moot (auth removed), but StoreKit/real-vendor-endpoint testing on-device is now unblocked.
-- **The durability boundary is `origin/main`, and the branch is ahead-only of it.** Re-measured 2026-08-21 without a fetch: `origin/main` resolves to the *Sites-removal durability stamp* commit, one past `399110b` — an earlier note here pinned `399110b` itself and was off by one, which is why this row now names the shape rather than a SHA. Everything ahead of `origin/main` is NOT durable: the memory topic-store migration plus this session's context commits, and the whole 2026-08-07 working body is still **uncommitted** on top — plus the never-tracked harness and reverse-engineering contracts, which are a separate and worse problem (see the alert topic). Origin is HTTPS via `gh` (no SSH key on this Mac; switch back to SSH once a key is added). Repo is **private** `frostaura/fa.trimix` (Labs stealth-by-default satisfied). No `.git/*.lock` debris, no divergence. **Do not write a SHA or a commit count into this row** — these repos take context commits constantly; re-run the repo-durability check instead.
-- **Durability history:** `2151827` (serverless rebuild, pushed 2026-07-28) → `cb1d6c7` (memory) → `750ba82` (auth removal + visual overhaul + sheet polish, pushed 2026-07-29) → `8ad5241` (Settings→You consolidation + demo removal + nav-freeze fix, pushed 2026-07-30) → `399110b` (Sites capability removal, pushed 2026-07-30) → **`b160536` (memory layout migration, committed 2026-07-30, still unpushed)**.
-- **A fresh adversarial re-review of the rebuilt tree has not been run** — recommended before any M3 field testing, especially over the six reverse-engineered read connectors and the on-device entitlement path. Three of the six now have live-captured contracts; the other three (Mares, Oceanic+, Shearwater) are guesses or deliberate placeholders and should be reviewed as such.
-- **The whole Sites capability is gone (2026-07-29)** — no Sites tab, atlas, site detail, enrichment or auto-match. `Dive.SiteId` / `ImportResult.SiteMatched` linger as dormant always-null/false fields (no storage migration, since dives serialize as JSON); the frozen `site_*` funnel constants stay. See [`worklog.md`](worklog.md).
-- **Dead server DTOs** (`ApiRoutes.cs` incl. `ApiRoutes.Sites`, `PasskeyDtos`, `PrivacyDtos`, `ContributionDtos`/`SiteContribution*`) remain in `Trimix.Contracts` as frozen/orphan shapes; `network_security_config.xml` (dev-loopback) is now moot — cleanup candidates.
+- **No adversarial re-review of the rebuilt tree has ever been run**, and one is owed before any M3
+  field testing — specifically over the six reverse-engineered read connectors and the on-device
+  entitlement path. Three of the six have live-captured contracts; Mares, Oceanic+ and Shearwater are
+  researched guesses or deliberate placeholders and must be reviewed as such, not as implementations.
+- **Dead backend DTOs still ship in `Trimix.Contracts`** — confirmed present 2026-09-11: `ApiRoutes.cs`
+  (including `ApiRoutes.Sites`), `Dtos/PasskeyDtos.cs`, `Dtos/PrivacyDtos.cs` and
+  `Dtos/ContributionDtos.cs` (`SiteContribution*`), all orphan shapes from the deleted server, plus the
+  now-moot Android `network_security_config.xml` dev-loopback file. Nothing references them; they are
+  cleanup candidates, and until they go they read as though a backend still exists.
+- **Sites leftovers are dormant, not live.** `Dive.SiteId` and `ImportResult.SiteMatched` survive as
+  always-null / always-false fields (dives serialize as JSON, so removing the capability needed no
+  storage migration), and the `site_*` funnel constants stay because the taxonomy is frozen. Do not
+  read any of them as a surviving Sites capability — there is none.
+- **The physical-iPhone deploy path is open and unused.** Since 2026-07-29 the app deploys wirelessly
+  to the founder's iPhone 17 Air under the `net.frostaura.trimix` profile (paid team, valid to 2027);
+  the repeatable recipe lives in the `fa-trimix-build-environment` user memory. That retired the
+  long-standing provisioning blocker, so on-device StoreKit and real-vendor-endpoint testing are
+  available and have still not been exercised.

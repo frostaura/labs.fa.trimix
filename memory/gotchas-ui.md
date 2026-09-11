@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-gotchas-ui
-description: "MAUI runtime UI traps paid for once already: handler mappers re-running into unbounded layout loops, DescendantAdded going quadratic, anything interactive in a ScrollView must claim the touch stream, haptic timing, BindingContextChanged firing before data"
+description: "MAUI runtime traps paid for once: handler mappers re-run and loop the layout, DescendantAdded goes quadratic, anything interactive in a ScrollView must claim the touch stream on end AND cancel, haptics need a runloop yield."
 type: gotcha
 last_verified: 2026-08-07
 ---

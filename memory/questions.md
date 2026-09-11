@@ -1,23 +1,33 @@
 ---
 name: fa-trimix-questions
-description: "Can iOS page the dive-detail sections now the chip strip is gone; M3 telemetry needs a thin beacon; is the thin-TAM bet worth field-testing; name clearance; CAC placeholder unmeasured"
+description: "All founder-owned: can iOS page the dive-detail sections with the chips gone; M3 needs a telemetry beacon a serverless app cannot provide; is the thinnest-TAM bet worth field-testing; name clearance unrun; CAC never measured."
 type: question
-last_verified: 2026-08-07
+last_verified: 2026-09-11
 ---
 
 # Open questions
 
-- **The auto-sync-after-link flash (minor).** On linking a provider, the logbook paints bare for a beat
-  before the sync sheet's backdrop slides up. A 2026-08-07 fix attempt broke the add-sheet "Sync now" path
-  and was reverted (see `decisions-sync.md`). Any re-attempt must treat from-Providers vs on-Logbook-under-a-modal
-  differently and be device-tested (the sheet is transient; `adb` screenshots can't verify it on MAUI's
-  opaque canvas). Low priority — cosmetic.
-- **Can iOS actually page the dive-detail sections now that the chip strip is removed?** Owner: founder, on
-  the physical iPhone — I cannot drive one. In-pane `SwipeGestureRecognizer`s are swallowed by
-  `UIScrollView`'s pan on iOS, which is the documented reason a tappable switcher existed at all; removing
-  the chips left swipe as the only control. If it cannot page, the fix is a pan-based implementation, **not**
-  restoring the chips (the founder removed those deliberately). See `decisions-ui.md`.
-- **M3/M4 telemetry.** A serverless app cannot aggregate "≥300 activated divers" — the funnel fires locally with no ingest. Running M3 needs *some* thin analytics beacon (the one plausible exception to "no servers"). Founder decision.
-- **Whether the heaviest-build, thinnest-TAM bet is worth field-testing at all** — unchanged by the rebuild; the free gate exists to answer it cheaply.
-- **Name clearance** remains a launch blocker. (Site-atlas seed licensing is no longer a blocker — the Sites capability was removed 2026-07-29.)
-- **`[CAC_PER_PAYER = TBD]`** — still an unmeasured placeholder; no CPI test has run.
+Every one of these is **founder-owned** — none can be closed by writing more code.
+
+- **Can iOS actually page the dive-detail sections now that the chip strip is removed?** Needs the
+  founder on the physical iPhone; an agent cannot drive one. In-pane `SwipeGestureRecognizer`s are
+  swallowed by `UIScrollView`'s pan on iOS, which is the documented reason a tappable switcher existed
+  at all, and removing the chips left swipe as the only control. If it cannot page, the fix is a
+  pan-based implementation — **not** restoring the chips, which the founder removed deliberately.
+  Rationale: [`decisions-ui.md`](decisions-ui.md).
+- **M3/M4 telemetry has no carrier.** A serverless app cannot aggregate "≥300 activated divers" — the
+  funnel fires to a local sink with no ingest anywhere. Running the demand gate needs *some* thin
+  beacon, which would be the one plausible exception to the no-servers invariant. Until this is
+  decided, M3 cannot be run at all, whatever the build state.
+- **Is the heaviest-build, thinnest-TAM bet in the Gaia slate worth field-testing?** Unchanged by the
+  rebuild. The free community-demand gate exists precisely to answer this cheaply.
+- **Name clearance has never been run** and transitively gates the store listing, the public domain and
+  going public with the repo. Store + `.com` + USPTO (Class 9/42); no candidate has been cleared.
+- **`[CAC_PER_PAYER = TBD]` is still a placeholder** — no CPI test has run, so the payer economics in
+  the M4 gate rest on an unmeasured number.
+- **The auto-sync-after-link flash** (cosmetic, lowest priority). On linking a provider the logbook
+  paints bare for a beat before the sync sheet's backdrop slides up. The 2026-08-07 fix attempt broke
+  the add-sheet "Sync now" path and was reverted; any re-attempt must treat from-Providers and
+  on-Logbook-under-a-modal differently and be device-tested, since the sheet is transient and `adb`
+  screenshots cannot verify it on MAUI's opaque canvas. Detail:
+  [`decisions-sync.md`](decisions-sync.md).

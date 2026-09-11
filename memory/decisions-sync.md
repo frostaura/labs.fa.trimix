@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-decisions-sync
-description: "How multiple providers become one logbook (2026-08-07): time-interval overlap merge with a geometric-mean pad, user-set priority deciding the winner, native CollectionView reorder, unlink hard-delete + launch orphan sweep, auto-sync on every link, the reverted flash fix"
+description: "Overlapping dives merge on padded time-interval overlap (0.30 x geometric mean, clamped 120-600 s); user-set priority picks the winner, fidelity only the tie-break; unlink hard-deletes; auto-sync on every link; flash fix reverted."
 type: decision
 last_verified: 2026-08-07
 ---
@@ -8,7 +8,7 @@ last_verified: 2026-08-07
 # Multi-provider sync & merge decisions
 
 _Split out of [`decisions.md`](decisions.md), which stays product, economics and cross-cutting policy. All of
-this landed 2026-08-07 and is uncommitted — see [`state.md`](state.md)._
+this landed 2026-08-07 and has since been committed and pushed._
 
 - **Overlapping dives group by TIME-INTERVAL OVERLAP**, not the old start+duration+depth tolerances.
   `DiveMergePolicy.IsSamePhysicalDive` clusters two dives iff their padded windows overlap, where
