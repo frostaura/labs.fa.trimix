@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-gotchas-build
-description: "Build, deploy and verification traps paid for once already: EmbedAssembliesIntoApk or Android runs stale code, chained installs hiding a failed build, stale screencaps, a shared emulator, devicectl error 7, XAML tooling that fails silently"
+description: "Verification traps paid for once: EmbedAssembliesIntoApk or Android runs stale code, chained installs hide a failed build, screencaps go stale, the emulator is shared — and no iOS glyph fix exists here, unchecked."
 type: gotcha
 last_verified: 2026-08-07
 ---
@@ -33,6 +33,11 @@ Everything below is what neither covers, because it is specific to this app's co
   resolved activity (`cmd package resolve-activity --brief <pkg>`) and check `dumpsys window | grep mCurrentFocus` before
   trusting a screenshot or a scripted tap — an unchecked tap sequence lands in the other app and produces a screenshot that
   "disproves" a fix.
+- **This program's status on the shared iOS colour-emoji glyph trap
+  ([`../../memory/gotchas-maui.md`](../../memory/gotchas-maui.md)): neither mitigation is present, and no iOS glyph screen has
+  ever been checked for it.** Verified 2026-09-11 — the only `LabelHandler` mapper in this tree is `MauiProgram.cs`'s
+  Android-only tabular-numerals mapping, and no XAML carries a `&#xFE0E;` suffix. So every arrow, ⚙ and ⚠ is an untested
+  colour-emoji risk on device, and an Android screenshot is no evidence at all for a glyph screen. Look at an iOS build.
 - **`devicectl device install` succeeding but launch failing with `FBSOpenApplicationErrorDomain error 7` just means the
   iPhone is locked.** The install is real; unlock and launch. Not a signing problem.
 - **Garmin rate-limits sign-in** — four logins within a few minutes returned HTTP 429. Use the harness's
