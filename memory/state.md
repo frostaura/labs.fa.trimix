@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Repo clean and pushed, Core suite real and green (2026-09-11). Five shipped behaviours never seen on the founder's iPhone."
+description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. No product work is untracked or uncommitted any more; Core suite real and green (2026-09-11). Five shipped behaviours unseen on the iPhone."
 type: state
 last_verified: 2026-09-11
 ---
@@ -21,11 +21,11 @@ last_verified: 2026-09-11
 
 ## Build & test
 
-- **The Core suite is real and fully green** — `dotnet test tests/Trimix.Core.Tests`, re-run
-  2026-09-11 on the user-local `~/.dotnet` toolchain, zero failures across 51 test files. There is no
-  CI, so this is a one-Mac result and nothing else will catch a regression (`gotchas.md`).
-- Verified 2026-08-07 and not re-checked since: both TFMs building, `net10.0-ios` still compiling,
-  installs on the Android emulator and on the founder's physical iPhone 17 Air.
+- **The Core suite is real and fully green** — `dotnet test tests/Trimix.Core.Tests`, re-run 2026-09-11
+  on the user-local `~/.dotnet` toolchain, zero failures across 51 test files. There is no CI, so this
+  is a one-Mac result and nothing else will catch a regression (`gotchas.md`).
+- Verified 2026-08-07, not re-checked: both TFMs building, `net10.0-ios` compiling, installs on the
+  Android emulator and the founder's physical iPhone 17 Air.
 
 ## What the product is right now
 
@@ -56,6 +56,6 @@ emulator cannot seed:
    leading, and "SOURCES · TAP TO COMPARE" swapping dive-detail to the other recording in place.
 2. **Flash-free sync** — dimmed backdrop and sync sheet the instant the logbook appears.
 
-Three shipped feel behaviours have never been watched by anyone: reorder feel (haptics/animation) on
-device, the embedded iOS map gesture, and the logbook tap haptic. iOS dive-detail section paging is a
-harder case and is an open question, not a verification item — `questions.md`.
+Three shipped feel behaviours have never been watched by anyone: reorder feel on device, the embedded
+iOS map gesture, and the logbook tap haptic. iOS section paging is an open question, not a
+verification item — `questions.md`.
