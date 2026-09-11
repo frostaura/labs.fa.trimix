@@ -1,11 +1,11 @@
 ---
 name: fa-trimix-gotchas
-description: "Durability and connector traps: check untracked files, never git clean (the vendor contracts are not reproducible); no CI at all; which vendors are verified vs guessed; the allowlist is not EnabledByDefault; capture hygiene; Firestore traps"
+description: "Never `git clean` here: the three vendor contracts came from credentialed captures that were then deleted, so they are irreplaceable. Only Garmin and ScubaPro are verified end-to-end, and with no CI every green claim is one Mac's word."
 type: gotcha
 last_verified: 2026-09-11
 ---
 
-# Gotchas
+# Gotchas — durability, connector verification and capture hygiene
 
 - **iCloud mount — check UNTRACKED files, not just modified ones.** The tree lives on the iCloud Drive path where an eviction can strip locally-present files, and this repo has already been within one `git clean -fd` of disaster: the harness and all three `docs/reverse-engineering/` contracts sat **never added to the index** for weeks while every "the tree is committed" claim counted modified *tracked* files and silently excluded them. They are tracked and pushed now (`state.md`). Run `git status --porcelain --untracked-files=all` here, always.
 - **The three vendor contracts under `docs/reverse-engineering/` are not reproducible.** Each came from a mitmproxy capture of a vendor's own iOS app through the founder's personal account, and every capture was then securely deleted because it held his plaintext vendor password. Re-deriving one is not a rebuild — it is repeating a credentialed reverse-engineering session. Treat them as irreplaceable, never as regenerable docs.
@@ -14,7 +14,6 @@ last_verified: 2026-09-11
 - **Provider availability is an allowlist, not a per-connector flag.** `ProviderCatalog.LiveConnectorIds` (currently `garmin_connect`, `scubapro`, `suunto_cloud`) is the ONLY thing that makes a provider connectable; everything else renders a disabled "COMING SOON" pill and `ConnectAsync` no-ops. Promote a connector by adding its id there once verified live — do not confuse this with the descriptor's `EnabledByDefault` (which is a legal-dark flag, always false for ToSRiskReverseEng).
 - **A vendor cloud is a captured contract, not a guess — verify by capture, never assume a shared corridor.** Suunto's placeholder was wrong on host (`cloudapi.suunto.com` → really `api.sports-tracker.com`), auth (Bearer → really `STTAuthorization` session key) AND download path — exactly like ScubaPro's MySSI assumption was wrong. The diving `activityId` and per-dive sample endpoint can ONLY be learned from a real dive on the wire; an account with only manual test workouts cannot finish a dive connector.
 - **Capture hygiene: sweep the scratchpad for `*.mitm` at session-close.** mitmproxy flow files hold the founder's vendor password + tokens in plaintext (login/verifyPassword flows). Delete every capture the moment its contract is banked. On 2026-08-07 a **stale ScubaPro capture** (LogTRAK password) was found still sitting in scratchpad from an earlier session — always `find <scratch> -name '*.mitm'` and `grep -rlIa 'verifyPassword\|sessionkey'` before ending a capture session.
-- **On-device entitlements are piratable** (no server receipt validation) — the accepted serverless tradeoff.
 - **Dive-row push destinations reflect *currently linked* push providers**, not a per-dive push ledger (same approximation the prototype makes).
 
-_MAUI runtime UI and interaction traps live in [`gotchas-ui.md`](gotchas-ui.md); build, deploy and on-device verification traps in [`gotchas-build.md`](gotchas-build.md). Firebase/Firestore reverse-engineering traps in [`gotchas-firebase.md`](gotchas-firebase.md). This file is durability, connector verification and capture hygiene._
+_MAUI runtime UI and interaction traps live in [`gotchas-ui.md`](gotchas-ui.md); build, deploy and on-device verification traps in [`gotchas-build.md`](gotchas-build.md). Firebase/Firestore reverse-engineering traps in [`gotchas-firebase.md`](gotchas-firebase.md)._

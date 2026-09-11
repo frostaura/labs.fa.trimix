@@ -17,9 +17,9 @@ last_verified: 2026-09-11
   safe whenever the founder calls it.
 - **That topology is a live read, not an inference from a stale tracking ref:** `git ls-remote
   origin main` on 2026-09-11 returned exactly the commit `origin/main` points at. Remote is the
-  private `frostaura/fa.trimix` over HTTPS via `gh` — this Mac has no GitHub SSH key
-  (`ssh -T git@github.com` is refused), so switching to an SSH URL would strand the push. One clone
-  only, on this iCloud path; no `.git/*.lock` debris at this inspection.
+  private `frostaura/fa.trimix` over HTTPS via `gh`, and it must stay HTTPS for the reason root
+  records once in [`../../../../memory/gotchas.md`](../../../../memory/gotchas.md). One clone only,
+  on this iCloud path; no `.git/*.lock` debris at this inspection.
 
 ## Build & test
 
