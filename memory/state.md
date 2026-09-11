@@ -30,9 +30,9 @@ last_verified: 2026-09-11
 ## What the product is right now
 
 Serverless, on-device, API-sync-only dive log; 2-tab bar (Log · You); six vendor read connectors
-under `Connectors/Cloud/`. **Live allowlist = `ProviderCatalog.LiveConnectorIds` = `garmin_connect`, `scubapro`, `suunto_cloud`**
-— read off the source 2026-09-11. Dimmed "COMING SOON": Shearwater (deliberate placeholder, its cloud
-is desktop/BLE), Oceanic+, Mares, PADI, SSI. Onboarding S1 mirrors the same two lists as static rows.
+under `Connectors/Cloud/`. **Live allowlist = `ProviderCatalog.LiveConnectorIds` = `garmin_connect`, `scubapro`, `suunto_cloud`** —
+read off the source 2026-09-11. Dimmed "COMING SOON": Shearwater (deliberate placeholder, its cloud is
+desktop/BLE), Oceanic+, Mares, PADI, SSI; onboarding S1 mirrors both lists as static rows.
 
 - **Garmin** — verified end-to-end on the founder's own account, full 1 Hz profile fidelity.
 - **ScubaPro** — verified end-to-end over LogTRAK/Firebase (`logtrak2-production`), full profile,
@@ -44,16 +44,15 @@ is desktop/BLE), Oceanic+, Mares, PADI, SSI. Onboarding S1 mirrors the same two 
   assumption is suspect (`decisions-connectors.md`).
 
 Provider priority with overlap merge, unlink hard-delete plus a launch orphan sweep, and the grouped
-Providers screen with native drag-reorder are all in (`decisions-sync.md`). The auto-sync flash is a
+Providers screen with native drag-reorder are all in (`decisions-sync.md`); the auto-sync flash is a
 cosmetic open item whose fix was reverted.
 
 ## Never observed on the founder's iPhone
 
 Emulator-verified or code-complete only. Two need real data from two overlapping providers, which an
 emulator cannot seed:
-
 1. **Multi-provider merge** — one row, both badges in priority order, the priority provider's stats
-   leading, and "SOURCES · TAP TO COMPARE" swapping dive-detail to the other recording in place.
+   leading, "SOURCES · TAP TO COMPARE" swapping dive-detail to the other recording in place.
 2. **Flash-free sync** — dimmed backdrop and sync sheet the instant the logbook appears.
 
 Three shipped feel behaviours have never been watched by anyone: reorder feel on device, the embedded
