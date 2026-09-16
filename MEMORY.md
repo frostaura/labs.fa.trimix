@@ -1,6 +1,6 @@
 # MEMORY — Labs/projects/fa.trimix
 
-- [Current state](memory/state.md) — Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Clean tree, ahead-only, context commits only. Suite green is a carried 2026-09-11 claim, not re-run. Five behaviours unseen on the iPhone.
+- [Current state](memory/state.md) — Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Clean tree, pushed and in sync since 2026-09-16. Suite green is a carried 2026-09-11 claim, not re-run. Five behaviours unseen on the iPhone.
 - [Live decisions — product, economics and legal posture](memory/decisions.md) — Serverless and on-device is a product invariant, not a phase: no backend, no auth, API sync the only dive-entry path, entitlements client-trusted and piratable by choice, and reverse-engineered connectors the primary surface by override.
 - [Connector / reverse-engineering decisions](memory/decisions-connectors.md) — Every shared-corridor assumption here was wrong when finally captured: ScubaPro is LogTRAK/Firebase not MySSI (so Mares is suspect), Suunto is Sports Tracker not cloudapi, Garmin needs no FIT, MFA divers unsupported by design.
 - [Haptics, motion and perceived performance](memory/decisions-haptics.md) — Feel is engineered: a six-cue semantic port (never MAUI Essentials), cues on intent coalesced inside 120 ms, the HapticCommand decorator that must not be simplified back, Taptic Prepare, chart and merge off the UI thread.

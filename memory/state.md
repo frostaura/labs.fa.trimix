@@ -1,26 +1,26 @@
 ---
 name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Clean tree, ahead-only, context commits only. Suite green is a carried 2026-09-11 claim, not re-run. Five behaviours unseen on the iPhone."
+description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Clean tree, pushed and in sync since 2026-09-16. Suite green is a carried 2026-09-11 claim, not re-run. Five behaviours unseen on the iPhone."
 type: state
 last_verified: 2026-09-16
 ---
 
 # Current state
 
-## Durability — re-inspected 2026-09-16
+## Durability — re-inspected 2026-09-16, after the push
 
-- **`main` is ahead-only of `origin/main`; the unpushed range is context commits only and deletes
-  no product file** (its one deletion is a retired context topic). The 2026-08-21 push landed the
-  whole 2026-08-07 feature body *and* the harness plus all three reverse-engineering contracts,
-  which until then had never been tracked at all, so **no product work lives only in this working
-  tree any more** — the worst standing hazard in this program is closed and a plain `git push` is
-  safe whenever the founder calls it.
-- **Re-read locally 2026-09-16** — clean tree including untracked, ahead-only, every unpushed commit
-  a `chore(context):` one, its single deletion a retired context topic, no `.git/*.lock` debris. **That
-  is the tracking ref, not the remote:** the last *live* confirmation was a `git ls-remote origin main`
-  on 2026-09-11, and a stale ref can fake an ahead-count ([root gotchas](../../../../memory/gotchas.md)),
-  so fetch before acting on it. Remote is the private `frostaura/fa.trimix` over HTTPS via `gh` and must
-  stay HTTPS for the reason root records once. One clone only, on this iCloud path.
+- **`main` is in sync with `origin/main`.** On the evening of 2026-09-16 the founder authorised a
+  tree-wide commit and push and this repository fast-forwarded; re-read locally afterwards, branch
+  `main`, upstream `origin/main`, **zero ahead and zero behind**, clean tree including untracked,
+  no `.git/*.lock` debris. That is the tracking ref rather than a live probe of the remote — a
+  stale ref can fake a count ([root gotchas](../../../../memory/gotchas.md)) — so fetch before
+  acting on one.
+- **Nothing in this program lives on one disk any more.** The 2026-08-21 push landed the whole
+  2026-08-07 feature body *and* the harness plus all three reverse-engineering contracts, which
+  until then had never been tracked at all; 2026-09-16 carried the context commits that were still
+  waiting. The worst standing hazard here has been closed twice over. Remote is the private
+  `frostaura/fa.trimix` over HTTPS via `gh` and must stay HTTPS for the reason root records once.
+  One clone only, on this iCloud path.
 
 ## Build & test
 
