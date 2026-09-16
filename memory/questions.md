@@ -25,9 +25,3 @@ Every one of these is **founder-owned** — none can be closed by writing more c
   going public with the repo. Store + `.com` + USPTO (Class 9/42); no candidate has been cleared.
 - **`[CAC_PER_PAYER = TBD]` is still a placeholder** — no CPI test has run, so the payer economics in
   the M4 gate rest on an unmeasured number.
-- **The auto-sync-after-link flash** (cosmetic, lowest priority). On linking a provider the logbook
-  paints bare for a beat before the sync sheet's backdrop slides up. The 2026-08-07 fix attempt broke
-  the add-sheet "Sync now" path and was reverted; any re-attempt must treat from-Providers and
-  on-Logbook-under-a-modal differently and be device-tested, since the sheet is transient and `adb`
-  screenshots cannot verify it on MAUI's opaque canvas. Detail:
-  [`decisions-sync.md`](decisions-sync.md).

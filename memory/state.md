@@ -1,13 +1,13 @@
 ---
 name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. No product work is untracked or uncommitted any more; Core suite real and green (2026-09-11). Five shipped behaviours unseen on the iPhone."
+description: "Serverless on-device API-sync-only dive log. Garmin + ScubaPro verified live, Suunto summary-only. Clean tree, ahead-only, context commits only. Suite green is a carried 2026-09-11 claim, not re-run. Five behaviours unseen on the iPhone."
 type: state
-last_verified: 2026-09-11
+last_verified: 2026-09-16
 ---
 
 # Current state
 
-## Durability — inspected 2026-09-11
+## Durability — re-inspected 2026-09-16
 
 - **`main` is ahead-only of `origin/main`; the unpushed range is context commits only and deletes
   no product file** (its one deletion is a retired context topic). The 2026-08-21 push landed the
@@ -15,16 +15,20 @@ last_verified: 2026-09-11
   which until then had never been tracked at all, so **no product work lives only in this working
   tree any more** — the worst standing hazard in this program is closed and a plain `git push` is
   safe whenever the founder calls it.
-- **That topology is a live read, not an inference from a stale tracking ref:** `git ls-remote
-  origin main` on 2026-09-11 returned exactly the commit `origin/main` points at. Remote is the
-  private `frostaura/fa.trimix` over HTTPS via `gh`, and it must stay HTTPS for the reason root
-  records once in [`../../../../memory/gotchas.md`](../../../../memory/gotchas.md). One clone only,
-  on this iCloud path; no `.git/*.lock` debris at this inspection.
+- **Re-read locally 2026-09-16** — clean tree including untracked, ahead-only, every unpushed commit
+  a `chore(context):` one, its single deletion a retired context topic, no `.git/*.lock` debris. **That
+  is the tracking ref, not the remote:** the last *live* confirmation was a `git ls-remote origin main`
+  on 2026-09-11, and a stale ref can fake an ahead-count ([root gotchas](../../../../memory/gotchas.md)),
+  so fetch before acting on it. Remote is the private `frostaura/fa.trimix` over HTTPS via `gh` and must
+  stay HTTPS for the reason root records once. One clone only, on this iCloud path.
 
 ## Build & test
 
-- **The Core suite is real and fully green** — `~/.dotnet/dotnet test tests/Trimix.Core.Tests`,
-  re-run 2026-09-11, zero failures. No CI, so it is a one-Mac result (`gotchas.md`).
+- **The Core suite is real; green is a carried-forward claim.** Last actually run 2026-09-11
+  (`~/.dotnet/dotnet test tests/Trimix.Core.Tests`, zero failures) and **not re-run since** — the
+  2026-09-16 context pass had no build or test consent, and only inspected that the suite is
+  substantial and real. No CI, so every green is a one-Mac result (`gotchas.md`). No count is recorded
+  here on purpose: green-or-not is the signal.
 - Last exercised 2026-08-07 and not re-checked since: both TFMs building, `net10.0-ios` compiling,
   installs on the Android emulator and the founder's physical iPhone 17 Air.
 

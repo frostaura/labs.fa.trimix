@@ -1,8 +1,8 @@
 ---
 name: fa-trimix-decisions-sync
-description: "Overlapping dives merge on padded time-interval overlap (0.30 x geometric mean, clamped 120-600 s); user-set priority picks the winner, fidelity only the tie-break; unlink hard-deletes; auto-sync on every link; flash fix reverted."
+description: "The shipped merge pad is 0.30 x the SHORTER duration, clamped 120-600 s — NOT the geometric mean this file used to claim, and the source's own XML docs disagree with each other; priority picks the winner, fidelity tie-breaks."
 type: decision
-last_verified: 2026-08-07
+last_verified: 2026-09-16
 ---
 
 # Multi-provider sync & merge decisions
@@ -11,14 +11,16 @@ _Split out of [`decisions.md`](decisions.md), which stays product, economics and
 this landed 2026-08-07 and is committed and pushed._
 
 - **Overlapping dives group by TIME-INTERVAL OVERLAP**, not the old start+duration+depth tolerances.
-  `DiveMergePolicy.IsSamePhysicalDive` clusters two dives iff their padded windows overlap, where
-  **padding = 0.30 × the geometric mean of the two durations (√(durA·durB) — the root of their *product*),
-  clamped to [120 s, 600 s]**. Founder rationale, stated three times: two computers on one dive can start and
-  stop minutes apart — up to ~10 min — so the margin must scale with dive length and reach ~10 min for a
-  normal 30–60 min dive. The ceiling is load-bearing: it stops a large pad bridging a short surface interval
-  and merging two genuinely separate repetitive dives, which is the one honest cost of "never miss a same-dive
-  grouping" and the founder chose it. Depth still feeds `FidelityScore` but no longer gates the match.
-  Constants are named and tunable in `DiveMergePolicy`.
+  `DiveMergePolicy.IsSamePhysicalDive` clusters two dives iff their padded windows overlap. **The shipped
+  padding is `0.30 × Math.Min(durA, durB)` — the SHORTER dive — clamped to [120 s, 600 s]**, read off
+  `Stats/DiveMergePolicy.cs` on 2026-09-16. This topic previously recorded a geometric mean; that was never
+  what shipped. Founder rationale: two computers on one dive start and stop minutes apart, so the margin
+  scales with length and should reach ~10 min on a normal 30–60 min dive — which `Math.Min` misses at the
+  low end (a 30 + 60 min pair pads 540 s, short of the 600 s ceiling). **Do not "correct" the code by
+  inference:** its class-level XML doc claims the geometric mean while its method doc says the shorter dive,
+  so which one was intended is a founder call — [`watch-docs.md`](watch-docs.md). The ceiling is load-bearing
+  either way: it stops a large pad bridging a short surface interval and merging two separate repetitive
+  dives. Depth still feeds `FidelityScore` but never gates the match; constants are named and tunable.
 - **The user sets provider PRIORITY, and priority decides which computer wins a merge.** `IProviderPriority` /
   `ProviderPriorityService` persist an order (CSV of connectorIds under `PreferenceKeys.ProviderPriority`;
   connectorId == `DiveDto.SourceVendor`). Its composite delegate — `RankOf(vendor)*1000 + FidelityScore` — is
