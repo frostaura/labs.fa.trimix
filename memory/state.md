@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Clean, in sync with the private remote. Suite green is a carried 2026-09-11 claim."
+description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Ahead-only by context commits, clean. Suite green is a carried 2026-09-11 claim."
 type: state
 last_verified: 2026-10-14
 ---
@@ -15,9 +15,9 @@ cannot start until the telemetry question in [`questions.md`](questions.md) is a
 
 ## Durability — probed 2026-10-14
 
-- **`main` is in sync with `origin/main`, by live probe**: after `git fetch`, `git ls-remote origin HEAD`
-  returned the local `HEAD` commit, and the tree is clean including untracked files, with no `.git/*.lock`
-  debris. Topology: *safe — nothing local-only*. Re-probe before acting; the founder pushes mid-session.
+- **Ahead-only, context commits only.** After `git fetch`, `git ls-remote origin HEAD` matched the
+  pre-pass `HEAD`; this pass's own context commit then sits local-only on top. Clean tree including
+  untracked, no `.git/*.lock` debris. Safe to push, never pushed by an agent; re-probe before acting.
 - **Nothing in this program lives on one disk.** The harness and all three reverse-engineering contracts
   are tracked and pushed (`git ls-files` confirms). Remote is the private `frostaura/fa.trimix` over
   HTTPS via `gh` (`gh repo view`: private). One clone only, on this iCloud path; there is no `~/src`
