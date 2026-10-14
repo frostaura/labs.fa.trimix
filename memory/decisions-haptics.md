@@ -2,7 +2,7 @@
 name: fa-trimix-decisions-haptics
 description: "Feel is engineered: a six-cue semantic port (never MAUI Essentials), cues on intent coalesced inside 120 ms, the HapticCommand decorator that must not be simplified back, Taptic Prepare, chart and merge off the UI thread."
 type: decision
-last_verified: 2026-08-07
+last_verified: 2026-10-14
 ---
 
 # Haptics, motion and perceived performance

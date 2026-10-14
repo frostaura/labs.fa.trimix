@@ -2,7 +2,7 @@
 name: fa-trimix-gotchas-ui
 description: "MAUI runtime traps paid for once: handler mappers re-run and loop the layout, DescendantAdded goes quadratic, anything interactive in a ScrollView must claim the touch stream on end AND cancel, haptics need a runloop yield."
 type: gotcha
-last_verified: 2026-08-07
+last_verified: 2026-10-14
 ---
 
 # Gotchas — MAUI runtime UI
@@ -36,13 +36,11 @@ _Build/deploy traps: [`gotchas-build.md`](gotchas-build.md). Durability and capt
   the `//tab` nav lands LogbookPage as foreground page before the flip and its `OnSyncPropertyChanged` reliably shows the
   sheet for both the from-Providers and on-Logbook cases. **Flipping `IsSyncing` before the nav breaks the add-sheet case** —
   a 2026-08-07 flash-fix did exactly that and was reverted. Do not reorder without device-testing both paths.
-- **`MainThread.InvokeOnMainThreadAsync` always posts, even when already on the UI thread.** `ShellNavigator` wrapped every
-  navigation in it unconditionally, costing a dispatcher frame between the finger lifting and the screen moving.
-  Short-circuit on `MainThread.IsMainThread`.
+- **`MainThread.InvokeOnMainThreadAsync` always posts, even on the UI thread** — a dispatcher frame lost per navigation.
+  `ShellNavigator` short-circuits on `MainThread.IsMainThread`.
 - **Firing a haptic before the command is NOT enough — you must also yield the runloop.** Emitting a cue only hands the
   impact to the system; the main thread must still turn over before the hardware is driven, and a navigating command jams it
-  immediately (DI resolve → XAML inflation → transition). This presented on the logbook as "a massive delay, like it waits
-  for the dive to load" while the code read as obviously correct. `HapticCommand.Execute` posts the inner command via
+  immediately (DI resolve → XAML inflation → transition). It presented as "a massive delay" while the code read as correct. `HapticCommand.Execute` posts the inner command via
   `MainThread.BeginInvokeOnMainThread` and `PageHeader.OnBackTapped` uses `await Task.Yield()` — one runloop turn (~16 ms).
 - **iOS haptics go late when the Taptic Engine has idled**, which takes a couple of seconds. `Prepare()` on page-appear is
   not enough — a user who reads a list before tapping always gets the cold path. Prepare on touch-DOWN (a passive

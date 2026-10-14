@@ -2,7 +2,7 @@
 name: fa-trimix-gotchas-firebase
 description: "Firebase/Firestore traps from the LogTRAK capture: the native SDK speaks gRPC so an HTTP proxy sees nothing, keys are bundle-restricted, orderBy+where needs a composite index, list is denied but a filtered query is not."
 type: gotcha
-last_verified: 2026-08-07
+last_verified: 2026-10-14
 ---
 
 # Gotchas — Firebase/Firestore

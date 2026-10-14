@@ -2,7 +2,7 @@
 name: fa-trimix-decisions
 description: "Serverless and on-device is a product invariant, not a phase: no backend, no auth, API sync the only dive-entry path, entitlements client-trusted and piratable by choice, and reverse-engineered connectors the primary surface by override."
 type: decision
-last_verified: 2026-09-11
+last_verified: 2026-10-14
 ---
 
 # Live decisions — product, economics and legal posture

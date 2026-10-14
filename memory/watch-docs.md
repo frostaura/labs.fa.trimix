@@ -2,12 +2,12 @@
 name: fa-trimix-watch-docs
 description: "Four in-repo documents still describe the pre-pivot client-server product; one opens by claiming precedence over code and is cited from the build files, so a newcomer is told the opposite of what ships. Owner call, not an agent fix."
 type: watch
-last_verified: 2026-09-16
+last_verified: 2026-10-14
 ---
 
 # Watch — the documents that still describe the deleted product
 
-Verified by inspection 2026-09-16. **None of these is an agent's to rewrite** — a README, an
+Verified by inspection 2026-09-16, re-checked 2026-10-14 (all four still stale). **None of these is an agent's to rewrite** — a README, an
 architecture document and a gap catalogue are the owner's, and the correction is recorded here so it
 survives rather than being applied. Code is authoritative over every one of them.
 

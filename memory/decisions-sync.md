@@ -1,8 +1,8 @@
 ---
 name: fa-trimix-decisions-sync
-description: "The shipped merge pad is 0.30 x the SHORTER duration, clamped 120-600 s — NOT the geometric mean this file used to claim, and the source's own XML docs disagree with each other; priority picks the winner, fidelity tie-breaks."
+description: "Merge pad is 0.30 x the SHORTER duration, clamped 120-600 s, though the class XML doc claims a geometric mean; priority picks the winner, fidelity tie-breaks; every link auto-syncs; unlink hard-deletes."
 type: decision
-last_verified: 2026-09-16
+last_verified: 2026-10-14
 ---
 
 # Multi-provider sync & merge decisions
@@ -13,8 +13,7 @@ this landed 2026-08-07 and is committed and pushed._
 - **Overlapping dives group by TIME-INTERVAL OVERLAP**, not the old start+duration+depth tolerances.
   `DiveMergePolicy.IsSamePhysicalDive` clusters two dives iff their padded windows overlap. **The shipped
   padding is `0.30 × Math.Min(durA, durB)` — the SHORTER dive — clamped to [120 s, 600 s]**, read off
-  `Stats/DiveMergePolicy.cs` on 2026-09-16. This topic previously recorded a geometric mean; that was never
-  what shipped. Founder rationale: two computers on one dive start and stop minutes apart, so the margin
+  `Stats/DiveMergePolicy.cs` (re-read 2026-10-14; never the geometric mean). Founder rationale: two computers on one dive start and stop minutes apart, so the margin
   scales with length and should reach ~10 min on a normal 30–60 min dive — which `Math.Min` misses at the
   low end (a 30 + 60 min pair pads 540 s, short of the 600 s ceiling). **Do not "correct" the code by
   inference:** its class-level XML doc claims the geometric mean while its method doc says the shorter dive,

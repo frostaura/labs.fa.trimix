@@ -2,7 +2,7 @@
 name: fa-trimix-gotchas-connectors
 description: "Only Garmin and ScubaPro are verified end-to-end; Suunto degrades to a summary-only dive and the rest are fixture-only guesses. A vendor cloud is a captured contract — every shared-corridor assumption made here has been wrong."
 type: gotcha
-last_verified: 2026-09-11
+last_verified: 2026-10-14
 ---
 
 # Gotchas — connector verification

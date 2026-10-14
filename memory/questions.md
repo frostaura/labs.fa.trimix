@@ -2,7 +2,7 @@
 name: fa-trimix-questions
 description: "All founder-owned: can iOS page the dive-detail sections with the chips gone; M3 needs a telemetry beacon a serverless app cannot provide; is the thinnest-TAM bet worth field-testing; name clearance unrun; CAC never measured."
 type: question
-last_verified: 2026-09-11
+last_verified: 2026-10-14
 ---
 
 # Open questions

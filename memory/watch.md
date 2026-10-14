@@ -1,8 +1,8 @@
 ---
 name: fa-trimix-watch
-description: "Unpaid debts: no adversarial re-review of the rebuilt tree before M3, dead backend DTOs and Sites leftovers still shipping in Trimix.Contracts, and a physical-iPhone deploy path that is unblocked and has never been used."
+description: "Unpaid debts: no adversarial re-review of the rebuilt tree before M3, dead backend DTOs and Sites leftovers still shipping in Trimix.Contracts, and a physical-iPhone deploy path, profile valid to 2027-07, never used."
 type: watch
-last_verified: 2026-09-16
+last_verified: 2026-10-14
 ---
 
 # Watch list
@@ -25,12 +25,8 @@ last_verified: 2026-09-16
   storage migration), and the `site_*` funnel constants stay because the taxonomy is frozen. Do not
   read any of them as a surviving Sites capability — there is none.
 - **The physical-iPhone deploy path is open and unused.** Since 2026-07-29 the app deploys wirelessly
-  to the founder's iPhone 17 Air under the `net.frostaura.trimix` profile (paid team, valid to 2027 —
-  carried forward from that date; re-checking it needs the device and the developer account).
-  That retired the long-standing provisioning blocker, so on-device StoreKit and real-vendor-endpoint
-  testing are available and have still not been exercised. **The recipe is not written down anywhere
-  in this tree:** the in-tree home for it is the division's
-  [`maui-device-build`](../../../.claude/skills/maui-device-build/SKILL.md) skill, which defers the
-  iOS device procedure to a Gaia plugin skill that is not installed on this Mac
-  ([`../../../../memory/plugin-roster-drift.md`](../../../../memory/plugin-roster-drift.md)), so
-  today the next deploy re-derives it. Write it into that skill when it is re-derived.
+  to the founder's iPhone 17 Air under the `iOS Team Provisioning Profile: net.frostaura.trimix`, which
+  expires 2027-07-29 (read off the installed profile 2026-10-14). On-device StoreKit and
+  real-vendor-endpoint testing are therefore available and have still not been exercised. The generic
+  device recipe now lives in the plugins' `fa-engineering-stack-dotnet-maui` (confirm it resolves); the
+  only Trimix-specific inputs are that bundle id and profile.
