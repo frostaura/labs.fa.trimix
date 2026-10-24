@@ -2,7 +2,7 @@
 name: fa-trimix-decisions-haptics
 description: "Feel is engineered: a six-cue semantic port (never MAUI Essentials), cues on intent coalesced inside 120 ms, the HapticCommand decorator that must not be simplified back, Taptic Prepare, chart and merge off the UI thread."
 type: decision
-last_verified: 2026-10-14
+last_verified: 2026-10-22
 ---
 
 # Haptics, motion and perceived performance
@@ -32,14 +32,18 @@ is a founder call or a trap paid for once already. The matching runtime traps ar
   `Tapped` double-ticks, because a navigating command easily outlasts the 120 ms coalesce window.
 - **Coverage is centralised, not per-site.** One `ButtonHandler` mapping covers every Button; one `Feedback.AttachTapFeedback`
   per page covers every `TapGestureRecognizer` in its subtree, including rows materialized later from a DataTemplate (via
-  `DescendantAdded`). A non-default cue is declared in XAML with `services:Feedback.Cue="Selection"` — used on the dive-detail
-  section switcher, which is a choice rather than a press. The attach call lives in `TrimixPage` / `TransparentModalPage`
+  `DescendantAdded`). The `Feedback.Cue` attached property (`services:Feedback.Cue="Selection"`) overrides the default
+  Tap cue for a target that is a choice rather than a press, but **no XAML sets it today** — its one user, the dive-detail
+  chip strip, was removed (`decisions-ui.md`); section swipes get `Selection` by a code default in `Feedback.cs` instead
+  (re-read 2026-10-22). The attach call lives in `TrimixPage` / `TransparentModalPage`
   rather than being repeated in eight page constructors, so a page added later cannot forget it.
 - **A capped sync reports Warning, not Success.** The run technically succeeded but ended by refusing to import dives and
   navigates straight to the paywall; Success would tell the diver the opposite of what happened. Pinned by test.
 - **iOS generators are `Prepare()`d.** `Prepare()` spins the Taptic Engine up; without it the first cue of a session lands
-  late. `Feedback.Warm()` runs on page appearance and every cue re-arms its generator. This was likely a bigger contributor to
-  "the haptic feels late" than ordering was.
+  late. `Feedback.Warm()` runs on page appearance **and on touch-down** (a passive `PointerPressed` hook that emits no
+  cue), and every cue re-arms its generator — page-appear alone left the cold path for anyone who reads before tapping
+  ([`gotchas-ui.md`](gotchas-ui.md); re-read off `Services/Feedback.cs` 2026-10-22). This was likely a bigger contributor
+  to "the haptic feels late" than ordering was.
 - **`DiveDetailViewModel.LoadAsync` and `LogbookViewModel.LoadAsync` compute off the UI thread.** The four `ChartGeometry`
   builders over a ~5,600-sample profile plus `DiveMergePolicy.Merge` were stalling the thread driving the page-push animation.
   The `Task.Run` regions must stay **pure** — they are safe only because they touch no shared mutable state, and property

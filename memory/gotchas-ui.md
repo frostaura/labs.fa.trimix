@@ -34,8 +34,8 @@ _Build/deploy traps: [`gotchas-build.md`](gotchas-build.md). Durability and capt
 - **The sync-sheet overlay is timing-sensitive; the known-good ordering is nav-FIRST then `RunAsync`.**
   `SyncSessionViewModel.SyncNowAsync` / `AutoSyncAfterLinkAsync` navigate to `//Logbook` and THEN set `IsSyncing=true`, so
   the `//tab` nav lands LogbookPage as foreground page before the flip and its `OnSyncPropertyChanged` reliably shows the
-  sheet for both the from-Providers and on-Logbook cases. **Flipping `IsSyncing` before the nav breaks the add-sheet case** —
-  a 2026-08-07 flash-fix did exactly that and was reverted. Do not reorder without device-testing both paths.
+  sheet for both the from-Providers and on-Logbook cases. **Flipping `IsSyncing` before the nav breaks the add-sheet case**
+  (the reverted flash-fix: [`decisions-sync.md`](decisions-sync.md)). Do not reorder without device-testing both paths.
 - **`MainThread.InvokeOnMainThreadAsync` always posts, even on the UI thread** — a dispatcher frame lost per navigation.
   `ShellNavigator` short-circuits on `MainThread.IsMainThread`.
 - **Firing a haptic before the command is NOT enough — you must also yield the runloop.** Emitting a cue only hands the

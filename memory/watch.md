@@ -1,32 +1,44 @@
 ---
 name: fa-trimix-watch
-description: "Unpaid debts: no adversarial re-review of the rebuilt tree before M3, dead backend DTOs and Sites leftovers still shipping in Trimix.Contracts, and a physical-iPhone deploy path, profile valid to 2027-07, never used."
+description: "Unpaid debts: no adversarial re-review before M3; dead server DTOs (incl. receipt validation) still in Trimix.Contracts; a Sites-era location permission still declared; a live cleartext config to trim, never delete; iPhone path unused."
 type: watch
-last_verified: 2026-10-14
+last_verified: 2026-10-22
 ---
 
 # Watch list
 
 - **No adversarial re-review of the rebuilt tree has ever been run**, and one is owed before any M3
-  field testing — specifically over the six reverse-engineered read connectors and the on-device
-  entitlement path. Three of the six have live-captured contracts; Mares, Oceanic+ and Shearwater are
-  researched guesses or deliberate placeholders and must be reviewed as such, not as implementations.
-- **Dead backend DTOs still ship in `Trimix.Contracts`.** Orphaned by a repo-wide reference grep on
-  2026-09-16 — nothing outside each file, or outside another dead file, refers to them: `ApiRoutes.cs`
-  (including `ApiRoutes.Sites`), `Dtos/PasskeyDtos.cs`, `Dtos/PrivacyDtos.cs`, `Dtos/ContributionDtos.cs`
-  (`SiteContribution*`), **`Dtos/AuthDtos.cs`** and **`Dtos/HealthDtos.cs`**, plus the now-moot Android
-  `network_security_config.xml` dev-loopback file. **Treat this as the set found so far, not a closed
-  inventory** — it has already been short twice. `AuthDtos.cs` is the one that matters: an email +
-  password account-auth shape (`RegisterRequest`, `LoginRequest`, `AuthResponse`, `UserDto`) sitting in a
-  product whose invariant is that there is no auth of any kind, so it reads as though accounts once worked
-  and could return. All are cleanup candidates; until they go the repo reads as though a backend exists.
-- **Sites leftovers are dormant, not live.** `Dive.SiteId` and `ImportResult.SiteMatched` survive as
-  always-null / always-false fields (dives serialize as JSON, so removing the capability needed no
-  storage migration), and the `site_*` funnel constants stay because the taxonomy is frozen. Do not
-  read any of them as a surviving Sites capability — there is none.
+  field testing — over the six reverse-engineered read connectors and the on-device entitlement path.
+  Three of the six have live-captured contracts; Mares, Oceanic+ and Shearwater are researched guesses
+  or deliberate placeholders and must be reviewed as such, not as implementations.
+- **Dead server DTOs still ship in `Trimix.Contracts`.** Zero references outside each defining file (or
+  another dead file), by a whole-word reference count over `src`/`tests` re-run 2026-10-22 — inference,
+  no test pins it: `ApiRoutes.cs`, `Dtos/PasskeyDtos.cs`, `Dtos/PrivacyDtos.cs`, `Dtos/ContributionDtos.cs`,
+  `Dtos/AuthDtos.cs`, `Dtos/HealthDtos.cs`, `Dtos/PurchaseDtos.cs`, `Dtos/EntitlementDtos.cs`, the
+  `AnalyticsBatch*` and `DiveSync*` records, and `TrimixHeaders.cs` (cited only by a doc-comment about
+  server-emitted events). **The inventory has come up short three times — treat it as found-so-far.**
+  Two read as live contradictions of invariants: `AuthDtos.cs` is an email + password account shape
+  under a no-auth-of-any-kind product, and `PurchaseDtos.cs` is **server receipt validation** under a
+  client-trust entitlement model. All are cleanup candidates; until they go the repo reads as though a
+  backend exists.
+- **`network_security_config.xml` is live, not orphaned — trim it, never delete it.** The Android
+  manifest references it, and its `base-config cleartextTrafficPermitted="false"` is the app's only
+  cleartext ban. Only the loopback `domain-config` (for the deleted docker-compose API) and its comment
+  are moot. Min Android is 23, and on API 23-27 the platform default permits cleartext, so deleting the
+  file as cleanup would weaken the posture (inference from platform defaults, untested). Owner of the
+  trim: unassigned.
+- **Sites leftovers are dormant, not live — but one is a store-review risk.** `DiveDto.SiteId` and
+  `ImportResult.SiteMatched` survive as always-null / always-false fields (dives serialize as JSON, so
+  removing the capability needed no migration), and the `site_*` funnel constants stay because the
+  taxonomy is frozen. Also left behind: Android still declares `ACCESS_FINE_LOCATION` (manifest comment
+  "dive-site match + search"), iOS `NSLocationWhenInUseUsageDescription` still says location is used "to
+  find and match nearby dive sites", and `ILocationService` is registered in DI with no consumer. A
+  permission and purpose string for a capability that does not exist is a privacy-disclosure and
+  store-review risk (inference). Whether to strip them before store work: unassigned. Do not read any
+  of these as a surviving Sites capability — there is none.
 - **The physical-iPhone deploy path is open and unused.** Since 2026-07-29 the app deploys wirelessly
   to the founder's iPhone 17 Air under the `iOS Team Provisioning Profile: net.frostaura.trimix`, which
-  expires 2027-07-29 (read off the installed profile 2026-10-14). On-device StoreKit and
-  real-vendor-endpoint testing are therefore available and have still not been exercised. The generic
-  device recipe now lives in the plugins' `fa-engineering-stack-dotnet-maui` (confirm it resolves); the
-  only Trimix-specific inputs are that bundle id and profile.
+  expires 2027-07-29 (read off the installed profile 2026-10-22). On-device
+  StoreKit and real-vendor-endpoint testing are available and have still not been exercised. The
+  generic device recipe lives in the plugins' `fa-engineering-stack-dotnet-maui` (confirm it resolves);
+  the only Trimix-specific inputs are that bundle id and profile.

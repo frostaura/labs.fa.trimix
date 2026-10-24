@@ -1,13 +1,13 @@
 ---
 name: fa-trimix-questions
-description: "All founder-owned: can iOS page the dive-detail sections with the chips gone; M3 needs a telemetry beacon a serverless app cannot provide; is the thinnest-TAM bet worth field-testing; name clearance unrun; CAC never measured."
+description: "Can iOS page dive-detail with the chips gone; M3 needs a telemetry beacon a serverless app cannot provide; is the bet worth field-testing; name clearance unrun; CAC unmeasured; is the app's warnings-as-errors exemption waived."
 type: question
-last_verified: 2026-10-14
+last_verified: 2026-10-22
 ---
 
 # Open questions
 
-Every one of these is **founder-owned** — none can be closed by writing more code.
+The first five are **founder-owned** and none can be closed by writing more code; the last has no named owner.
 
 - **Can iOS actually page the dive-detail sections now that the chip strip is removed?** Needs the
   founder on the physical iPhone; an agent cannot drive one. In-pane `SwipeGestureRecognizer`s are
@@ -25,3 +25,8 @@ Every one of these is **founder-owned** — none can be closed by writing more c
   going public with the repo. Store + `.com` + USPTO (Class 9/42); no candidate has been cleared.
 - **`[CAC_PER_PAYER = TBD]` is still a placeholder** — no CPI test has run, so the payer economics in
   the M4 gate rest on an unmeasured number.
+- **Is `Trimix.App`'s exemption from `TreatWarningsAsErrors` a recorded exception or unwaived debt?**
+  `Directory.Build.props` turns it off for the app project ("MAUI/XAML tooling emits warnings outside
+  our control"), so the app build can accumulate warnings that the Core suite and the other projects
+  would fail on. Nothing in the context layer records the exemption as accepted, and it sits against the
+  founder's standing zero-warnings preference. Owner: unassigned.
