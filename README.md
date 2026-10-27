@@ -1,35 +1,44 @@
 # Trimix (working name)
 
-The scuba dive log that fills itself: it pulls your dives from wherever they already live — Apple HealthKit, vendor clouds, BLE-direct from the computer, standards files (FIT/UDDF/DL7) — normalizes them, and enriches them from a shared, community-moderated dive-site database.
+A scuba dive log that fills itself — **serverless and on-device**. Your logbook and links never leave the phone.
 
-> FrostAura Labs program `fa.trimix` (Gaia bet APP-03, Stage 5 vertical slice). Working name pending trademark/store clearance — see `docs/prd.md`.
+Trimix links each dive platform's cloud directly from the device (per-user credential or OAuth), pulls your own dives in, normalizes them into one canonical dive, shows Oceanic+-grade stats, and pushes back out to certification logbooks (PADI, SSI).
+
+> FrostAura Labs program `fa.trimix` (Gaia bet APP-03). Working name pending trademark/store clearance — see `docs/prd.md`.
+
+## What it is
+
+- **API-sync-only import** — no BLE, no file import, no manual entry, no HealthKit.
+- **No backend, no accounts** — the phone is the account. Entitlements are on-device (StoreKit / Play Billing).
+- **Read connectors** — Garmin and ScubaPro verified live; Suunto summary-only; Mares, Oceanic+ and Shearwater are fixture-only and gated as "Coming soon". Availability is `ProviderCatalog.LiveConnectorIds`.
+- **Logbook, not deco** — imported NDL/ceiling/CNS are displayed, never computed.
+- **Pricing** — free tier keeps the most recent dives; a single purchase moment offers $14.99 Pro or $29.99 Lifetime (one-off, no auto-renew).
+
+Connectors are reverse-engineered private-cloud clients, labelled as user-assisted personal export (never "official"), opt-in behind a ToS-risk disclosure. Contracts live in `docs/reverse-engineering/`.
 
 ## Layout
-- `fa.trimix.slnx` — solution root.
-- `src/app/` — .NET MAUI client. `net10.0-android` is the default target; `net10.0-ios` is opt-in via `-p:EnableIos=true`.
-- `src/backend/` — .NET 10 + EF Core + PostgreSQL 17 API: accounts, server-authoritative entitlements + receipt validation, shared site DB + moderation, dive sync, analytics ingest. No PostGIS — geo is a bounding-box prefilter plus in-memory haversine (`Sites/GeoMath.cs`), so integration tests run hermetically.
-- `src/shared/` — contracts shared by app and backend (DTOs, frozen funnel event names, SKU ids).
-- `tests/` — `Trimix.Core.Tests` and `Trimix.Api.Tests`.
-- `docs/` — spec stack (`prd.md`), architecture, design language (`design/`).
 
-## Build (Android)
+| Path | Purpose |
+|---|---|
+| `src/app/Trimix.App` | .NET MAUI client (Android default; iOS via `-p:EnableIos=true`) |
+| `src/app/Trimix.Core` | Domain, connectors, sync/merge, entitlements, analytics sink |
+| `src/shared/Trimix.Contracts` | Shared contracts, frozen funnel event names, SKU ids |
+| `src/tools/Trimix.Harness` | Dev-only console harness (not in the solution) |
+| `tests/Trimix.Core.Tests` | Test suite |
+| `docs/` | PRD, architecture, design, reverse-engineering contracts, known gaps |
+
+## Build & test
+
 ```bash
-export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"   # dotnet with maui workloads
-export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"   # 17, not 21 — 21 does not work here
+export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"
+export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"   # JDK 17
 export ANDROID_HOME="$HOME/Library/Android/sdk"
-dotnet build src/app/Trimix.App/Trimix.App.csproj -f net10.0-android
+
+dotnet test tests/Trimix.Core.Tests/Trimix.Core.Tests.csproj
+dotnet build src/app/Trimix.App/Trimix.App.csproj -f net10.0-android -p:EmbedAssembliesIntoApk=true
 ```
 
-Backend + Postgres:
-```bash
-docker compose up -d postgres   # the service is named postgres, not db
-dotnet run --project src/backend/Trimix.Api
-```
-
-Tests:
-```bash
-dotnet test
-```
+`EmbedAssembliesIntoApk=true` is required when deploying to a device or emulator.
 
 ## License
 MIT — see `LICENSE`.
