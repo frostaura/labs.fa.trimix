@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Level with origin after a 2026-11-20 push. Core suite re-run green 2026-11-20."
+description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Pushed 2026-11-20, ahead-only by context since. Core suite re-run green 2026-11-20."
 type: state
 last_verified: 2026-11-20
 ---
@@ -15,9 +15,9 @@ context only. **No milestone has moved**; M3 waits on the telemetry question in 
 
 ## Durability — probed by hand 2026-11-20 (network probes run)
 
-- **Level with `origin/main`.** Re-probed late 2026-11-20 after `git fetch`: `git rev-list --left-right
-  --count @{u}...HEAD` shows nothing on either side — the context commits up to the 2026-11-20 sweep
-  (`9a7bdd8`) were pushed that day, not by an agent. Clean including untracked, no lock debris.
+- **Ahead-only, context commits only.** Re-probed late 2026-11-20 after `git fetch`: the context
+  commits up to the 2026-11-20 sweep (`9a7bdd8`) were pushed that day, not by an agent; later context
+  commits sit on top, nothing behind (`git rev-list --left-right --count @{u}...HEAD`). Clean including untracked, no lock debris.
   Re-probe before acting.
 - **The remote holds one branch, `main`, plus the ref of a closed PR.** PR #1 (README only) was opened
   and closed unmerged on 2026-10-27 and its head branch is gone from the remote; `main` never received it
