@@ -2,7 +2,7 @@
 
 The scuba dive log that fills itself: it pulls your dives from wherever they already live — Apple HealthKit, vendor clouds, BLE-direct from the computer, standards files (FIT/UDDF/DL7) — normalizes them, and enriches them from a shared, community-moderated dive-site database.
 
-> FrostAura Labs program `fa.trimix` (Gaia bet APP-03, Stage 5 vertical slice). Working name pending trademark/store clearance — see `docs/prd.md`.
+> FrostAura Labs program `labs.fa.trimix` (repo [`frostaura/labs.fa.trimix`](https://github.com/frostaura/labs.fa.trimix), formerly `fa.trimix`; Gaia bet APP-03, Stage 5 vertical slice). Working name pending trademark/store clearance — see `docs/prd.md`.
 
 ## Layout
 - `fa.trimix.slnx` — solution root.

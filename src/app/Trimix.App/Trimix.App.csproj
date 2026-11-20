@@ -100,8 +100,8 @@
 		<ValidateXcodeVersion Condition="'$(ValidateXcodeVersion)' == ''">false</ValidateXcodeVersion>
 	</PropertyGroup>
 
-	<!-- iCloud-Drive codesign workaround: this repo lives under ~/Library/Mobile Documents (iCloud
-	     Drive), so source files carry Finder/iCloud extended attributes that get copied into the
+	<!-- iCloud-Drive codesign workaround: the dev clone is ~/src/labs.fa.trimix, but a checkout
+	     under ~/Library/Mobile Documents (iCloud Drive), where this repo used to live, makes source files carry Finder/iCloud extended attributes that get copied into the
 	     assembled .app and make `codesign` fail with "resource fork, Finder information, or similar
 	     detritus not allowed". Strip xattrs from the output bundle immediately before codesign.
 	     macOS-only, iOS builds. -->

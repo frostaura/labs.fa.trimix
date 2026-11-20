@@ -1,6 +1,6 @@
 # Trimix — Production Readiness Ledger
 
-**Status:** Re-grounded 2026-07-27 for the serverless / API-sync-only rebuild (PRD Amendments set 3) · **Owner:** Production architect (fa.trimix)
+**Status:** Re-grounded 2026-07-27 for the serverless / API-sync-only rebuild (PRD Amendments set 3) · **Owner:** Production architect (labs.fa.trimix)
 
 Companion to [`docs/architecture/overview.md`](architecture/overview.md) and [`docs/known-gaps.md`](known-gaps.md). This file answers one question per surface: **what is REAL code that runs today**, versus **what is RUNTIME-GATED** on a precondition external to this repo. The earlier version of this ledger covered a client–server app (server receipt validation, passkey relying party, BLE deploy inputs, API host provisioning); all of that is deleted — **there is nothing to provision server-side, ever**. That removes whole categories of deploy input, and it removes the server-side safety nets with them: what remains gated is gated on *stores, hardware, and vendors*, not on ops.
 

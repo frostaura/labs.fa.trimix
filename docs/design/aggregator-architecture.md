@@ -1,6 +1,6 @@
 # Trimix — Connector (Aggregator) Architecture
 
-**Status:** Authoritative connector-layer contract, rewritten 2026-07-27 for the serverless / API-sync-only pivot (PRD Amendments set 3) · **Owner:** Solutions architect (fa.trimix)
+**Status:** Authoritative connector-layer contract, rewritten 2026-07-27 for the serverless / API-sync-only pivot (PRD Amendments set 3) · **Owner:** Solutions architect (labs.fa.trimix)
 
 Binding spec source: `docs/prd.md` Amendments set 3, which supersedes set 2 where they conflict. Earlier versions of this file described a multi-source hub (BLE + HealthKit + file import + cloud) over a client–server backend with cross-device sync and a moderated site DB; **all of that except the cloud-connector corridor is deleted**. On visual/design-language concerns, `mockup-spec.md` wins.
 

@@ -72,7 +72,7 @@ The free tier imports dives and reads the shared site DB, but caps **multi-vendo
 **Top 3 riskiest assumptions:**
 1. **TAM volume (the kill risk).** Certified-diver intent is validated (r/scuba ~111K) but *volume* is not. The addressable, paying, computer-owning diver population may be too thin to return the heaviest build cost in the slate. **Dominant assumption; the reason for the FREE community-demand gate before any paid spend.**
 2. **Multi-vendor BLE import actually works reliably** across Shearwater + Suunto + Garmin + Mares proprietary protocols on real devices in real (post-dive, salt-water, low-signal) conditions — and that each can be legally/technically integrated. If even 2 of 4 vendors are unreliable, the core differentiator collapses.
-3. **The shared site DB is licensable/seedable and stays moderated-clean.** A credible initial site dataset can be acquired legally, moderation is sustainable, and FrostAura Underwater/OceanCare adjacency delivers the near-zero-CAC organic seeding it promises.
+3. **The shared site DB is licensable/seedable and stays moderated-clean.** A credible initial site dataset can be acquired legally, moderation is sustainable, and FrostAura Underwater/OceanCare adjacency *(history: OceanCare was killed 2026-11-20 — this seeding channel no longer exists)* delivers the near-zero-CAC organic seeding it promises.
 
 ---
 
@@ -97,7 +97,7 @@ The free tier imports dives and reads the shared site DB, but caps **multi-vendo
 - Photo/video attachment + galleries.
 - Offline site-DB pack (Pro perk: download region for offline use).
 - Buddy/social graph, dive-trip grouping, export (PDF/UDDF/CSV) for certification records.
-- Marine-life logging tied to OceanCare species taxonomy (Underwater adjacency).
+- ~~Marine-life logging tied to OceanCare species taxonomy (Underwater adjacency).~~ *History: OceanCare was killed 2026-11-20; there is no species taxonomy to tie to.*
 - Watch companions. Localization. Tablet layout.
 
 ### Primary user flows
@@ -234,9 +234,9 @@ Two tiers above free: **pro** and **lifetime** (lifetime ⊇ pro). Server-author
 ---
 
 ## Carried-forward risks & open questions
-- **[DOMINANT — TAM volume]** Heaviest build in the slate against the thinnest TAM; the FREE gate exists to kill this cheaply. Open: true count of computer-owning, actively-logging divers reachable via Underwater/OceanCare organic channels?
+- **[DOMINANT — TAM volume]** Heaviest build in the slate against the thinnest TAM; the FREE gate exists to kill this cheaply. Open: true count of computer-owning, actively-logging divers reachable via organic channels? *(The Underwater/OceanCare channel named here originally is gone — OceanCare was killed 2026-11-20.)*
 - **[BLE multi-vendor]** Slice proves ONE vendor (Shearwater); the other three are unvalidated and the differentiator depends on ≥2 working. Kill line tied to this.
-- **[Site-DB licensing + moderation]** Seed dataset must be legally licensed (blocking). Moderation ops cost unsized. Open: does OceanCare adjacency actually deliver near-zero-CAC seeding and volunteer moderators?
+- **[Site-DB licensing + moderation]** Seed dataset must be legally licensed (blocking). Moderation ops cost unsized. Open *(history — OceanCare was killed 2026-11-20, so this question is moot)*: does OceanCare adjacency actually deliver near-zero-CAC seeding and volunteer moderators?
 - **[Name/IP]** Trimix selected but flagged high-collision-risk; store + `.com` + USPTO re-check is a blocking gate before any listing/domain/trademark.
 - **[CAC placeholder]** `[CAC_PER_PAYER = TBD]` until the S5 ad-creative CPI test — itself gated behind the free community-demand pass.
 - **[Pricing WTP]** $14.99/$29.99 anchored to MacDive/Currents — competitor-anchored, not validated for this bundle. Confirm in S5 painted-price test.
