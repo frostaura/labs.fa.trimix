@@ -1,6 +1,6 @@
 ---
-name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Pushed 2026-11-20, level with origin. Core suite re-run green 2026-11-20."
+name: labs-fa-trimix-state
+description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Renamed labs.fa.trimix 2026-11-20, level with origin. Core suite re-run green 2026-11-20."
 type: state
 last_verified: 2026-11-20
 ---
@@ -13,6 +13,12 @@ The last commit touching `src/` or `tests/` is `555ca07`, the 2026-08-21 durabil
 the 2026-08-07 feature body (dated by `decisions-sync.md`, not provable from git). Every commit since is
 context only. **No milestone has moved**; M3 waits on the telemetry question in `questions.md`.
 
+## Name — renamed 2026-11-20 (founder)
+
+`fa.trimix` → **`labs.fa.trimix`**: this directory, and the repo `github.com/frostaura/labs.fa.trimix`
+(`origin` already points at it; the old `frostaura/fa.trimix` URL redirects, `gh api` 2026-11-20).
+Product files still carry the old name — the owed list is in [`watch.md`](watch.md).
+
 ## Durability — probed by hand 2026-11-20 (network probes run)
 
 - **Level with `origin/main`.** Re-probed the evening of 2026-11-20 after `git fetch` and
@@ -23,9 +29,9 @@ context only. **No milestone has moved**; M3 waits on the telemetry question in 
   and closed unmerged on 2026-10-27 and its head branch is gone from the remote; `main` never received it
   ([`watch-docs.md`](watch-docs.md)). `gh run list` shows no workflow runs — there is no CI.
 - **Nothing in this program lives on one disk.** The harness and all three reverse-engineering contracts
-  are tracked and pushed (`git ls-files` confirms, 2026-11-20). Remote is the private `frostaura/fa.trimix`
+  are tracked and pushed (`git ls-files` confirms, 2026-11-20). Remote is the private `frostaura/labs.fa.trimix`
   over HTTPS (`gh repo view`: `PRIVATE`, 2026-11-20). One clone only, on this iCloud path; there is no
-  `~/src/fa.trimix` dev clone (checked 2026-11-20).
+  `~/src/labs.fa.trimix` dev clone (checked 2026-11-20).
 
 ## Build & test
 

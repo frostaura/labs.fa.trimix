@@ -1,5 +1,5 @@
 ---
-name: fa-trimix-decisions-sync
+name: labs-fa-trimix-decisions-sync
 description: "Merge pad is 0.30 x the SHORTER duration, clamped 120-600 s, though the class XML doc claims a geometric mean; priority picks the winner, fidelity tie-breaks; every link auto-syncs; unlink hard-deletes."
 type: decision
 last_verified: 2026-11-20

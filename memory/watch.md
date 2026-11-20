@@ -1,6 +1,6 @@
 ---
-name: fa-trimix-watch
-description: "Unpaid debts: no adversarial re-review before M3; dead server contracts still in Trimix.Contracts; dormant push copy cites a file export that does not exist; a Sites-era location permission; a cleartext config to trim, never delete."
+name: labs-fa-trimix-watch
+description: "Unpaid debts: no adversarial re-review before M3; the 2026-11-20 rename not yet in product files; dead server contracts in Trimix.Contracts; push copy cites a missing file export; a Sites-era location permission."
 type: watch
 last_verified: 2026-11-20
 ---
@@ -45,6 +45,12 @@ last_verified: 2026-11-20
   permission and purpose string for a capability that does not exist is a privacy-disclosure and
   store-review risk (inference). Whether to strip them before store work: unassigned. Do not read any
   of these as a surviving Sites capability — there is none.
+- **The 2026-11-20 rename is not in the product yet** (grep of tracked files, 2026-11-20): the
+  solution is still `fa.trimix.slnx`, named so in `README.md` and the `docs/architecture/overview.md`
+  layout; `README.md` and `docs/production-readiness.md` still call the program `fa.trimix`. A product
+  change, not a context one. **`Trimix.Harness`'s `UserSecretsId` `fa.trimix.harness` keeps its
+  spelling** — it keys the user-secrets store, so renaming it orphans any secrets kept under it. Bundle
+  id `net.frostaura.trimix` and the `trimix.*` SKUs are product strings and unaffected.
 - **The physical-iPhone deploy path is open and unused.** Since 2026-07-29 the app deploys wirelessly
   to the founder's iPhone 17 Air under the `iOS Team Provisioning Profile: net.frostaura.trimix`, which
   expires 2027-07-29 (re-read off the installed profile 2026-11-20). On-device

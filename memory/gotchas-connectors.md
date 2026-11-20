@@ -1,5 +1,5 @@
 ---
-name: fa-trimix-gotchas-connectors
+name: labs-fa-trimix-gotchas-connectors
 description: "Only Garmin and ScubaPro are verified end-to-end; Suunto degrades to summary-only, the rest are fixture-only guesses. A dive's activityId is learnable only from a real dive. Push/Dl7 is PADI's payload codec, not an export feature."
 type: gotcha
 last_verified: 2026-11-20

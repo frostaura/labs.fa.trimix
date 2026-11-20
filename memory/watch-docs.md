@@ -1,5 +1,5 @@
 ---
-name: fa-trimix-watch-docs
+name: labs-fa-trimix-watch-docs
 description: "At least six in-repo documents still describe the pre-pivot product; two claim authority over code and are cited from build files. A README-fix PR was opened and closed unmerged 2026-10-27. Owner call, not an agent fix."
 type: watch
 last_verified: 2026-11-20

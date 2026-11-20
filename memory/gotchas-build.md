@@ -1,5 +1,5 @@
 ---
-name: fa-trimix-gotchas-build
+name: labs-fa-trimix-gotchas-build
 description: "Verification traps paid for once: EmbedAssembliesIntoApk or Android runs stale code, chained installs hide a failed build, screencaps go stale, the emulator is shared, and no iOS glyph fix exists here, never checked on device."
 type: gotcha
 last_verified: 2026-11-20

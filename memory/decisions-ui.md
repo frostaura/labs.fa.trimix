@@ -1,5 +1,5 @@
 ---
-name: fa-trimix-decisions-ui
+name: labs-fa-trimix-decisions-ui
 description: "Text inputs and the entry-point map are per-platform BY DESIGN — do not unify. CarouselView rejected for dive-detail; the chip strip is gone so swipe is the only pager, an open iOS risk; chart markers removed; skeleton until loaded."
 type: decision
 last_verified: 2026-11-20

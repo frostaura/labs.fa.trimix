@@ -1,5 +1,5 @@
 ---
-name: fa-trimix-questions
+name: labs-fa-trimix-questions
 description: "Can iOS page dive-detail with chips gone; M3 needs a beacon a serverless app lacks and seeds via a killed OceanCare; is the bet worth field-testing; name clearance unrun; CAC unmeasured; warnings-as-errors exemption."
 type: question
 last_verified: 2026-11-20
