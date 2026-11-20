@@ -5,7 +5,7 @@ The scuba dive log that fills itself: it pulls your dives from wherever they alr
 > FrostAura Labs program `labs.fa.trimix` (repo [`frostaura/labs.fa.trimix`](https://github.com/frostaura/labs.fa.trimix), formerly `fa.trimix`; Gaia bet APP-03, Stage 5 vertical slice). Working name pending trademark/store clearance — see `docs/prd.md`.
 
 ## Layout
-- `fa.trimix.slnx` — solution root.
+- `labs.fa.trimix.slnx` — solution root.
 - `src/app/` — .NET MAUI client. `net10.0-android` is the default target; `net10.0-ios` is opt-in via `-p:EnableIos=true`.
 - `src/backend/` — .NET 10 + EF Core + PostgreSQL 17 API: accounts, server-authoritative entitlements + receipt validation, shared site DB + moderation, dive sync, analytics ingest. No PostGIS — geo is a bounding-box prefilter plus in-memory haversine (`Sites/GeoMath.cs`), so integration tests run hermetically.
 - `src/shared/` — contracts shared by app and backend (DTOs, frozen funnel event names, SKU ids).

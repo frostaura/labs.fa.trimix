@@ -5,7 +5,7 @@ Binding contract for all implementation work. When this doc and code disagree, s
 ## Solution layout
 
 ```
-fa.trimix.slnx
+labs.fa.trimix.slnx
 Directory.Build.props            # net10.0 defaults, nullable enable, implicit usings;
                                  #   TreatWarningsAsErrors=true except Trimix.App
 src/
