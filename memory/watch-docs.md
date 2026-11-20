@@ -1,14 +1,14 @@
 ---
 name: fa-trimix-watch-docs
-description: "At least six in-repo documents still describe the pre-pivot product; two open by claiming authority over code and are cited from the build files, so a newcomer is told the opposite of what ships. Owner call, not an agent fix."
+description: "At least six in-repo documents still describe the pre-pivot product; two claim authority over code and are cited from build files. A README-fix PR was opened and closed unmerged 2026-10-27. Owner call, not an agent fix."
 type: watch
-last_verified: 2026-10-22
+last_verified: 2026-11-20
 ---
 
 # Watch — the documents that still describe the deleted product
 
-Verified by inspection 2026-09-16, re-checked 2026-10-22: the first four below are still stale, and two
-more turned up. **None of these is an agent's to rewrite** — they are the owner's, and the correction is
+Verified by inspection 2026-09-16, re-checked 2026-10-22 and 2026-11-20: all six below are still stale,
+and every test count they pin no longer matches the suite. **None of these is an agent's to rewrite** — they are the owner's, and the correction is
 recorded here so it survives rather than being applied. Code is authoritative over every one of them.
 `docs/prd.md` is amendment-layered and has never been assessed whole, so the list may still be short.
 
@@ -37,9 +37,16 @@ recorded here so it survives rather than being applied. Code is authoritative ov
   yet says the Providers screen "lists all seven", connectors are "never exercised against real vendor
   production servers", Garmin and Suunto payloads are FIT, and ScubaPro, Mares and SSI ride the MySSI
   corridor — wrong on Garmin, Suunto and ScubaPro by live capture (`decisions-connectors.md`).
-- **`docs/design/mockup-spec.md`** is the one already handled: `CLAUDE.md` flags it superseded and
-  declares code authoritative, the pattern the others are missing. Its palette table still lists a
-  different mint from the shipped `Colors.xaml`.
+- **`docs/design/mockup-spec.md`** is the one half-handled: `CLAUDE.md` declares code authoritative over
+  it, the pattern the others are missing. The file itself still titles itself "authoritative", its
+  2026-07-27 banner still names a 3-tab **Log · Sites · You** bar, and its §1 token table is the
+  first-pass palette its own provenance note supersedes — every listed hex differs from the shipped
+  `Colors.xaml`, not only the mint (re-read 2026-11-20).
+
+**A README fix was attempted once and abandoned.** PR #1 on the remote ("Update README to match current
+serverless architecture", README only) was opened and closed unmerged within minutes on 2026-10-27; its
+branch is gone and `main`'s README is unchanged since 2026-07-24 (`gh pr view`, `git log`, 2026-11-20).
+Nothing records why it was closed — ask the owner before re-proposing the same rewrite.
 
 **Open, owner unassigned:** which of these is still meant to bind. Until that is answered nothing here
 can be closed, and no agent should treat the overview's or the aggregator doc's authority claim as live.

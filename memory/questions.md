@@ -2,7 +2,7 @@
 name: fa-trimix-questions
 description: "Can iOS page dive-detail with the chips gone; M3 needs a telemetry beacon a serverless app cannot provide; is the bet worth field-testing; name clearance unrun; CAC unmeasured; is the app's warnings-as-errors exemption waived."
 type: question
-last_verified: 2026-10-22
+last_verified: 2026-11-20
 ---
 
 # Open questions

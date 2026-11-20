@@ -2,18 +2,18 @@
 name: fa-trimix-decisions-sync
 description: "Merge pad is 0.30 x the SHORTER duration, clamped 120-600 s, though the class XML doc claims a geometric mean; priority picks the winner, fidelity tie-breaks; every link auto-syncs; unlink hard-deletes."
 type: decision
-last_verified: 2026-10-14
+last_verified: 2026-11-20
 ---
 
 # Multi-provider sync & merge decisions
 
 _Split out of [`decisions.md`](decisions.md), which stays product, economics and cross-cutting policy. All of
-this landed 2026-08-07 and is committed and pushed._
+this landed 2026-08-07; its durability is recorded once, in [`state.md`](state.md)._
 
 - **Overlapping dives group by TIME-INTERVAL OVERLAP**, not the old start+duration+depth tolerances.
   `DiveMergePolicy.IsSamePhysicalDive` clusters two dives iff their padded windows overlap. **The shipped
   padding is `0.30 × Math.Min(durA, durB)` — the SHORTER dive — clamped to [120 s, 600 s]**, read off
-  `Stats/DiveMergePolicy.cs` (re-read 2026-10-14; never the geometric mean). Founder rationale: two computers on one dive start and stop minutes apart, so the margin
+  `Stats/DiveMergePolicy.cs` (re-read 2026-11-20; never the geometric mean). Founder rationale: two computers on one dive start and stop minutes apart, so the margin
   scales with length and should reach ~10 min on a normal 30–60 min dive — which `Math.Min` misses at the
   low end (a 30 + 60 min pair pads 540 s, short of the 600 s ceiling). **Do not "correct" the code by
   inference:** its class-level XML doc claims the geometric mean while its method doc says the shorter dive,
@@ -22,7 +22,8 @@ this landed 2026-08-07 and is committed and pushed._
   dives. Depth still feeds `FidelityScore` but never gates the match; constants are named and tunable.
 - **The user sets provider PRIORITY, and priority decides which computer wins a merge.** `IProviderPriority` /
   `ProviderPriorityService` persist an order (CSV of connectorIds under `PreferenceKeys.ProviderPriority`;
-  connectorId == `DiveDto.SourceVendor`). Its composite delegate — `RankOf(vendor)*1000 + FidelityScore` — is
+  connectorId == `DiveDto.SourceVendor`). Its composite delegate — `FidelityDelegate()`, rank × `PriorityWeight`
+  (1000) + `FidelityScore`, with the order snapshotted once per merge pass so one pass ranks consistently — is
   threaded into all four `DiveMergePolicy.Merge` call sites, so **priority dominates the primary pick and
   fidelity is only the intra-provider tie-break**: "priority leads, fill gaps" — the priority provider's stats
   lead and any field it lacks fills from the next provider down. `DiveMergePolicy` stays static and pure; the

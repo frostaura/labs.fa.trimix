@@ -2,7 +2,7 @@
 name: fa-trimix-gotchas
 description: "Never `git clean` here: the three vendor contracts came from credentialed captures that were then deleted, so they are irreplaceable — and a live capture holds the founder's plaintext vendor password until it is swept."
 type: gotcha
-last_verified: 2026-10-14
+last_verified: 2026-11-20
 ---
 
 # Gotchas — durability and capture hygiene

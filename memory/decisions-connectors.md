@@ -2,7 +2,7 @@
 name: fa-trimix-decisions-connectors
 description: "Every shared-corridor assumption here was wrong when finally captured: ScubaPro is LogTRAK/Firebase not MySSI (so Mares is suspect), Suunto is Sports Tracker not cloudapi, Garmin needs no FIT, MFA divers unsupported by design."
 type: decision
-last_verified: 2026-10-14
+last_verified: 2026-11-20
 ---
 
 # Connector / reverse-engineering decisions

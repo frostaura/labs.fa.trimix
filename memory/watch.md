@@ -1,8 +1,8 @@
 ---
 name: fa-trimix-watch
-description: "Unpaid debts: no adversarial re-review before M3; dead server DTOs (incl. receipt validation) still in Trimix.Contracts; a Sites-era location permission still declared; a live cleartext config to trim, never delete; iPhone path unused."
+description: "Unpaid debts: no adversarial re-review before M3; dead server contracts still in Trimix.Contracts; dormant push copy cites a file export that does not exist; a Sites-era location permission; a cleartext config to trim, never delete."
 type: watch
-last_verified: 2026-10-22
+last_verified: 2026-11-20
 ---
 
 # Watch list
@@ -12,15 +12,24 @@ last_verified: 2026-10-22
   Three of the six have live-captured contracts; Mares, Oceanic+ and Shearwater are researched guesses
   or deliberate placeholders and must be reviewed as such, not as implementations.
 - **Dead server DTOs still ship in `Trimix.Contracts`.** Zero references outside each defining file (or
-  another dead file), by a whole-word reference count over `src`/`tests` re-run 2026-10-22 — inference,
+  another dead file), by a whole-word reference count over `src`/`tests` re-run 2026-11-20 — inference,
   no test pins it: `ApiRoutes.cs`, `Dtos/PasskeyDtos.cs`, `Dtos/PrivacyDtos.cs`, `Dtos/ContributionDtos.cs`,
   `Dtos/AuthDtos.cs`, `Dtos/HealthDtos.cs`, `Dtos/PurchaseDtos.cs`, `Dtos/EntitlementDtos.cs`, the
-  `AnalyticsBatch*` and `DiveSync*` records, and `TrimixHeaders.cs` (cited only by a doc-comment about
-  server-emitted events). **The inventory has come up short three times — treat it as found-so-far.**
+  `AnalyticsBatch*` and `DiveSync*` records, `TrimixHeaders.cs` (cited only by a doc-comment about
+  server-emitted events), and — found 2026-11-20 — `UserRoles` (`User` / `Moderator`) in
+  `WellKnownValues.cs`. **The inventory has now come up short four times — treat it as found-so-far.**
   Two read as live contradictions of invariants: `AuthDtos.cs` is an email + password account shape
   under a no-auth-of-any-kind product, and `PurchaseDtos.cs` is **server receipt validation** under a
   client-trust entitlement model. All are cleanup candidates; until they go the repo reads as though a
-  backend exists.
+  backend exists. **One look-alike is not removable:** `ContributionStatus` in `WellKnownValues.cs` has no
+  live consumer, but the frozen `site_contribution_*` status constants in `FunnelEvents.cs` alias it, so
+  deleting it breaks the frozen taxonomy — inline the literals first if it is ever cleaned up.
+- **Dormant push copy sends divers to a file export that does not exist.** The PADI push connector's
+  pre-consent disclosure ends "prefer the clean UDDF/DL7 file export you upload yourself", and its
+  no-endpoint errors (and SSI's, and `GatedPushConnectorBase`'s) say to use a UDDF/DL7/PDF file or "file
+  export" instead — but user-facing file export is a founder-removed non-goal. Dormant only because PADI
+  and SSI are outside `ProviderCatalog.LiveConnectorIds` (read 2026-11-20); promoting either would show a
+  disclosure that is untrue under guardrail (iii). Fix the copy before promotion. Owner: unassigned.
 - **`network_security_config.xml` is live, not orphaned — trim it, never delete it.** The Android
   manifest references it, and its `base-config cleartextTrafficPermitted="false"` is the app's only
   cleartext ban. Only the loopback `domain-config` (for the deleted docker-compose API) and its comment
@@ -38,7 +47,8 @@ last_verified: 2026-10-22
   of these as a surviving Sites capability — there is none.
 - **The physical-iPhone deploy path is open and unused.** Since 2026-07-29 the app deploys wirelessly
   to the founder's iPhone 17 Air under the `iOS Team Provisioning Profile: net.frostaura.trimix`, which
-  expires 2027-07-29 (read off the installed profile 2026-10-22). On-device
+  expires 2027-07-29 (re-read off the installed profile 2026-11-20). On-device
   StoreKit and real-vendor-endpoint testing are available and have still not been exercised. The
-  generic device recipe lives in the plugins' `fa-engineering-stack-dotnet-maui` (confirm it resolves);
+  generic device recipe lives in the plugins' `fa-engineering-stack-dotnet-maui` (it resolved in the
+  installed skill list 2026-11-20; confirm again before relying on it);
   the only Trimix-specific inputs are that bundle id and profile.

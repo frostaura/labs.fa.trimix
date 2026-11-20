@@ -2,7 +2,7 @@
 name: fa-trimix-decisions
 description: "Serverless and on-device is a product invariant, not a phase: no backend, no auth, API sync the only dive-entry path, entitlements client-trusted and piratable by choice, and reverse-engineered connectors the primary surface by override."
 type: decision
-last_verified: 2026-10-14
+last_verified: 2026-11-20
 ---
 
 # Live decisions — product, economics and legal posture
@@ -33,7 +33,9 @@ Haptics, motion and perceived performance: [`decisions-haptics.md`](decisions-ha
   in `ProviderCatalog.LiveConnectorIds` are connectable; every other registered connector renders **dimmed
   with a subtle "COMING SOON" pill**, `ConnectAsync` no-ops, and `LoadAsync` force-keeps it out of the
   Connected group even if consent or a token exists. **To promote a provider, add its id to that one set** —
-  and update onboarding S1's static SYNCS WITH / COMING SOON wrap rows in the same pass, since they mirror it.
+  and update onboarding S1's static SYNCS WITH / COMING SOON wrap rows in the same pass, since they mirror it
+  (the set's own doc-comment says "nothing else in the UI needs to change" — wrong on exactly this point,
+  re-read 2026-11-20; trust this rule over the comment).
   Rationale: keep the Providers list and onboarding honest about what actually syncs.
 - **No auth of any kind (2026-07-29, founder).** Phone-is-the-account, minimum cognitive load: no biometric
   unlock, no accounts, no sign-in. This voided the 2026-07-27 biometric-only decision, which had itself voided

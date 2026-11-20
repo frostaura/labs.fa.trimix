@@ -2,7 +2,7 @@
 name: fa-trimix-gotchas-build
 description: "Verification traps paid for once: EmbedAssembliesIntoApk or Android runs stale code, chained installs hide a failed build, screencaps go stale, the emulator is shared, and no iOS glyph fix exists here, never checked on device."
 type: gotcha
-last_verified: 2026-10-14
+last_verified: 2026-11-20
 ---
 
 # Gotchas — build and on-device deploy
@@ -12,7 +12,7 @@ connector verification in [`gotchas-connectors.md`](gotchas-connectors.md). This
 the division's `maui-device-build` skill in [`../../../.claude/skills/`](../../../.claude/skills/README.md); the generic
 MAUI build-and-deploy procedure (including the iOS device recipe and the locked-iPhone launch failure) is the plugins'
 `fa-engineering-stack-dotnet-maui` — confirm it resolves before relying on it. Everything below is what neither covers.
-Re-checked 2026-10-14 against source where a claim is about the code; the device traps are experience, not re-run._
+Re-checked 2026-11-20 against source where a claim is about the code; the device traps are experience, not re-run._
 
 - **`-p:EmbedAssembliesIntoApk=true` is mandatory for Android device testing.** .NET Android Debug builds keep assemblies
   OUTSIDE the APK, so `adb install` of a rebuilt APK leaves the previous managed code in place and the app silently runs
@@ -35,7 +35,7 @@ Re-checked 2026-10-14 against source where a claim is about the code; the device
   trusting a screenshot or a scripted tap — an unchecked tap sequence lands in the other app and "disproves" a fix.
 - **This program's status on the shared iOS colour-emoji glyph trap
   ([`../../memory/gotchas-maui.md`](../../memory/gotchas-maui.md)): neither mitigation is present, and no iOS glyph screen has
-  ever been checked for it.** Re-verified 2026-10-14 — the only `LabelHandler` mapper in this tree is `MauiProgram.cs`'s
+  ever been checked for it.** Re-verified 2026-11-20 — the only `LabelHandler` mapper in this tree is `MauiProgram.cs`'s
   Android-only tabular-numerals mapping, and no XAML carries a `&#xFE0E;` suffix. So every arrow, ⚙ and ⚠ is an untested
   colour-emoji risk on device, and an Android screenshot is no evidence at all for a glyph screen. Look at an iOS build.
 - **Garmin rate-limits sign-in** — four logins within a few minutes returned HTTP 429. Use the harness's
