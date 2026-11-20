@@ -29,8 +29,9 @@ Re-checked 2026-11-20 against source where a claim is about the code; the device
   that something is animating — or hung.
 - **`adb shell input swipe` cannot validate a drag gesture** — it reads as a scroll fling. Drag feel is device + real-finger
   only, and MAUI's opaque canvas defeats screenshot verification of anything transient.
-- **The Android emulator is shared with the division's other Android MAUI apps** (`fa.guild`; TaleWeaver was retired
-  2026-10-14 and may still be installed — StoryTime is iOS-only), and another app can hold the foreground. Re-launch by
+- **The Android emulator is shared, and may still carry the killed Labs MAUI apps** (Guild, killed 2026-11-20, and
+  TaleWeaver, retired 2026-10-14 — trimix is now the division's only Android app; not re-checked on the emulator), so
+  another app can hold the foreground. Re-launch by
   resolved activity (`cmd package resolve-activity --brief <pkg>`) and check `dumpsys window | grep mCurrentFocus` before
   trusting a screenshot or a scripted tap — an unchecked tap sequence lands in the other app and "disproves" a fix.
 - **This program's status on the shared iOS colour-emoji glyph trap

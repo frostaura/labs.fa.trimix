@@ -1,6 +1,6 @@
 ---
 name: fa-trimix-state
-description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Ahead-only by unpushed context commits; remote probed. Core suite re-run green 2026-11-20."
+description: "Serverless on-device API-sync-only dive log, dormant: no code commit since 2026-08-21. Garmin + ScubaPro verified live, Suunto summary-only. Level with origin after a 2026-11-20 push. Core suite re-run green 2026-11-20."
 type: state
 last_verified: 2026-11-20
 ---
@@ -15,14 +15,10 @@ context only. **No milestone has moved**; M3 waits on the telemetry question in 
 
 ## Durability — probed by hand 2026-11-20 (network probes run)
 
-- **Ahead-only, context commits only.** `git ls-remote origin` (run 2026-11-20) puts remote `main` on the
-  2026-09-16 context commit, which is still the local tracking ref after a `git fetch`; `git rev-list
-  --left-right --count @{u}...HEAD` shows nothing behind. The unpushed commits on top are the 2026-10-14
-  `chore(context)` refresh pair and the 2026-10-24 `docs(context)` commit that banked the 2026-10-22
-  re-validation; the range touches only `CLAUDE.md`, `MEMORY.md` and `memory/`, and its one deletion is
-  the retired `memory/worklog.md` topic. Clean including untracked when probed, no lock debris; this
-  2026-11-20 fix pass then leaves its own context edits **uncommitted for the owner** (fix passes may not
-  commit). A fast-forward push would lose nothing; never pushed by an agent; re-probe before acting.
+- **Level with `origin/main`.** Re-probed late 2026-11-20 after `git fetch`: `git rev-list --left-right
+  --count @{u}...HEAD` shows nothing on either side — the context commits up to the 2026-11-20 sweep
+  (`9a7bdd8`) were pushed that day, not by an agent. Clean including untracked, no lock debris.
+  Re-probe before acting.
 - **The remote holds one branch, `main`, plus the ref of a closed PR.** PR #1 (README only) was opened
   and closed unmerged on 2026-10-27 and its head branch is gone from the remote; `main` never received it
   ([`watch-docs.md`](watch-docs.md)). `gh run list` shows no workflow runs — there is no CI.

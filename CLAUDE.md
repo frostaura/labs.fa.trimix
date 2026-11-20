@@ -34,7 +34,7 @@ M3 and M4 are field and market work, not build tasks. Neither can be closed by w
 - No candidate name clears store + `.com` + USPTO (Class 9/42) checks at acceptable cost.
 
 ## Graduation pathway
-`Technologies/` as a one-off cash-engine app once M3 and M4 both pass — the standard Labs → Technologies pattern. `Ventures/` only on standalone-brand traction. **`Underwater/` is the partner subsidiary** for community seeding and later marine-life taxonomy (OceanCare). **Capability-share, do not merge scope.**
+`Technologies/` as a one-off cash-engine app once M3 and M4 both pass — the standard Labs → Technologies pattern. `Ventures/` only on standalone-brand traction. **`Underwater/` is the partner subsidiary** for community seeding and later marine-life taxonomy. **Capability-share, do not merge scope.**
 
 ## Conventions & invariants
 - **The funnel event taxonomy is frozen.** Names are additive-only and never renamed. The serverless pivot and later removals left several events **retained-but-no-longer-emitted** (`ble_*`, `dive_logged_manual`, `dives_fetched`, all `site_*` — `site_viewed` / `site_contribution_*` / the `site_matched_bool` and `site_id` props — and the former server-only `account_created`) — the constants stay; no name was deleted. Events now fire to a local sink; there is no ingest server. `entitlement_granted` is emitted on-device by `EntitlementService`.
