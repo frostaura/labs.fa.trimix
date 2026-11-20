@@ -39,6 +39,8 @@ Re-checked 2026-11-20 against source where a claim is about the code; the device
   ever been checked for it.** Re-verified 2026-11-20 — the only `LabelHandler` mapper in this tree is `MauiProgram.cs`'s
   Android-only tabular-numerals mapping, and no XAML carries a `&#xFE0E;` suffix. So every arrow, ⚙ and ⚠ is an untested
   colour-emoji risk on device, and an Android screenshot is no evidence at all for a glyph screen. Look at an iOS build.
+- **Never "finish the rename" on `Trimix.Harness`'s `UserSecretsId` (`fa.trimix.harness`).** It keys the user-secrets
+  store, so renaming it orphans any vendor credentials kept under it; it was left unrenamed on purpose (`63ef006`).
 - **Garmin rate-limits sign-in** — four logins within a few minutes returned HTTP 429. Use the harness's
   `TRIMIX_TOKEN_CACHE` so dev iterations reuse the token instead of re-authenticating.
 - **A simulator can be seeded with a real dive store**: copy the Android `files/trimix.db3` (via `adb exec-out run-as`) into

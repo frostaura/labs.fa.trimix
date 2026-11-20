@@ -1,13 +1,13 @@
 ---
 name: labs-fa-trimix-questions
-description: "Can iOS page dive-detail with chips gone; M3 needs a beacon a serverless app lacks and seeds via a killed OceanCare; is the bet worth field-testing; name clearance unrun; CAC unmeasured; warnings-as-errors exemption."
+description: "Can iOS page dive-detail; M3 needs a beacon a serverless app lacks and seeds via a killed OceanCare; is the bet worth field-testing; name clearance unrun; RE connectors now public; CAC unmeasured; warnings exemption."
 type: question
 last_verified: 2026-11-20
 ---
 
 # Open questions
 
-The first six are **founder-owned** and none can be closed by writing more code; the last has no named owner.
+The first seven are **founder-owned** and none can be closed by writing more code; the last has no named owner.
 
 - **Can iOS actually page the dive-detail sections now that the chip strip is removed?** Needs the
   founder on the physical iPhone; an agent cannot drive one. In-pane `SwipeGestureRecognizer`s are
@@ -26,8 +26,16 @@ The first six are **founder-owned** and none can be closed by writing more code;
   `Underwater/` now has no programs, so r/scuba is the only named channel and the graduation pathway's
   partner subsidiary has nothing to share. Restate the channel, or keep it and say who seeds. The
   `CLAUDE.md` sentence is left as written until this is answered.
-- **Name clearance has never been run** and transitively gates the store listing, the public domain and
-  going public with the repo. Store + `.com` + USPTO (Class 9/42); no candidate has been cleared.
+- **Name clearance has never been run** and transitively gates the store listing and the public domain.
+  Store + `.com` + USPTO (Class 9/42); no candidate has been cleared. It no longer gates the repo, which
+  the founder made public on 2026-11-20 under the uncleared name.
+- **Should the reverse-engineered connectors be public?** Going public on 2026-11-20 published the six
+  vendor read clients, the three `docs/reverse-engineering/` contracts, and a vendor's app-embedded
+  Firebase client key with its bundle-id headers (`FirebaseCloudClient.cs`,
+  `ScubaProCloudSourceConnector.cs`; [`gotchas-firebase.md`](gotchas-firebase.md) says such a key is
+  public by design, not a secret). Publishing raises the knowingly-accepted gate-3 ToS/CFAA risk from
+  "a private client" to "a published method" ([`decisions.md`](decisions.md)). Recorded at root as a
+  founder question; it is not re-argued here.
 - **`[CAC_PER_PAYER = TBD]` is still a placeholder** — no CPI test has run, so the payer economics in
   the M4 gate rest on an unmeasured number.
 - **Is `Trimix.App`'s exemption from `TreatWarningsAsErrors` a recorded exception or unwaived debt?**

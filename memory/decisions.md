@@ -43,6 +43,10 @@ Haptics, motion and perceived performance: [`decisions-haptics.md`](decisions-ha
 - **Free tier = last 5 dives (2026-07-27).** `FreeTier` constants changed from 25 visible / 3 per-import to
   **5**, matching the prototype; the 6th dive fires `paywall_shown(cloud_sync_cap)`, store-aware across
   sessions. The SKU ladder is unchanged ($14.99 / $29.99, no auto-renew).
+- **The repo went public (founder, 2026-11-20)**, superseding the earlier rule that going public waited
+  on name clearance. *Why:* not recorded beyond a credential scan of the history — the division-level
+  record is [`../../../memory/decisions.md`](../../../memory/decisions.md); what it published is in
+  [`questions.md`](questions.md).
 - **Standing from 2026-07-03/07-05:** the aggregator pivot and its legal override (no clean published dive API
   exists, so vendor-cloud pull and cert-agency push are reverse-engineered — a knowingly-accepted gate-3
   ToS/CFAA risk); the name "Trimix", founder-picked and flagged high-collision; the root-reviewed MAUI client

@@ -45,7 +45,8 @@ recorded here so it survives rather than being applied. Code is authoritative ov
 
 **A README fix was attempted once and abandoned.** PR #1 on the remote ("Update README to match current
 serverless architecture", README only) was opened and closed unmerged within minutes on 2026-10-27; its
-branch is gone and `main`'s README is unchanged since 2026-07-24 (`gh pr view`, `git log`, 2026-11-20).
+branch is gone, and `main`'s README has had no content change since 2026-07-24 — the 2026-11-20 rename
+commits only swapped its program id, repo link and solution name (`git log`, `git show`, 2026-11-20).
 Nothing records why it was closed — ask the owner before re-proposing the same rewrite.
 
 **Open, owner unassigned:** which of these is still meant to bind. Until that is answered nothing here
